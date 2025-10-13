@@ -15,5 +15,44 @@
  */
 
 export function findTopStudent(students): string {
-  return "TODO"
+  let currMax = 0;
+  let indexMax = 0;
+  let added = 0;
+  let average = 0;
+
+
+  for (let i = 0; i < students.length; i++) {
+    average = 0;
+    added = 0;
+    if (students[i].scores.length != 0) {
+
+      for (let s = 0; s < students[i].scores.length; s++) {
+        added += students[i].scores[s];
+      }
+      average = (added / students[i].scores.length);
+    }
+
+    if (students[i].scores.length == 1) {
+      average = students[i].scores[0];
+    }
+     if (students[i].scores.length == 0) {
+      average = 0;
+    }
+    console.log(students[i].name + "average: " + average);
+
+
+    if (average > currMax) {
+      currMax = average;
+      indexMax = i;
+    }
+  }
+
+  if(students.length == 0)
+  {
+    throw "No students provided"
+  }
+  else
+  {
+    return students[indexMax].name;
+  }
 }
