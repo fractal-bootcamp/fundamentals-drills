@@ -88,6 +88,24 @@ Focus on the path of a request and what data is read or written.
 ## 4. Data Models
 List your tables and columns, with primary keys and any unique constraints or indexes you need for V1. Include 1–2 example rows where helpful.
 
+tabUsers
+- userId :: primary key, uuid
+- name :: string, not null
+
+tabPosts
+- postId :: primary key, uuid
+- content :: string, not null
+- user :: foreign key, tabUsers.userId
+
+tabReactions
+- postId :: foreign key, tabPosts.postId
+- emoji :: string, not null
+- user :: foreign key, tabUser.userId
+
+tabChannels
+- channelId :: primary key, uuid
+- name :: string, not null
+
 ## 5. API Sketch
 List the minimal endpoints and their request/response shapes at a high level. Keep this terse.
 
