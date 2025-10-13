@@ -75,7 +75,7 @@ export function processReservations(
         newRow: [
           row.slice(0, request.row),
           "R".repeat(request.seatsNeeded).split(""),
-          row.slice(request.row + request.seatsNeeded, -1),
+          row.slice(request.row + request.seatsNeeded),
         ].flat(),
         startSeat: foundSeatSpace,
       };
@@ -83,6 +83,16 @@ export function processReservations(
       return { newRow: row, startSeat: foundSeatSpace };
     }
   }
+
+  // requests.copyWithin(target, start);
+  // requests.splice(start);
+  // requests.find()
+  // requests.every()
+  // requests.slice()
+  // theater.fill()
+  //
+  // Array.from("foo") > ['f' 'o' 'o']
+  // Array.from([1,2,3], (x) => x * x) > [2,4,9]
 
   let acceptedReservations: SuccessfulBooking[] = [];
   let finalTheater = requests.reduce(
@@ -109,6 +119,11 @@ export function processReservations(
     },
     initialTheater,
   );
+
+  console.log("MY ATTEMPT", {
+    finalTheater: finalTheater,
+    successfulReservations: acceptedReservations,
+  });
 
   return {
     finalTheater: finalTheater,
