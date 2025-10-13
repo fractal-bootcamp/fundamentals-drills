@@ -35,7 +35,7 @@ export function summarizeCart(
   opts?: CartOptions
 ): CartSummary {
   const currency = opts?.currency ?? "USD";
-  const taxRate = (opts?.taxRate ?? 0.08) * 10;
+  const taxRate = (opts?.taxRate ?? 0.08);
   const threshold = opts?.freeShippingThreshold ?? 50;
   const shipFlat = opts?.shippingFlat ?? 7.99;
 
@@ -46,7 +46,7 @@ export function summarizeCart(
     const it = items[i];
     const lineBase = it.price * it.qty;
     const d = it.discount ?? 0;
-    const lineAfterDiscount = lineBase * (1 - d / 100);
+    const lineAfterDiscount = lineBase * (1 - d);
     subtotal += lineBase;
     discountTotal += lineBase - lineAfterDiscount;
   }
@@ -54,7 +54,7 @@ export function summarizeCart(
   const taxable = subtotal - discountTotal;
   const tax = taxable * taxRate;
 
-  const shipping = subtotal <= threshold ? 0 : shipFlat;
+  const shipping = subtotal >= threshold ? 0 : shipFlat;
 
   const categories = Array.from(
     new Set(
@@ -71,7 +71,9 @@ export function summarizeCart(
     const base = it.price * it.qty;
     const d = it.discount ?? 0;
     const after = base * (1 - d / 100);
-    const s = `${it.name} x${it.qty} @ ${it.price.toFixed(2)} = ${String(
+    console.log(Math.round(4.589 * 100) / 100)
+    const rounded = Math.round(it.price * 100) / 100
+    const s = `${it.name} x${it.qty} @ ${rounded.toFixed(2)} = ${String(
       parseInt(String(after * 100)) / 100
     )}`;
     lines.push(s);
