@@ -15,5 +15,24 @@
  */
 
 export function findTopStudent(students): string {
-  return "TODO"
+
+  let topStudent = ''
+  let topScore = 0
+
+  for (let i = 0; i < students.lengts; i++) {
+
+    let sum = 0
+
+    for (let j = 0; j < students[i].scores.length; j++) {
+      sum += j
+    }
+    
+    const average = sum / students[i].scores.length
+    if (average > topScore) {
+      topScore = average
+      topStudent = students[i].name
+    }
+  }
+  
+  return topStudent
 }
