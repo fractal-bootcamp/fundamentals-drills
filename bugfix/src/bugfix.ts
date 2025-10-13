@@ -46,7 +46,7 @@ export function summarizeCart(
     const it = items[i];
     const lineBase = it.price * it.qty;
     const d = it.discount ?? 0;
-    const lineAfterDiscount = lineBase * (1 - d / 100);
+    const lineAfterDiscount = lineBase * (1 - d);
     subtotal += lineBase;
     discountTotal += lineBase - lineAfterDiscount;
   }
