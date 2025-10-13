@@ -39,30 +39,11 @@ type Seat = "A" | "B" | "R";
 type Row = Seat[];
 type Theater = Row[];
 
-// function canReserve(req: Request, idx: number, requests: Request[]): boolean {
-//   return row.slice(idx, idx + req.seatsNeeded).every((e) => e === "A");
-// }
-// function makeReservation(
-//   req: Request,
-//   idx: number,
-//   requests: Request[],
-// ): Result {
-//   requests.findIndex(canReserve);
-// }
-
-function findAvailableSeat(row: Row, request: Request): number {
+function findAvailableSeat(row: Seat[], request: Request): number {
   return row.findIndex((_seat, idx) =>
     row.slice(idx, idx + request.seatsNeeded).every((seat) => seat == "A"),
   );
 }
-
-// function makeReservation(
-//   req: Request,
-//   idx: number,
-//   requests: Request[],
-// ): Result {
-//   requests.findIndex(canReserve);
-// }
 
 export function processReservations(
   initialTheater: Theater,
@@ -75,23 +56,34 @@ export function processReservations(
     };
   }
 
-  const currentTheater: Theater = structuredClone(initialTheater);
-  const successfulReservations: Reservation[] = [];
+  const theater: Theater = structuredClone(initialTheater);
+  const ok: Reservation[] = [];
 
-  for (let r = 0; r < requests.length; r++) {
-    const req = requests[r];
-    const availableSeat = findAvailableSeat(currentTheater[req.row], req);
+  for (const { customerId, row, seatsNeeded } of requests) {
+    if (seatsNeeded < 0) continue;
+    if (row < 0) continue;
 
-    if (availableSeat != -1) {
-      console.log("Should be bookable");
-      currentTheater.
-      
-    } else {
-      continue;
-    }
+    const r = theater[row];
+    if (!r) continue;
+
+    const start = r.findIndex((_, i) =>
+      r.slice(i, i + seatsNeeded).every((s) => s === "A"),
+    );
+
+    if (r.length - start < seatsNeeded) continue;
+    if (start === -1) continue;
+
+    r.fill("R", start, start + seatsNeeded);
+    ok.push({
+      customerId,
+      row,
+      startSeat: start,
+      endSeat: start + seatsNeeded - 1,
+    });
   }
+
   return {
-    finalTheater: initialTheater,
-    successfulReservations: [],
+    finalTheater: theater,
+    successfulReservations: ok,
   };
 }
