@@ -117,3 +117,21 @@ List the minimal endpoints and their request/response shapes at a high level. Ke
 - `GET /timeline`
 
 State what each returns on success and what errors matter in V1.
+
+GET /channels
+- Retrieve list of channels
+- Channel list may be empty
+
+GET /channel/:channelId
+- Retrieve list of posts in a channel
+- Channel may not exist
+
+POST /channel/:channelId
+- Create or delete a channel
+- Channel may not exist
+
+GET /channel/:channelId/posts
+
+POST /:postID
+- Create, edit, delete a user post
+- Post may not exist
