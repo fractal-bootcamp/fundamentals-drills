@@ -9,6 +9,12 @@ Design a minimal Discord with the following features:
  ## 1. Overview
 Describe the product slice you are building. What can a user do in V1, and what is explicitly out of scope? In 4–6 sentences, explain the overall shape of the system (client → API → database) and how data moves through it at a high level.
 
+Client runs in browser and has a list of channels with one create button and delete buttons for each one of them. Create button sends POST /create to the server that returns an updated list of channels based on which client rerenders the list. Server adds a new line to the channels table of the DB. Delete buttons do the same with POST /delete/channel_name.
+
+When a channel is being opened client sends GET /messages to the server and receives an object that contains messages with all the metadata like author, time, etc. When user sends a message client uses POST /new_message and receives the updated list of messages.
+
+This ^ is infinished, I went into too much detail I guess
+
 ## 2. Architecture Diagram
 Attach a simple boxes-and-arrows diagram showing client, API server, and database. Label arrows with the main requests (e.g., "POST /follow", "GET /timeline"). Keep it legible and minimal.
 
