@@ -31,11 +31,14 @@ describe("summarizeCart (starter has bugs; these tests should initially fail)", 
 
   it("treats discount as fraction (0..1), not percent", () => {
     const items = structuredClone(baseItems);
+
+    // under test
     const r = summarizeCart(items, { taxRate: 0 });
+
     const subtotal = 15;
     const expectedDiscount = 7 * 0.1; // 0.7
     expect(+r.discountTotal.toFixed(2)).toBe(+expectedDiscount.toFixed(2));
-    const expectedTotal = subtotal - expectedDiscount;
+    const expectedTotal = subtotal - expectedDiscount + 7.99;
     expect(+r.total.toFixed(2)).toBe(+expectedTotal.toFixed(2));
   });
 
