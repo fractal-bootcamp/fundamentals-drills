@@ -33,8 +33,14 @@ type Request = { customerId: string; row: number; seatsNeeded: number };
 export function processReservations(
   initialTheater: Seat[][],
   requests: Request[],
-): Seat[][] {
+): {
+  successfulReservations: Request[];
+  finalTheater: Seat[][];
+} {
   //TODO
 
-  return initialTheater;
+  return {
+    finalTheater: initialTheater,
+    successfulReservations: requests,
+  };
 }
