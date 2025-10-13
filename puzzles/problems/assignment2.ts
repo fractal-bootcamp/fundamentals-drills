@@ -27,6 +27,14 @@
  * Result: Seats 0-1 in row 0 reserved, seats 3-4 still available
  */
 
-export function processReservations(initialTheater, requests): any {
+type Seat = "R" | "A" | "B";
+type Request = { customerId: string; row: number; seatsNeeded: number };
+
+export function processReservations(
+  initialTheater: Seat[][],
+  requests: Request[],
+): Seat[][] {
   //TODO
+
+  return initialTheater;
 }
