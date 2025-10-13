@@ -18,20 +18,32 @@ export function findTopStudent(students): string {
 
 
   //calculate average of each student
-  let highest = 0
+  let highest = -1
   let out = ''
 
   for (const student of students) {
     let name = student.name
     let gradeArr = student.scores
 
-    let studentTotal = gradeArr.reduce((total, grade) => total + grade)
-    let studentAvg = studentTotal / gradeArr.length
+    console.log(name, gradeArr)
+
+    let grade = 0
+
+    const initialValue = 0
+    let studentTotal = gradeArr.reduce((total, curGrade) => total + grade, initialValue,)
+    console.log(studentTotal)
+    let studentAvg = studentTotal / (gradeArr.length === 0 ? 1 : gradeArr.length)
+    console.log(studentAvg)
 
     if (studentAvg > highest) {
       out = name
+      highest = studentAvg
     }
   }
 
   return out
 }
+
+const students = [{ name: "Perfect", scores: [100, 100, 100] }, { name: "AlmostPerfect", scores: [99, 100, 99] }]
+
+console.log(findTopStudent(students))
