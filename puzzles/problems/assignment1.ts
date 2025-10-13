@@ -10,10 +10,17 @@
  * Output: String representing the name of the top student
  *
  * Examples:
- * - [{ name: "Alice", scores: [85, 90, 78] }, { name: "Bob", scores: [92, 88] }] → "Bob"
+ * - const students = [{ name: "Alice", scores: [85, 90, 78] }, { name: "Bob", scores: [92, 88] }] → "Bob"
  * - [{ name: "Charlie", scores: [80] }, { name: "Dana", scores: [80, 80] }] → "Charlie"
  */
 
 export function findTopStudent(students): string {
-  return "TODO"
+  for (let i = 0; i < students.length; i++) {
+    let scoresArray = students[i].scores
+    for (let i = 0; i < scoresArray.length; i++) {
+      let totalScore += scoresArray[i]
+      let averageScore = totalScore / scoresArray.length
+    }
+  }
+
 }
