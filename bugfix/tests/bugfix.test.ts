@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import summarizeCart, { CartItem } from "../src/bugfix";
+import summarizeCart, { type CartItem } from "../src/bugfix";
 
 const baseItems: CartItem[] = [
   { id: "1", name: "Apple", price: 1.2, qty: 5, category: "produce" },
