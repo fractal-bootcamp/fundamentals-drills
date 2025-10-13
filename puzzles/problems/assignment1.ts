@@ -34,6 +34,6 @@ export function findTopStudent(students: { name: string, scores: number[] }[]): 
       topStudent = name
     }
   }
-  if (topStudent === "") return "everybody sucks"
+  if (topStudent === "") return "everybody sucks - and I refuse to initialize on the first student's name; they sucked too"
   return topStudent
 }
