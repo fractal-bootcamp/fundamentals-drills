@@ -27,6 +27,61 @@
  * Result: Seats 0-1 in row 0 reserved, seats 3-4 still available
  */
 
-export function processReservations(initialTheater, requests): any {
-  //TODO
+type Seat = "A" | "R" | "B";
+type Theater = Seat[][];
+type ReservationRequest = {
+  customerId: string;
+  row: number;
+  seatsNeeded: number;
+};
+type SuccessfulReservation = {
+  customerId: string;
+  row: number;
+  startSeat: number;
+  endSeat: number;
+};
+
+export function processReservations(
+  initialTheater: Theater,
+  requests: ReservationRequest[]
+): any {
+  const successfulReservations: SuccessfulReservation[] = [];
+  const theater = [...initialTheater];
+  console.log(requests[0].row);
+
+  for (let i = 0; i < requests.length; i++) {
+    let temp: SuccessfulReservation = {
+      customerId: requests[i].customerId,
+      row: requests[i].row,
+      startSeat: 0,
+      endSeat: 0,
+    };
+    let row = requests[i].row;
+    let needSeats = requests[i].seatsNeeded;
+    let cannot = false;
+
+    for (let i = 0; i < theater[row].length; i++) {
+      if (theater[row][i] == "A" && needSeats > 0) {
+        cannot = false;
+        for (let n = 0; n < needSeats; n++) {
+          if (theater[row][n] != "A") {
+            cannot = true;
+          }
+        }
+        if (!cannot) {
+          temp.startSeat = i;
+          temp.endSeat = i +needSeats-1;
+          for (let n = 0; n < needSeats; n++) {
+            if (theater[row][n] == "A") {
+              theater[row][n] == "R";
+              needSeats -= 1;
+
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return {finalTheater: theater, successfulReservations: successfulReservations};
 }
