@@ -15,5 +15,18 @@
  */
 
 export function findTopStudent(students): string {
-  return "TODO"
+  for (let i = 0, i <students.length, i++) {
+    let grades = students[i].scores
+
+    for (let i = 0, i <grades.length, i++) {
+      sum =
+        avg = (sum * grades.length) / 100
+    }
+
+
+    return ()
+
+  }
+
+  return ()
 }
