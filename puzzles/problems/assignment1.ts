@@ -14,6 +14,29 @@
  * - [{ name: "Charlie", scores: [80] }, { name: "Dana", scores: [80, 80] }] → "Charlie"
  */
 
-export function findTopStudent(students): string {
-  return "TODO"
+type Students = {
+  name: string,
+  scores: number[]
+}[]
+
+export function findTopStudent(students: Students): string {
+
+  const findAverage = (array: number[]) => {
+    const totalScore = array.reduce((acc, curr) => curr + acc, 0)
+    const testsTaken = array.length
+
+    return (totalScore / testsTaken)
+  };
+
+
+  const studentAverages = students.map((student) => {
+    return {
+      name: student.name,
+      average: (student.scores) ? findAverage(student.scores) : 0
+    }
+  })
+
+  studentAverages.sort((a, b) => b.average - a.average);
+
+  return studentAverages[0].name;
 }
