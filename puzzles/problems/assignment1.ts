@@ -14,6 +14,31 @@
  * - [{ name: "Charlie", scores: [80] }, { name: "Dana", scores: [80, 80] }] → "Charlie"
  */
 
+
+// export type avgScores = {
+//   name: string
+//   avgScore: number
+// }
+
+
 export function findTopStudent(students): string {
-  return "TODO"
+  // let avgScores: avgScores[] = []
+  let avgScores = []
+  for (let i = 0; i < students.length; i++) {
+    let individualScores = students[i].scores
+    const initialValue = 0  
+    const sumScores = individualScores.reduce((accumulator, currentValue) => 
+      accumulator + currentValue, initialValue
+    )
+    console.log(sumScores)
+    const avgScore = sumScores / individualScores.length
+    const studentAggregated = {
+        name: students[i].name, 
+        avgScore: avgScore
+    }
+    console.log(avgScore)
+    avgScores.push(studentAggregated)
+    
+  }
+  return avgScores
 }
