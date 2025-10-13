@@ -53,9 +53,7 @@ export function summarizeCart(
 
   const taxable = subtotal - discountTotal;
   const tax = taxable * taxRate;
-
   const shipping = subtotal <= threshold ? 0 : shipFlat;
-
   const categories = Array.from(
     new Set(
       items.map((i) => (i.category && i.category.trim()) || "uncategorized")
@@ -63,22 +61,26 @@ export function summarizeCart(
   );
 
   const working = items;
-  items.sort((a, b) => a.name.localeCompare(b.name));
+  working.sort((a, b) => a.name.localeCompare(b.name));
 
   const lines: string[] = [];
-  for (let i = 0; i < items.length; i++) {
-    const it = items[i];
+  for (let i = 0; i < working.length; i++) {
+    const it = working[i];
     const base = it.price * it.qty;
     const d = it.discount ?? 0;
     const after = base * (1 - d / 100);
     const s = `${it.name} x${it.qty} @ ${it.price.toFixed(2)} = ${String(
-      parseInt(String(after * 100)) / 100
+      (parseInt(String(after * 100)) / 100).toFixed(2)
     )}`;
     lines.push(s);
+    console.log(s);
   }
 
+
+  console.log(subtotal);
   const total = subtotal - discountTotal + tax + shipping;
 
+  
   return {
     subtotal,
     discountTotal,
