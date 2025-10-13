@@ -70,10 +70,8 @@ export function summarizeCart(
     const it = working[i];
     const base = it.price * it.qty;
     const d = it.discount ?? 0;
-    const after = base * (1 - d / 100);
-    const s = `${it.name} x${it.qty} @ ${it.price.toFixed(2)} = ${String(
-      parseInt(String(after * 100)) / 100
-    )}`;
+    const after = base * (1 - d);
+    const s = `${it.name} x${it.qty} @ ${it.price.toFixed(2)} = ${after.toFixed(2)}`;
     lines.push(s);
   }
 
