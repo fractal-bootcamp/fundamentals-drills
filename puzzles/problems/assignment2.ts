@@ -27,6 +27,38 @@
  * Result: Seats 0-1 in row 0 reserved, seats 3-4 still available
  */
 
-export function processReservations(initialTheater, requests): any {
-  //TODO
+interface Request {
+  customerId: string;
+  row: number;
+  seatsNeeded: number;
+}
+
+export function processReservations(
+  initialTheater: [],
+  requests: Request
+): any {
+  // if row doesn't exist
+  if (requests.row > initialTheater.length) {
+    return "Request Denied";
+  }
+
+  // for each row in the theater
+  for (let row = 0; row < initialTheater.length; row++) {
+    // if the row matces
+    if (requests.row === row) {
+      for (let seat = 0; seat < initialTheater[row][seat]; seat++) {
+        // if the seat is blocked or reserved
+        if (initialTheater[row][seat] === "B" || "R") {
+          // keep going
+          continue;
+        }
+        // if the seat isn't blocked, we know it's next so fill it
+        else if (initialTheater[row][seat] === "A") {
+          // book it
+          initialTheater[row][seat] === "R";
+          return initialTheater;
+        }
+      }
+    }
+  }
 }
