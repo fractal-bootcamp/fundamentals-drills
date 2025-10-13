@@ -40,6 +40,15 @@ From there, they can
 ## 2. Architecture Diagram
 Attach a simple boxes-and-arrows diagram showing client, API server, and database. Label arrows with the main requests (e.g., "POST /follow", "GET /timeline"). Keep it legible and minimal.
 
+
+```mermaid
+graph TD;
+    A-->B;
+    A-->C;
+    B-->D;
+    C-->D;
+```
+
 ## 3. Core User Flows
 For each flow, describe what happens end-to-end in a few short paragraphs. For the Twitter question, this might be:
 - Follow someone
