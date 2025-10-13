@@ -1,9 +1,10 @@
 # Objective
 
-Design a minimal Twitter with three capabilities:
- - Follow another user
- - Post a short message
- - Read a home timeline showing the latest posts from people you follow
+Design a minimal Discord with the following features:
+ - Users
+ - Channels that can be created/deleted
+ - Users can post into channels (text only messages)
+ - Reactions (add an emoji reaction to someone's message)
 
  ## 1. Overview
 Describe the product slice you are building. What can a user do in V1, and what is explicitly out of scope? In 4–6 sentences, explain the overall shape of the system (client → API → database) and how data moves through it at a high level.
