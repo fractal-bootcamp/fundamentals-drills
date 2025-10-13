@@ -28,5 +28,35 @@
  */
 
 export function processReservations(initialTheater, requests): any {
-  //TODO
+  const successfulReservations = []
+  const finalTheater = structuredClone(initialTheater)
+
+  for (const request of requests) {
+    const { row, customerId, seatsNeeded } = request
+    // Check if row is valid
+    if (row >= 0 && row < finalTheater.length) {
+      // Turn the request row into a string
+      const stringOfRow = finalTheater[row].join('')
+      let seatsNeededString = ''
+      for (let i = 0; i < seatsNeeded; i++) {
+        seatsNeededString += 'A'
+      }
+      // Find where the first instance of the string of needed seats (eg AAA) occurs
+      const startingIndexOfSeatsNeeded = stringOfRow.indexOf(seatsNeededString)
+      if (startingIndexOfSeatsNeeded !== -1) {
+        let endSeatIndex = startingIndexOfSeatsNeeded
+        for (let i = 0; i < seatsNeeded; i++) {
+          finalTheater[row][startingIndexOfSeatsNeeded + i] = 'R'
+          endSeatIndex = startingIndexOfSeatsNeeded + i
+        }
+        successfulReservations.push({
+          customerId: customerId, 
+          row: row,
+          startSeat: startingIndexOfSeatsNeeded, 
+          endSeat: endSeatIndex
+        })
+      }
+    }
+  }
+  return {successfulReservations: successfulReservations, finalTheater: finalTheater}
 }
