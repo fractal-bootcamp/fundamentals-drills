@@ -43,4 +43,24 @@ export function findTopStudent(students: student[]): string {
 
 
   return students[index].name;
+
+
+
+  // return(students.sort((a, b) => {
+  //   let student_a_average = a.scores.reduce(
+  //         (acc, curr) => acc + curr / a.scores.length,
+  //         0,
+  //       );
+
+  //       let student_b_average = a.scores.reduce(
+  //         (acc, curr) => acc + curr / a.scores.length,
+  //         0,
+  //       );
+  //   if (student_a_average < student_b_average) {
+  //     return -1
+  //   } else if (student_a_average > student_b_average) {
+  //     return 1
+  //   }
+  //   return 0
+  // })[0].name)
 }
