@@ -62,7 +62,7 @@ export function summarizeCart(
     )
   );
 
-  const working = items;
+  const working = [...items];
   working.sort((a, b) => a.name.localeCompare(b.name));
 
   const lines: string[] = [];
