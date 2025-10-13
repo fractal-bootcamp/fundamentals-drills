@@ -22,8 +22,12 @@
 
 
 export function findTopStudent(students): string {
-  // let avgScores: avgScores[] = []
-  let avgScores = []
+  let avgScores: avgScores[] = []
+  // let avgScores[]: []
+  let studentAggregated: {
+    name: String,
+    avgScore: Number
+  }
   for (let i = 0; i < students.length; i++) {
     let individualScores = students[i].scores
     const initialValue = 0  
@@ -38,7 +42,9 @@ export function findTopStudent(students): string {
     }
     console.log(avgScore)
     avgScores.push(studentAggregated)
+
+    avgScores.sort((a, b) => b.avgScore - a.avgScore)
     
   }
-  return avgScores
+  return avgScores[0].name
 }
