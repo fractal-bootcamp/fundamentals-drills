@@ -15,5 +15,21 @@
  */
 
 export function findTopStudent(students): string {
-  return "TODO"
+  let totals = {}
+  
+  students.forEach(e => 
+    e.map((name,scores)=>{totals = {name:name, total:sumscores(scores) }}))
+  
+  const total.avg = 
+
+  return 
+}
+
+function sumscores( arr):number {
+  let total = 0
+  for (let e of arr) {
+    total += e
+  }
+
+  return total
 }
