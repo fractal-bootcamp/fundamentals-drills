@@ -27,6 +27,49 @@
  * Result: Seats 0-1 in row 0 reserved, seats 3-4 still available
  */
 
-export function processReservations(initialTheater, requests): any {
-  //TODO
+type Row = string[]
+type Theater = Row[]
+
+type Request = {
+  customerId: string
+  row: number
+  seatsNeeded: number
 }
+
+
+export function processReservations(initialTheater: Theater, requests: Request): any {
+  const { customerId, row, seatsNeeded } = requests
+
+  let availableConsecutiveSeats = 0
+  const checkSeats = initialTheater[row].map((seat) => {
+    if (seat === "A") {
+      availableConsecutiveSeats = availableConsecutiveSeats + 1
+    }
+  })
+
+  if (seatsNeeded > availableConsecutiveSeats) {
+    return { finalTheater: initialTheater, successfulReservations: {} }
+  } else {
+    for (let i = 0; i < seatsNeeded; i++) {
+      for (let j = 0; j < initialTheater[row].length; j++) {
+        // I couldn't figure out how to properly loop through the array while keeping track of stuff
+      }
+
+    }
+    
+  }
+}
+
+
+
+
+// const newTheater = initialTheater[row].map((seat) => {
+//   if (seat === "A") {
+//     seat = "R"
+//   }
+
+//   if (i === seatsNeeded) {
+    
+//   } else
+//   return 
+// })
