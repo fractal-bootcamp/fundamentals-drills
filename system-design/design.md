@@ -71,6 +71,9 @@ graph LR;
     Client--"POST /channels/:channelName/:postID"-->Server;
     
     Server--"retrieve posts in channelName"-->DB
+    
+    DB --> Server
+    Server --"Inform users about new updates"-->Client
 ```
 
 
