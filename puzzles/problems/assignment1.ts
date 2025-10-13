@@ -14,6 +14,25 @@
  * - [{ name: "Charlie", scores: [80] }, { name: "Dana", scores: [80, 80] }] → "Charlie"
  */
 
-export function findTopStudent(students): string {
-  return "TODO"
+type Student = {
+  name: string,
+  scores: Array<number>
+}
+
+export function findTopStudent(students: Array<Student>): string {
+  if (students.length === 0) throw new Error("No students provided")
+    
+  let [bestName, bestScore]: [string, number] = [students[0].name, -Infinity]
+
+  for (const student of students) {
+    const average: number = student.scores.reduce(
+      (total, current) => total + current, 
+    0) / student.scores.length
+
+    if (average > bestScore) {
+      [bestName, bestScore] = [student.name, average]
+    }
+  }
+
+  return bestName
 }
