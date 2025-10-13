@@ -27,6 +27,27 @@
  * Result: Seats 0-1 in row 0 reserved, seats 3-4 still available
  */
 
-export function processReservations(initialTheater, requests): any {
-  //TODO
+export type Theater = {
+  rows: string[]
+  available: "A",
+  reserved: "R",
+  blocked: "B",
 }
+
+export type Request = {
+  customerId: string,
+  row: number
+  seatsNeeded: number
+}
+
+export function processReservations(initialTheater: Theater[], requests: Request): any {
+  let theater = []
+  let row = []
+  for (let i = 0; i < row.length; i++) {
+    if (row[i - requests.seatsNeeded].includes("A") === true) {
+      row.unshift("A")
+    }
+    }
+    theater.push(row)
+    return theater
+  }
