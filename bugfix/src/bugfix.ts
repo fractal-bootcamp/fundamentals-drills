@@ -29,7 +29,7 @@ export function summarizeCart(
   opts?: CartOptions
 ): CartSummary {
   const currency = opts?.currency ?? "USD";
-  const taxRate = opts?.taxRate ?? (0.08 * 10);
+  const taxRate = opts?.taxRate ?? (0.08);
   const threshold = opts?.freeShippingThreshold ?? 50;
   const shipFlat = opts?.shippingFlat ?? 7.99;
 
