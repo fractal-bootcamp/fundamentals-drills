@@ -24,18 +24,12 @@ export type CartSummary = {
   lines: string[];
 };
 
-/**
- * Computes a summary for a shopping cart including subtotal, discounts, tax, shipping, and total.
- * @param items Array of cart items with price, quantity, and optional category/discount (0..1 fraction).
- * @param opts Optional configuration: taxRate (0..1), freeShippingThreshold, shippingFlat, currency.
- * @returns A summary object with numeric totals, a list of distinct categories, and formatted lines.
- */
 export function summarizeCart(
   items: CartItem[],
   opts?: CartOptions
 ): CartSummary {
   const currency = opts?.currency ?? "USD";
-  const taxRate = (opts?.taxRate ?? 0.08) * 10;
+  const taxRate = opts?.taxRate ?? (0.08 * 10);
   const threshold = opts?.freeShippingThreshold ?? 50;
   const shipFlat = opts?.shippingFlat ?? 7.99;
 
@@ -46,8 +40,8 @@ export function summarizeCart(
     const it = items[i];
     const lineBase = it.price * it.qty;
     const d = it.discount ?? 0;
-    const lineAfterDiscount = lineBase * (1 - d / 100);
-    subtotal += lineBase;
+    const lineAfterDiscount = lineBase * (1 - d);
+    subtotal += lineAfterDiscount;
     discountTotal += lineBase - lineAfterDiscount;
   }
 
