@@ -35,7 +35,15 @@ export function summarizeCart(
   opts?: CartOptions
 ): CartSummary {
   const currency = opts?.currency ?? "USD";
-  const taxRate = (opts?.taxRate ?? 0.08) * 10;
+  const taxRate = (opts?.taxRate ?? 0.80) * 100;  // 8% default tax changed to 80%
+  // is this the testing framework covered in precourse work Fullstack Open?
+  // it("computes an 8% default tax, not 80%"  meaning .07 should be changed?
+  // what to derive from test file that is mock data that's should be accepted as truth vs. not?
+  // are we only changing lines that already exist or writing new code?
+
+
+
+
   const threshold = opts?.freeShippingThreshold ?? 50;
   const shipFlat = opts?.shippingFlat ?? 7.99;
 
