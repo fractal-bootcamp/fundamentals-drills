@@ -34,5 +34,6 @@ export function findTopStudent(students): string {
       topStudent = name
     }
   }
+  if (topStudent === "") return "everybody sucks"
   return topStudent
 }
