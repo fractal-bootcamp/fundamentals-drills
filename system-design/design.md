@@ -21,6 +21,11 @@ The overall shape of the system.
 Users primarily interact with posts in a given channel.
 
 We will use a single page app where user clients query for information the server as necessary. 
+Clients send Post-related actions to the server. When a client is logged in, they establish a socket to be pushed information by the server about new posts across various channels.
+The server handles long-term storage by saving new posts, reactions, and channels to the database. The server follows up on successful updates by notifying all logged-in clients that there are new messages.
+
+Channels may be created and deleted in order to create a new disjunct category for posts to reside in.
+Posts belong to specific channels. Users' reactions also belong to specific posts.
 
 
 User Flow.
