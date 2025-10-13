@@ -9,6 +9,29 @@ Design a minimal Discord with the following features:
  ## 1. Overview
 Describe the product slice you are building. What can a user do in V1, and what is explicitly out of scope? In 4–6 sentences, explain the overall shape of the system (client → API → database) and how data moves through it at a high level.
 
+A user can:
+- Read messages in a channel
+- Post a message into a channel
+- Edit a message they have posted
+- React to messages with an emoji
+- See listed channels they are permitted to see
+- Switch to other channels
+
+The overall shape of the system.
+Users primarily interact with posts in a given channel.
+
+We will use a single page app where user clients query for information the server as necessary. 
+
+
+User Flow.
+After a user logs in, they are greeted with the default channel. 
+From there, they can 
+- read messages in that channel
+- react to messages with an emoji (including their own)
+- see existing reactions
+- switch to other channels, where they have the same set of affordances.
+
+
 ## 2. Architecture Diagram
 Attach a simple boxes-and-arrows diagram showing client, API server, and database. Label arrows with the main requests (e.g., "POST /follow", "GET /timeline"). Keep it legible and minimal.
 
