@@ -7,7 +7,8 @@ Design a minimal Discord with the following features:
  - Reactions (add an emoji reaction to someone's message)
 
  ## 1. Overview
-Describe the product slice you are building. What can a user do in V1, and what is explicitly out of scope? In 4–6 sentences, explain the overall shape of the system (client → API → database) and how data moves through it at a high level.
+
+OK I WOULD MAKE TWITTER BUT IT WOULD BE RED INSTEAD OF BLUE. FOR SURE.
 
 ## 2. Architecture Diagram
 Attach a simple boxes-and-arrows diagram showing client, API server, and database. Label arrows with the main requests (e.g., "POST /follow", "GET /timeline"). Keep it legible and minimal.
