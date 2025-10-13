@@ -15,28 +15,24 @@
  */
 
 export function findTopStudent(students): string {
+  if (students.length  === 0) throw new Error("No students provided")
   let topStudent = ""
   let topAverage = 0
   for (let i = 0; i < students.length; i++) {
     const name = students[i].name
-    console.log("name", name)
 
     const scores = students[i].scores
-    console.log("scores", scores)
 
     let totalScore = 0
 
     scores.forEach((score) => totalScore = totalScore + score)
-    console.log("totalScore", totalScore)
 
     const average = totalScore/scores.length
-    console.log("average", average)
 
     if (average > topAverage) {
       topAverage = average
       topStudent = name
     }
-    console.log("topStudent", topStudent)
   }
   return topStudent
 }
