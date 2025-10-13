@@ -28,14 +28,6 @@ Channels may be created and deleted in order to create a new disjunct category f
 Posts belong to specific channels. Users' reactions also belong to specific posts.
 
 
-User Flow.
-After a user logs in, they are greeted with the default channel. 
-From there, they can 
-- read messages in that channel
-- react to messages with an emoji (including their own)
-- see existing reactions
-- switch to other channels, where they have the same set of affordances.
-
 
 ## 2. Architecture Diagram
 Attach a simple boxes-and-arrows diagram showing client, API server, and database. Label arrows with the main requests (e.g., "POST /follow", "GET /timeline"). Keep it legible and minimal.
@@ -85,6 +77,16 @@ For each flow, describe what happens end-to-end in a few short paragraphs. For t
 
 Focus on the path of a request and what data is read or written.
 
+User Flow.
+After a user logs in, they are greeted with the default channel. 
+From there, they can 
+- read messages in that channel
+- react to messages with an emoji (including their own)
+- see existing reactions
+- switch to other channels, where they have the same set of affordances.
+
+
+
 ## 4. Data Models
 List your tables and columns, with primary keys and any unique constraints or indexes you need for V1. Include 1–2 example rows where helpful.
 
@@ -105,6 +107,7 @@ tabReactions
 tabChannels
 - channelId :: primary key, uuid
 - name :: string, not null
+
 
 ## 5. API Sketch
 List the minimal endpoints and their request/response shapes at a high level. Keep this terse.
