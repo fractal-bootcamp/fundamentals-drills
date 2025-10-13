@@ -29,8 +29,12 @@ export function findTopStudent(students): string {
 
     let grade = 0
 
-    const initialValue = 0
-    let studentTotal = gradeArr.reduce((total, curGrade) => total + grade, initialValue,)
+    const initialValue = 0;
+    const studentTotal = gradeArr.reduce(
+      (accumulator, currentValue) => accumulator + currentValue,
+      initialValue,
+    );
+    // let studentTotal = gradeArr.reduce((total, curGrade) => total + grade, initialValue,)
     console.log(studentTotal)
     let studentAvg = studentTotal / (gradeArr.length === 0 ? 1 : gradeArr.length)
     console.log(studentAvg)

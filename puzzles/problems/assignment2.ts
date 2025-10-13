@@ -28,5 +28,71 @@
  */
 
 export function processReservations(initialTheater, requests): any {
-  //TODO
+
+  let suc_res: { customerId: string, row: number, seatsNeeded: number }[] = []
+
+  let result = {
+    successfulReservations: suc_res,
+    finalTheater: []
+  }
+
+  let totalRows = initialTheater.length
+  let modifiedTheater = structuredClone(initialTheater)
+
+
+  if (requests.length === 0) {
+
+    result.successfulReservations = requests
+    result.finalTheater = initialTheater
+    return result
+  }
+
+  if (initialTheater.length == 0) {
+
+    result.successfulReservations = [],
+      result.finalTheater = initialTheater
+    return result
+  }
+
+  for (const req of requests) {
+
+    //Handle invalid row numbers
+    if (req.row < 0 || req.row >= totalRows) {
+      result.successfulReservations = []
+      result.finalTheater = initialTheater
+      return result
+    }
+
+
+    let consec_free = 0
+    for (const seat of modifiedTheater[req.row]) {
+
+      //seat is not available
+      if (seat === 'R' || seat == 'B') {
+        consec_free = 0
+        continue
+      }
+
+      //seat is available
+      consec_free += 1
+
+      //request can be granted
+      if (consec_free === req.seatsNeeded) {
+        result.successfulReservations.push(req)
+      }
+
+    }
+
+  }
+
+
+  return result
+
+
 }
+
+// let initialTheater = []
+// let Request = { customerId: "customer1", row: 0, seatsNeeded: 2 }
+
+
+
