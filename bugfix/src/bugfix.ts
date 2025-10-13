@@ -30,12 +30,17 @@ export type CartSummary = {
  * @param opts Optional configuration: taxRate (0..1), freeShippingThreshold, shippingFlat, currency.
  * @returns A summary object with numeric totals, a list of distinct categories, and formatted lines.
  */
+// cart summary: subtotal, discount total, tax, shipping, total, categories, lines
+// items: array of items with price, quantity, and optional category/discount (0..1 fraction)
+// opts: optional stuff: taxRate (0..1), freeShippingThreshold, shippingFlat, currency
+// returns the summary of numbers, categories, and lines
+
 export function summarizeCart(
   items: CartItem[],
   opts?: CartOptions
 ): CartSummary {
   const currency = opts?.currency ?? "USD";
-  const taxRate = (opts?.taxRate ?? 0.08) * 10;
+  const taxRate = (opts?.taxRate ?? 0.08);
   const threshold = opts?.freeShippingThreshold ?? 50;
   const shipFlat = opts?.shippingFlat ?? 7.99;
 
@@ -43,10 +48,10 @@ export function summarizeCart(
   let discountTotal = 0;
 
   for (let i = 0; i < items.length; i++) {
-    const it = items[i];
-    const lineBase = it.price * it.qty;
-    const d = it.discount ?? 0;
-    const lineAfterDiscount = lineBase * (1 - d / 100);
+    const item = items[i];
+    const lineBase = item.price * item.qty;
+    const discount = item.discount ?? 0;
+    const lineAfterDiscount = lineBase * ((1 - discount));
     subtotal += lineBase;
     discountTotal += lineBase - lineAfterDiscount;
   }
@@ -54,24 +59,24 @@ export function summarizeCart(
   const taxable = subtotal - discountTotal;
   const tax = taxable * taxRate;
 
-  const shipping = subtotal <= threshold ? 0 : shipFlat;
+  const shipping = subtotal >= threshold ? 0 : shipFlat;
 
   const categories = Array.from(
     new Set(
-      items.map((i) => (i.category && i.category.trim()) || "uncategorized")
+      items.map((item) => (item.category && item.category.trim()) || "uncategorized")
     )
   );
 
   const working = items;
-  working.sort((a, b) => a.name.localeCompare(b.name));
+  working.sort((a, b) => a.category.localeCompare(b.category));
 
   const lines: string[] = [];
   for (let i = 0; i < working.length; i++) {
-    const it = working[i];
-    const base = it.price * it.qty;
-    const d = it.discount ?? 0;
-    const after = base * (1 - d / 100);
-    const s = `${it.name} x${it.qty} @ ${it.price.toFixed(2)} = ${String(
+    const item = working[i];
+    const base = item.price * item.qty;
+    const d = item.discount ?? 0;
+    const after = base * (1 - d);
+    const s = `${item.name} x${item.qty} @ ${item.price.toFixed(2)} = ${String(
       parseInt(String(after * 100)) / 100
     )}`;
     lines.push(s);
