@@ -15,5 +15,29 @@
  */
 
 export function findTopStudent(students): string {
-  return "TODO"
+  if (students.length > 0) {
+    let highestAverage = null
+    for (const student of students) {
+      if (student.scores.length > 0) {
+        student.average = student.scores.reduce((accumulator, currentScore) => accumulator + currentScore)
+        student.average = student.average / (student.scores.length)
+      } else {
+        student.average = 0
+      }
+      
+      if (highestAverage === null || student.average > highestAverage.average) {
+        highestAverage = student
+      }
+  }
+  return highestAverage.name
+
+  } else {
+    throw Error('No students provided')
+  }
+}
+
+export function betterFindTopStudent(students): string {
+  const topStudent = students.reduce((topStudent, student) => {
+    return 0
+  })
 }
