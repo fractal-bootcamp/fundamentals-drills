@@ -48,8 +48,10 @@ export function summarizeCart(
   const taxable = subtotal - discountTotal;
   const tax = taxable * taxRate;
 
+  // ordering of ternary for subtotal threshold confusing...
   const shipping = subtotal <= threshold ? 0 : shipFlat;
 
+  // array order mut def happens here, don't know how to fix?
   const categories = Array.from(
     new Set(
       items.map((i) => (i.category && i.category.trim()) || "uncategorized")
@@ -59,6 +61,7 @@ export function summarizeCart(
   const working = items;
   working.sort((a, b) => a.name.localeCompare(b.name));
 
+  // 
   const lines: string[] = [];
   for (let i = 0; i < working.length; i++) {
     const it = working[i];
