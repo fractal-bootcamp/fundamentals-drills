@@ -42,12 +42,37 @@ Attach a simple boxes-and-arrows diagram showing client, API server, and databas
 
 
 ```mermaid
-graph TD;
-    A-->B;
-    A-->C;
-    B-->D;
-    C-->D;
+graph LR;
+    Client--"/api/auth/signin
+    /api/auth/signup"-->Server;
+    
+    Server--"insert tabUSER"-->DB
+
+    Client--"/api/auth/signin
+    /api/auth/signup"-->Server;
 ```
+
+Loading list of channels, loading posts in a channel
+```mermaid
+graph LR;
+    Client--"GET /channels/:channelName"-->Server;
+    
+    Server--"retrieve posts in channelName, retrieving list of channels"-->DB
+    
+    DB---->Server
+    
+    Server--"channels[], posts[]"-->Client
+```
+
+
+POST: Creating posts, editing posts, sending reactions
+```mermaid
+graph LR;
+    Client--"POST /channels/:channelName/:postID"-->Server;
+    
+    Server--"retrieve posts in channelName"-->DB
+```
+
 
 ## 3. Core User Flows
 For each flow, describe what happens end-to-end in a few short paragraphs. For the Twitter question, this might be:
