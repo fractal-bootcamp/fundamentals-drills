@@ -20,19 +20,18 @@ export type Students = {
 } 
 export function findTopStudent(students: Students[]): string {
 
-      let topStudentScore = 0
-      let topStudent = null
+      let topStudentScore = 0;
+      let topStudentName = "";
 
   for (let i = 0; i < students.length; i++) {
-     const student = students[i]
-    const sorted = student.scores.sort((a, b) => {return b - a})
-    console.log(student.scores)
+    const student = students[i];
+    const average = student.scores.reduce((a, b) => a + b, 0) / student.scores.length;
 
-    if (student.scores[i] > topStudentScore) {
-    topStudentScore = student.scores[i]
-    topStudent = student
+    if (average > topStudentScore) {
+      topStudentScore = average;
+      topStudentName = student.name;
     }
   }
 
-  return topStudent
+  return topStudentName;
 }
