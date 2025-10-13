@@ -25,7 +25,6 @@ export function findTopStudent(students): string {
     average = 0;
     added = 0;
     if (students[i].scores.length != 0) {
-
       for (let s = 0; s < students[i].scores.length; s++) {
         added += students[i].scores[s];
       }
