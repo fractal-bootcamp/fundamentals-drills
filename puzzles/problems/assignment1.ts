@@ -14,7 +14,7 @@
  * - [{ name: "Charlie", scores: [80] }, { name: "Dana", scores: [80, 80] }] → "Charlie"
  */
 
-export function findTopStudent(students): string {
+export function findTopStudent(students: { name: string, scores: number[] }[]): string {
   if (students.length  === 0) throw new Error("No students provided")
   let topStudent = ""
   let topAverage = 0
