@@ -21,6 +21,7 @@ export function findTopStudent(students): string {
       let totalScore += scoresArray[i]
       let averageScore = totalScore / scoresArray.length
     }
+
   }
 
 }
