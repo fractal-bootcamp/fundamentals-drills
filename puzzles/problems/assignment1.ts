@@ -14,6 +14,25 @@
  * - [{ name: "Charlie", scores: [80] }, { name: "Dana", scores: [80, 80] }] → "Charlie"
  */
 
-export function findTopStudent(students): string {
-  return "TODO"
+export type Students = {
+  name: string,
+  scores: number[],
+} 
+export function findTopStudent(students: Students[]): string {
+
+      let topStudentScore = 0
+      let topStudent = null
+
+  for (let i = 0; i < students.length; i++) {
+     const student = students[i]
+    const sorted = student.scores.sort((a, b) => {return b - a})
+    console.log(student.scores)
+
+    if (student.scores[i] > topStudentScore) {
+    topStudentScore = student.scores[i]
+    topStudent = student
+    }
+  }
+
+  return topStudent
 }
