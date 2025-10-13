@@ -14,6 +14,33 @@
  * - [{ name: "Charlie", scores: [80] }, { name: "Dana", scores: [80, 80] }] → "Charlie"
  */
 
-export function findTopStudent(students): string {
-  return "TODO"
+interface student {
+  name: string, 
+  scores: number[]
+}
+
+export function findTopStudent(students: student[]): string {
+
+  if (students.length < 1) {
+    throw new Error("No students provided");
+  }
+
+  let max = -1;
+  let index = -1;
+
+
+  students.map((student) => {
+    return student.scores.reduce(
+      (acc, curr) => acc + curr / student.scores.length,
+      0,
+    );
+  }).forEach((score, i) => {
+    if (score > max) {
+      max = score;
+      index = i
+    }
+  })
+
+
+  return students[index].name;
 }
