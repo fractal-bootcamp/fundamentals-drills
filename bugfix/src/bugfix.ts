@@ -54,7 +54,7 @@ export function summarizeCart(
   const taxable = subtotal - discountTotal;
   const tax = taxable * taxRate;
 
-  const shipping = subtotal <= threshold ? 0 : shipFlat;
+  const shipping = subtotal >= threshold ? 0 : shipFlat;
 
   const categories = Array.from(
     new Set(
