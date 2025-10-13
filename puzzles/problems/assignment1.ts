@@ -30,12 +30,19 @@ export function findTopStudent(students: Student[]): string {
     // console.log("a", a.name, average(a));
     // console.log("b", b.name, average(b));
     // console.log("valence", average(a) - average(b));
-    return average(a) - average(b);
+    if (average(a) - average(b) != 0) {
+      return average(a) - average(b);
+    }
+    return -1; // TODO: Add behaviour to sort by first name
   };
 
   let sorted = [...students];
   sorted = sorted.sort(lowestToHighest);
   sorted = sorted.reverse();
 
-  return sorted[0].name;
+  if (sorted.length) {
+    return sorted[0].name;
+  } else {
+    throw new Error("No students provided");
+  }
 }
