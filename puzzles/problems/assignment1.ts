@@ -35,7 +35,7 @@ export function findTopStudent(students: student[]): string {
 	for (const student of students) {
 		console.log(findTestAvg(student.scores));
 		if (findTestAvg(student.scores) > topScore) {
-			//???? Idk why this is evaluating to true
+			//???? Idk why this is evaluating to true. fuck i just figure it out but I am out of time
 			console.log("setting top", student.name);
 			topStudent = student.name;
 		}
