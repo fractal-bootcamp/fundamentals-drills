@@ -27,104 +27,16 @@
  * Result: Seats 0-1 in row 0 reserved, seats 3-4 still available
  */
 
-type Seat = string;
-// "R" | "A" | "B";
 type Request = { customerId: string; row: number; seatsNeeded: number };
-type SuccessfulBooking = {
-  customerId: string;
-  row: number;
-  startSeat: number;
-  endSeat: number;
-};
-type Result = {
-  successfulReservations: SuccessfulBooking[];
-  finalTheater: Seat[][];
-};
+type Result = { finalTheater: foo[]; successfulReservations: blah[] };
+type Seat = "A" | "B" | "R" | string;
+type Row = Seat[];
+type Theater = Row[];
 
 export function processReservations(
-  initialTheater: Seat[][],
+  initialTheater: Theater,
   requests: Request[],
 ): Result {
-  function indexOfAvailableConsecutiveSeats(
-    seatCount: number,
-    theaterRow: Seat[],
-  ): number {
-    const findSeats = (value, index, obj) => {
-      let seatsAvailable = true;
-      for (let i = index; i < index + seatCount; i++) {
-        if (obj[i] == "B") {
-          seatsAvailable = false;
-        }
-      }
-      return seatsAvailable;
-    };
-    return theaterRow.findIndex(findSeats);
-  }
-
-  function bookSeatsInRow(
-    request: Request,
-    row: Seat[],
-  ): { newRow: Seat[]; startSeat: number } {
-    const foundSeatSpace = indexOfAvailableConsecutiveSeats(
-      request.seatsNeeded,
-      initialTheater[request.row],
-    );
-
-    if (foundSeatSpace != -1) {
-      return {
-        newRow: [
-          row.slice(0, request.row),
-          "R".repeat(request.seatsNeeded).split(""),
-          row.slice(request.row + request.seatsNeeded),
-        ].flat(),
-        startSeat: foundSeatSpace,
-      };
-    } else {
-      return { newRow: row, startSeat: foundSeatSpace };
-    }
-  }
-
-  // requests.copyWithin(target, start);
-  // requests.splice(start);
-  // requests.find()
-  // requests.every()
-  // requests.slice()
-  // theater.fill()
-  //
-  // Array.from("foo") > ['f' 'o' 'o']
-  // Array.from([1,2,3], (x) => x * x) > [2,4,9]
-
-  let acceptedReservations: SuccessfulBooking[] = [];
-  let finalTheater = requests.reduce(
-    (
-      currentTheater: Seat[][],
-      curReq: Request,
-      curInd: number,
-      theArray: Request[],
-    ) => {
-      let { newRow, startSeat } = bookSeatsInRow(
-        curReq,
-        currentTheater[curReq.row],
-      );
-
-      acceptedReservations.push({
-        customerId: curReq.customerId,
-        row: curReq.row,
-        startSeat,
-        endSeat: startSeat + curReq.seatsNeeded - 1,
-      });
-      let newTheater = [...currentTheater];
-      newTheater[curReq.row] = newRow;
-      return newTheater;
-    },
-    initialTheater,
-  );
-
-  console.log("MY ATTEMPT", {
-    finalTheater: finalTheater,
-    successfulReservations: acceptedReservations,
-  });
-
   return {
     finalTheater: finalTheater,
     successfulReservations: acceptedReservations,
