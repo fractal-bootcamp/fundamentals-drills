@@ -64,9 +64,7 @@ export function processReservations(initialTheater: Array<Array<string>>, reques
     for (let col = 0; col < rowLength; col++) {
       let enoughSeats = true;
       for (let j = col; j < col + request.seatsNeeded; j++) {
-        if (theater[request.row][j] !== "A") {
-          enoughSeats = false;
-        }
+        if (theater[request.row][j] !== "A") enoughSeats = false;
       }
       if (enoughSeats) {
         leftmostSeat = col
