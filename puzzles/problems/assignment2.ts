@@ -28,5 +28,38 @@
  */
 
 export function processReservations(initialTheater, requests): any {
-  //TODO
+  // if customer requests one seat, cycle through the theater [i], first row, find where row[i] === A, set as R, return
+  // if customer requests "x" multiple, check if x consecutive are "A"?
+  const theatre = initialTheater
+  let conseqSeats = []
+  const succReservations = []
+  for (let i = 0; i < requests.length; i++) {
+    if (requests.seatsNeeded > initialTheater[0].length) throw new Error("too many seats")
+    const seatsNeeded = requests[i].seatsNeeded.length
+    const reqRow = requests[i].row
+    initialTheater[reqRow].forEach((seat, index) => {
+      for (let j = 0; j < seatsNeeded; j++) {
+        if (conseqSeats.length === seatsNeeded) {
+          break
+        } 
+        if (seat === "A") {
+          const openSeat = [reqRow, index]
+          conseqSeats.push(openSeat)
+        } else {
+          conseqSeats = []
+        }
+      }
+    })
+    if (conseqSeats.length === seatsNeeded) {
+      conseqSeats.forEach((seat) => {
+        theatre[seat[0][1]] = "R"
+      })
+    }
+    const string = `Seats ${conseqSeats[0][1]}-${conseqSeats[conseqSeats.length - 1][1]} in row ${reqRow} reserved`
+    succReservations.push(string)
+  }
+
+  return {succReservations, theatre}
 }
+
+console.log(processReservations([["A", "A", "B", "A", "A"], ["A", "A", "A", "A", "A"]],[{ customerId: "customer1", row: 0, seatsNeeded: 2 }]))
