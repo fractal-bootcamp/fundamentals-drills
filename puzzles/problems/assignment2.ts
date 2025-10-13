@@ -28,7 +28,13 @@
  */
 
 type Request = { customerId: string; row: number; seatsNeeded: number };
-type Result = { finalTheater: foo[]; successfulReservations: blah[] };
+type Result = { finalTheater: Row[]; successfulReservations: Reservation[] };
+type Reservation = {
+  customerId: string;
+  row: number;
+  startSeat: number;
+  endSeat: number;
+};
 type Seat = "A" | "B" | "R" | string;
 type Row = Seat[];
 type Theater = Row[];
@@ -37,8 +43,15 @@ export function processReservations(
   initialTheater: Theater,
   requests: Request[],
 ): Result {
+  if (!initialTheater || !requests) {
+    return {
+      finalTheater: initialTheater,
+      successfulReservations: [],
+    };
+  }
+
   return {
-    finalTheater: finalTheater,
-    successfulReservations: acceptedReservations,
+    finalTheater: initialTheater,
+    successfulReservations: [],
   };
 }
