@@ -35,9 +35,34 @@ type Reservation = {
   startSeat: number;
   endSeat: number;
 };
-type Seat = "A" | "B" | "R" | string;
+type Seat = "A" | "B" | "R";
 type Row = Seat[];
 type Theater = Row[];
+
+// function canReserve(req: Request, idx: number, requests: Request[]): boolean {
+//   return row.slice(idx, idx + req.seatsNeeded).every((e) => e === "A");
+// }
+// function makeReservation(
+//   req: Request,
+//   idx: number,
+//   requests: Request[],
+// ): Result {
+//   requests.findIndex(canReserve);
+// }
+
+function findAvailableSeat(row: Row, request: Request): number {
+  return row.findIndex((_seat, idx) =>
+    row.slice(idx, idx + request.seatsNeeded).every((seat) => seat == "A"),
+  );
+}
+
+// function makeReservation(
+//   req: Request,
+//   idx: number,
+//   requests: Request[],
+// ): Result {
+//   requests.findIndex(canReserve);
+// }
 
 export function processReservations(
   initialTheater: Theater,
@@ -50,6 +75,21 @@ export function processReservations(
     };
   }
 
+  const currentTheater: Theater = structuredClone(initialTheater);
+  const successfulReservations: Reservation[] = [];
+
+  for (let r = 0; r < requests.length; r++) {
+    const req = requests[r];
+    const availableSeat = findAvailableSeat(currentTheater[req.row], req);
+
+    if (availableSeat != -1) {
+      console.log("Should be bookable");
+      currentTheater.
+      
+    } else {
+      continue;
+    }
+  }
   return {
     finalTheater: initialTheater,
     successfulReservations: [],
