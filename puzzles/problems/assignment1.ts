@@ -29,6 +29,7 @@ export function longestStreak(nums: number[]): number {
       if (i === nums.length) {
         count = count + 1
       }
+
       //  {
       //   newArray.push(nums[i])
       //   count = newArray.length
@@ -47,3 +48,5 @@ export function longestStreak(nums: number[]): number {
 }
 
 // (nums[i + 1] - nums[i] === 0)
+
+// handle order: empty array, single element array, 
