@@ -15,7 +15,7 @@
  *   Action is one of:
  *     ["insert", number]     // coin must be one of the allowed denominations [100,50,25,10,5,1]
  *     ["select", string]     // attempt to buy sku
- *     ["cancel"]             // abort session & refund inserted coins
+ *     ["cancel"]        a     // abort session & refund inserted coins
  *     ["noop"]               // does nothing
  *
  * Output:
@@ -56,5 +56,111 @@
  */
 
 export function processVendingSessions(input) {
-  return {}
+
+  let inventory = structuredClone(input.inventory);
+
+  let receipts = []
+
+  for (const session of input.sessions) {
+    let total = 0
+
+    let errors = []
+
+    for (const action of session) {
+      if (action[0] === "insert") {
+        //insert : add to total 
+        if ([1,5, 10, 25, 50, 100].includes(action[1])) {
+          total += action[1]
+        } else {
+          errors.push(`unsupported coin: ${action[1]}`)
+        }
+      } else if (action[0] === "select") {
+
+        if (!inventory[action[1]]) {
+          errors.push(`invalid sku: ${action[1]}`)
+          // break;
+
+          receipts.push({
+            dispensed: undefined,
+            changeCoins: {},
+            changeTotal: 0,
+            spent: 0,
+            errors: errors
+          })
+          break;
+        }
+
+        let price = inventory[action[1]].price;
+        let stock = inventory[action[1]].stock;
+
+        
+        if (total >= price  && stock > 0) {
+           //figure out change
+           let changeTotal = total - price;
+
+           let changeCoins = {}; //1,5,10,25,50,100
+
+           let remainder = changeTotal;
+
+
+
+           ["100", "50", "25", "10", "5", "1"].forEach((change) => {
+              // console.log(remainder)
+              let changeHundred = Math.floor(remainder / Number(change))
+              // console.log(changeHundred)
+
+              if (changeHundred > 0) {
+                changeCoins[change] = changeHundred
+                 // console.log(changeCoins)
+                remainder = remainder - changeHundred * Number(change);
+              }
+
+             
+           })
+           
+
+
+
+          //deduct from total
+          total -= price;
+          //deduct quantity
+
+          // console.log(inventory[action[1]])
+          inventory[action[1]].stock--;
+
+          // console.log(inventory[action[1]])
+
+         
+
+          //add to receipt
+          receipts.push({
+            dispensed: action[1],
+            changeCoins: changeCoins,
+            changeTotal: changeTotal,
+            spent: price,
+            errors: errors
+          })
+        } else {
+          if (total <= price) {
+            errors.push(`insufficient credit: have ${total}, need ${price}`)
+            receipts.push({
+              dispensed: undefined,
+              changeCoins: {},
+              changeTotal: 0,
+              spent: 0,
+              errors: errors
+            })
+          }
+        }
+      }
+    }
+  }
+
+  console.log(inventory)
+  console.log(receipts)
+
+  return {
+    inventory: inventory,
+    receipts
+  }
 }
