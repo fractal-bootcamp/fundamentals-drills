@@ -55,6 +55,114 @@
  *     ]
  */
 
+let inventory = []
+
+function getDenoms(change: number) {
+  let hundreds = 0
+  let tens = 0
+  let fives = 0
+  let remainder = change
+  while (remainder > 0) {
+    if (remainder >= 100) {
+      remainder = change % 100
+      hundreds += (change - remainder) / 100
+
+
+    } else if (remainder > 5) {
+      remainder = change % 100
+      hundreds += (change - remainder) / 100
+
+    }
+
+
+  }
+}
+
+
 export function processVendingSessions(input) {
-  return {}
+  inventory.push(input.inventory)
+  console.log("GRBLAHH", inventory)
+
+  let receipts = []
+
+
+
+
+  type Session = {
+    dispensed?: string;
+    changeCoins: { [denom: number]: number };
+    changeTotal: number;
+    spent: number;
+    errors: string[];
+  }
+
+  let session: Session = {
+    dispensed: null,
+    changeCoins: 0,
+    changeTotal: 0,
+    spent: 0,
+    errors: []
+
+  }
+
+
+
+
+  for (let i = 0; i < input.sessions.length; i++) {
+    let currentBalance = 0
+
+
+    let sessions = []
+
+    for (let j = 0; j < session.length; j++) {
+      console.log("BLAH", session[j])
+      let action = session[j]
+
+
+      if (action[0] === "insert") {
+        currentBalance += action[1]
+      }
+
+      if (action[0] === "select") {
+        const item = action[1]
+        const keys = Object.keys(inventory[0])
+        if (keys.includes(item)) {
+          const price = inventory[0][item].price
+          const stock = inventory[0][item].stock
+          if (currentBalance >= price) {
+            inventory[0][item].stock -= 1
+            session = { ...session, dispensed: true, changeTotal: currentBalance - price, spent: price }
+            receipts.push(session)
+
+          }
+
+
+        }
+
+      }
+
+
+
+
+
+    }
+
+
+
+  }
+
+
+
+
+
+
+
+
+
+
+  console.log("LALALA", { inventory, receipts: receipts })
+
+
+
+  return { inventory, receipts: receipts }
 }
