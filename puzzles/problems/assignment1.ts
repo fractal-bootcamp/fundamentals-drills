@@ -17,5 +17,17 @@
  *   longestStreak([]) -> 0
  */
 export function longestStreak(nums: number[]): number {
-  return 0
+  if (nums.length === 0) return 0
+  let maxStreak = 1
+  let streak = 1
+ for (let i = 1; i< nums.length; i++) {
+  if (nums[i] - nums[i-1] === 1) {
+    streak ++
+    if (streak > maxStreak) maxStreak = streak
+  
+  } else {
+    streak = 1
+  }
+ }
+  return maxStreak
 }
