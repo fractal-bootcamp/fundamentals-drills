@@ -35,8 +35,9 @@ List your tables and columns, with primary keys and any unique constraints or in
 
 ### Tables
 Store represents a specific storefront or brand.
+- id :: uuid pk
 - contact :: fk to user with isAdmin role
-- name :: string
+- name :: string of store name
 - icon :: link to image
 - featured_item :: fk to item
 - isOpen :: boolean. affects if all items are available for sale.
@@ -44,20 +45,23 @@ Store represents a specific storefront or brand.
 
 
 Item
-- id :: uuid
-- product :: link to image
+- id :: uuid pk
+- picture :: link to image
 - name :: string
 - description :: string
 - stock :: non-negative integer
 - price :: non-negative currency number
 - isPublished :: boolean. affects whether this item is currently available for sale
 
-Cart
-- user_id :: fk to user
+
+Item Picture
+- id :: pk
+- link :: link to image
+- item_id :: uuid; fk to item
 
 Cart Row
-- cart_id :: fk to cart (as child item)
-- product_id :: fk to item
+- user_id :: fk to user (as child item)
+- item_id :: fk to item
 - quantity :: non-negative integer
 - listed_price (calculated)
 
@@ -68,6 +72,19 @@ User
 - is_admin :: boolean
 
 ### Queries
+
+Storefront Display: Retrieve key item details from every store
+- for store in Store
+  - retrieve store.featured_item, store.name
+  - for item in Items where item.id == store.featured_item
+    - retrieve item.name, item.picture, item.description
+    
+Add to cart
+- input :: selected item, user
+  - create a new Cart Row (cr)
+    - already given item_id and user_id;
+    - increment the quantity if exists; create a row otherwise.
+
 
 ## 3. Architecture Diagram
 Attach a simple boxes-and-arrows diagram showing client, API server, and database. Label arrows with the main requests (e.g., "POST /follow", "GET /timeline"). Keep it legible and minimal.
