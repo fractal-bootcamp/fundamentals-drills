@@ -17,37 +17,28 @@
  *   longestStreak([]) -> 0
  */
 export function longestStreak(nums: number[]): number {
-  // start count @ 0
-  let streak = 0
-  console.log('count at start:', streak)
+  let maxStreak = 0
+  let streak = 1
+  console.log('maxStreak count at start:', maxStreak)
 
-  for (let i = 0; i < nums.length; i++) {
+  console.log('starting array:', nums)
+
+  if (nums.length === 1) return 1
+
+  for (let i = 0; i < nums.length - 1; i++) {
     let difference = nums[i + 1] - nums[i]
-    console.log('difference:', difference)
+
+    console.log(`difference b/t ${nums[i + 1]} - ${nums[i]}:`, difference)
 
     if (difference === 1) {
       streak++
       console.log(`streak if difference of ${nums[i + 1]} - ${nums[i]} === 1:`, streak) // increment count by 1 if num 1 greater
     } else {  // decrement count by 1 if num not 1 greater
-      streak = 0
+      streak = 1
       console.log(`streak if difference of ${nums[i + 1]} - ${nums[i]} !== 1:`, streak)
     }
+    if (streak > maxStreak) maxStreak = streak
   }
-  console.log('count at end:', streak)
-  return streak
+  console.log('maxStreak count at end:', maxStreak)
+  return maxStreak
 }
-
-
-
-// take first element in array
-
-// compare last element to current element -- is it 1 greater?
-
-// reduce might not work here =( 
-// const streak = nums.reduce((prev, curr) => curr - prev)
-// console.log('streak is:', streak)
-// how to find if these 2 nums are 1 greater than each other?
-// subtract the curr from prev is it === 1?
-// if yes then add to count  -- this needs to iterate over all elements in array
-
-//return count 
