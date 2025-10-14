@@ -55,6 +55,33 @@
  *     ]
  */
 
-export function processVendingSessions(input) {
+
+type Inventory = {
+  str: // how does one type this??? the property name is a string somehow??? maybe i'm just drastically misinterpreting this
+  // wasted 20 min in the typescript docs lmao :(
+  {
+    price: number,
+    stock: number,
+  }
+}
+
+type Session = Action[]
+
+type Action = [string, string | number]
+
+type Output =
+  {
+    inventory: Inventory,
+    receipts: Array<{
+      dispensed?: string;
+      changeCoins: { [denom: number]: number };
+      changeTotal: number;
+      spent: number;
+      errors: string[];
+    }>
+  }
+
+export function processVendingSessions(input: { inventory: Inventory, sessions: Session[] }) {
+
   return {}
 }
