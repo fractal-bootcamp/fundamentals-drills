@@ -57,20 +57,68 @@
 
 export function processVendingSessions(input) {
 
-  let inventory = structuredClone(input.inventory);
+
+
+  let inventory = structuredClone(input.inventory) ;
+
+
+  if (inventory === null) {
+    inventory = {};
+  }
+
+  for (const item of Object.values(inventory)) {
+    // Normalize price: must be integer cents, non-negative
+    if (item.price < 0) {
+      item.price = 0;
+    } else {
+      item.price = Math.floor(item.price);
+    }
+    // Normalize stock: must be integer count, non-negative
+    if ( item.stock < 0) {
+      item.stock = 0;
+    } else {
+      item.stock = Math.floor(item.stock);
+    }
+  }
+
+  console.log(inventory)
 
   let receipts = []
 
+
+
+  if (input.sessions) {
+  
   for (const session of input.sessions) {
     let total = 0
-
     let errors = []
+    let coin_map = {}
+    let session_end = false;
+
+    if (session.length === 0) {
+      receipts.push({
+            dispensed: undefined,
+            changeCoins: {},
+            changeTotal: 0,
+            spent: 0,
+            errors: []
+          })
+    }
+
+
 
     for (const action of session) {
+      if (session_end == false) {
       if (action[0] === "insert") {
         //insert : add to total 
         if ([1,5, 10, 25, 50, 100].includes(action[1])) {
           total += action[1]
+
+          if (!coin_map[action[1]]) {
+            coin_map[action[1]] = 1;
+          } else {
+            coin_map[action[1]]++;
+          }
         } else {
           errors.push(`unsupported coin: ${action[1]}`)
         }
@@ -140,27 +188,75 @@ export function processVendingSessions(input) {
             spent: price,
             errors: errors
           })
+
+
+          session_end = true
+          break;
         } else {
-          if (total <= price) {
+
+          console.log(total, price, stock)
+
+          
+          if (total < price) {
             errors.push(`insufficient credit: have ${total}, need ${price}`)
-            receipts.push({
-              dispensed: undefined,
-              changeCoins: {},
-              changeTotal: 0,
-              spent: 0,
-              errors: errors
-            })
+            
+            
+          } 
+
+          if (stock == 0) {
+            errors.push(`out of stock: ${action[1]}`)
           }
+          
+         
+
+        receipts.push({
+          dispensed: undefined,
+          changeCoins: {},
+          changeTotal: 0,
+          spent: 0,
+          errors: errors
+        })
+
+        
+
+          
         }
+
+
+
+
+        
+      } else if (action[0] === "cancel") {
+        receipts.push({
+          dispensed: undefined,
+          changeCoins: coin_map,
+          changeTotal: total,
+          spent: 0,
+          errors: errors
+        })
+        session_end = true;
+      } else if (action[0] === "noop") {
+
+      } else {
+        errors.push(`unknown action: ${action[0]}`)
       }
     }
+    }
+
+ 
+
+
+    
   }
 
-  console.log(inventory)
-  console.log(receipts)
+}
+
+
+
+  
 
   return {
     inventory: inventory,
-    receipts
+    receipts: receipts
   }
 }
