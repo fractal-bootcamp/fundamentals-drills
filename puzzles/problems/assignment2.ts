@@ -55,6 +55,36 @@
  *     ]
  */
 
-export function processVendingSessions(input) {
-  return {}
+//Sessions is an Array of Sessions -> each Session is an Array of Actions, each array of Actions contains a max of 4 objects
+
+type Action = {
+  insert = [100,50,25,10,5,1]
+
+}
+
+type inventory = {
+
+}
+
+type vendorInput = {
+
+}
+
+type vendorOutput = {
+
+
+}
+export function processVendingSessions(input):vendorOutput {
+
+
+  return {
+
+
+
+
+
+
+
+
+  }
 }
