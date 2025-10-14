@@ -56,35 +56,48 @@
  */
 
 //Sessions is an Array of Sessions -> each Session is an Array of Actions, each array of Actions contains a max of 4 objects
+type Session = {
+  Actions: Action[]
+}
+
+type Coin = [100, 50, 25, 10, 5, 1]
+
 
 type Action = {
-  insert = [100,50,25,10,5,1]
-
+  insert: [Coin, number]
+  select: ["select", string]
+  cancel: ["cancel"]
+  noop: ["noop"]
 }
 
 type inventory = {
-
+  [sku: string]: { price: number; stock: number }
 }
 
-type vendorInput = {
+type receipt = {
+  dispensed?: string;
+  changeCoins: { [denom: number]: number };
+  changeTotal: number;
+  spent: number;
+  errors: string[];
 
 }
 
 type vendorOutput = {
-
-
+  updatedInventory: inventory
+  receipts: receipt[]
 }
-export function processVendingSessions(input):vendorOutput {
+export function processVendingSessions(initInventory: inventory, sessions: Sessions[]): vendorOutput {
+  //take in inventory + array of sessions
+
+  let output: vendorOutput; //fill in output with information
+
+  //for the sessions, do something, iterate over them 
+  
 
 
+  //output inventory + array of receipts
   return {
-
-
-
-
-
-
-
-
+    output
   }
 }
