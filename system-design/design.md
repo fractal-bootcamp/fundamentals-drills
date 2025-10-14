@@ -33,6 +33,42 @@ Focus on the path of a request and what data is read or written.
 ## 2. Data models
 List your tables and columns, with primary keys and any unique constraints or indexes you need for V1. Include 1–2 example rows where helpful.
 
+### Tables
+Store represents a specific storefront or brand.
+- contact :: fk to user with isAdmin role
+- name :: string
+- icon :: link to image
+- featured_item :: fk to item
+- isOpen :: boolean. affects if all items are available for sale.
+- message :: string. store-wide message that appear in addition to item descriptions.
+
+
+Item
+- id :: uuid
+- product :: link to image
+- name :: string
+- description :: string
+- stock :: non-negative integer
+- price :: non-negative currency number
+- isPublished :: boolean. affects whether this item is currently available for sale
+
+Cart
+- user_id :: fk to user
+
+Cart Row
+- cart_id :: fk to cart (as child item)
+- product_id :: fk to item
+- quantity :: non-negative integer
+- listed_price (calculated)
+
+User
+- id :: uuid
+- name :: string
+- email :: string
+- is_admin :: boolean
+
+### Queries
+
 ## 3. Architecture Diagram
 Attach a simple boxes-and-arrows diagram showing client, API server, and database. Label arrows with the main requests (e.g., "POST /follow", "GET /timeline"). Keep it legible and minimal.
 
