@@ -55,6 +55,31 @@
  *     ]
  */
 
+type Inventory = { [sku: string]: { price: number; stock: number } };
+
+type Input = {
+  inventory: Inventory; // price in whole cents (>=0), stock>=0
+  sessions: Array<Session>; // Session = Action[]
+};
+type Action =
+  | ["insert", number] // coin must be one of the allowed denominations [100,50,25,10,5,1]
+  | ["select", string] // attempt to buy sku
+  | ["cancel"] // abort session & refund inserted coins
+  | ["noop"]; // does nothing
+
+type Receipt = {
+  dispensed?: string; // sku if an item was dispensed
+  changeCoins: { [denom: number]: number }; // change returned as a greedy breakdown in the allowed denominations
+  changeTotal: number; // total change (cents)
+  spent: number; // cents the machine kept this session
+  errors: string[]; // rule violations or unsupported ops
+};
+
+type Output = {
+  inventory: Inventory;
+  receipts: Array<Receipt>;
+};
+
 export function processVendingSessions(input) {
   return {}
 }
