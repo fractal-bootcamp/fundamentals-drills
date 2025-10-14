@@ -60,11 +60,11 @@ type Session = {
   Actions: Action[]
 }
 
-type Coin = [100, 50, 25, 10, 5, 1]
+type Coin = 100 | 50 | 25 | 10 | 5 | 1;
 
 
 type Action = {
-  ["insert", Coin], ["select", string], ["cancel"], ["noop"]
+  [type: "insert", value: Coin], [type: "select", value: string], [type: "cancel"], ["noop"]
 }
 
 type inventory = {
@@ -85,24 +85,50 @@ type vendorOutput = {
   receipts: receipt[]
 }
 
-//helper fn only to handle one array of actions
-function processActions(actions: Action[]): vendorOutput {
+//helper fn only to handle one action
+//only runs for two types of actions
+function processActions(singleAction: Action): vendorOutput {
   let dummyVariable: vendorOutput;
-  for (let i = 0; i < actions.length; i++) { //switch statement, ******TODO dont know how to use Action objects atm
-    //do something if insert
-    if (actions[i].) {
-      //coin? add to the session credit:record an error and ignore
-      //
-    }
-    //do something if select
+  //eventually switch statement
 
-    //do something if cancel
-    //do something if noop
+
+  //do something if insert
+  if (actions[i].type == "insert") {
+    //coin? add to the session credit:record an error and ignore
+    if (Coins.find(actions[i].value)) {
+      dummyVariable.receipts.changeTotal = actions[i].value;
+    }
+    else {
+      dummyVariable.receipts.errors.push("incorrect denomination");
+    }
+
+  }
+  else if (actions[i].type == "select") {
+    //fails if: (1) sku is invalid (2) out of stock (3) credit < price
+    if (vendingInventory.sku.some(actions[i].value)) {
+      vendingInventory.sku(value).stock--; //decrement the stock of the item, after checking if its out of stock or the sku is invalid
+    }
+    else {
+
+    }
+  }
+  else if (actions[i].type == "noop") {
+    //its noop, so do nothing
+  }
+  else {
+    //shouldn't come here
+    console.log("something went wrong");
   }
 
 
   return dummyVariable;
 }
+
+//global vending machine inventory, will keep getting updated
+let vendingInventory: inventory;
+
+//using a global receipt
+let finalReceipt: vendorOutput;
 
 
 export function processVendingSessions(initInventory: inventory, sessions: Sessions[]): vendorOutput {
@@ -113,8 +139,14 @@ export function processVendingSessions(initInventory: inventory, sessions: Sessi
   //for the sessions, do something, iterate over them 
   for (let i = 0; i < sessions.length; i++) {
     //helper fn? to deal with each session -> each session is an action array, so multiple to process 
-    output = processActions(sessions[i]) //sessions[i] contains an array of actions, process the array of actions and keep updating the inventory and the receipts
-
+    for (let j = 0; j < sessions.Actions.length; i++) {
+      if (sessions.Actions[j].type != "cancel" && sessions.Actions[j].type != "noop") {
+        output = processActions(sessions.Actions[j]) //sessions.Actions[j] contains an action, process each action and keep updating the inventory and the receipts
+      }
+      else if (sessions.Actions[j].type == "cancel") { //refund the coins inserted -> set receipt, exit the loop
+        break;
+      }
+    }
   }
 
   //output inventory + array of receipts
