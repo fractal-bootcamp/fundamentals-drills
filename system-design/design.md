@@ -90,16 +90,16 @@ Add to cart
 Attach a simple boxes-and-arrows diagram showing client, API server, and database. Label arrows with the main requests (e.g., "POST /follow", "GET /timeline"). Keep it legible and minimal.
 
 ```mermaid
-subgraph client [cli]
-  react_components
-  react_components --"GET /"-->express
-end
-
+graph LR
 
 subgraph server [serv]
   vite --"react /index"--> react_components
-  express ---->
 end
+
+subgraph client [cli]
+  react_components --"GET /"-->express
+end
+
 
 subgraph database [db]
   store
@@ -108,7 +108,6 @@ subgraph database [db]
   cart_row
   user
 end
-
 ```
 
 
