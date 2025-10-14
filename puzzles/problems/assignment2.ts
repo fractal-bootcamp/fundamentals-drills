@@ -55,6 +55,30 @@
  *     ]
  */
 
+const input = {
+  inventory: { G: { price: 50, stock: 1 } },
+  sessions: [
+    [
+      ["insert", 100],
+      ["select", "INVALID"],
+    ],
+  ],
+};
+
 export function processVendingSessions(input) {
-  return {}
+  let inventoryKeys = Object.keys(input["inventory"]);
+  let sessions = input["sessions"];
+
+  console.log("Keys: " + inventoryKeys);
+  console.log("Sessions: " + sessions.length);
+
+  //   ["insert", number]     // coin must be one of the allowed denominations [100,50,25,10,5,1]
+  //   ["select", string]     // attempt to buy sku
+  //   ["cancel"]             // abort session & refund inserted coins
+  //   ["noop"]               // does nothing
+
+  for (const key in inventoryKeys) {
+  }
+
+  return {};
 }
