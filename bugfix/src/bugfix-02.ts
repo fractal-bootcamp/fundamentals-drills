@@ -97,6 +97,6 @@ export function processOrder(order: Order, inventory: Product[]): OrderResult {
     orderId: order.orderId,
     totalAmount: totalAmount,
     message: 'Order processed successfully',
-    failedItems: undefined
+    // failedItems: undefined
   };
 }
