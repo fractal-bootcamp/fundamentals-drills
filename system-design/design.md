@@ -89,6 +89,30 @@ Add to cart
 ## 3. Architecture Diagram
 Attach a simple boxes-and-arrows diagram showing client, API server, and database. Label arrows with the main requests (e.g., "POST /follow", "GET /timeline"). Keep it legible and minimal.
 
+```mermaid
+subgraph client [cli]
+  react_components
+  react_components --"GET /"-->express
+end
+
+
+subgraph server [serv]
+  vite --"react /index"--> react_components
+  express ---->
+end
+
+subgraph database [db]
+  store
+  item
+  item_picture
+  cart_row
+  user
+end
+
+```
+
+
+
 ## 4. API Sketch
 List the minimal endpoints and their request/response shapes at a high level. Keep this terse.
 
