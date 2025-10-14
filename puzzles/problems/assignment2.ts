@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Programming Puzzle — Vending Sessions
  *
@@ -55,8 +54,6 @@
  *     ]
  */
 
-
-
 type Action = {
   type: "insert" | "select" | "cancel" | "noop";
   coinInput?: number;
@@ -70,9 +67,7 @@ type Inventory = {
   };
 };
 
-type coinSet = { [denom: number]: number }
-
-
+type coinSet = { [denom: number]: number };
 
 type Session = Action[];
 
@@ -102,92 +97,122 @@ type Input = {
 export function processVendingSessions(input: Input) {
   const { inventory, sessions } = input;
   const receipts: Receipt[] = [];
+  const skus: String[] = [];
+  const theDenominations = [100, 50, 25, 10, 5, 1];
 
-  if(sessions == null ) return;
+  for (const sku in inventory) {
+    skus.push(sku);
+    if (inventory[sku].price < 0) {
+      inventory[sku].price = 0;
+    }
+    if (inventory[sku].stock < 0) {
+      inventory[sku].stock = 0;
+    }
+    inventory[sku].stock = Math.trunc(inventory[sku].stock);
+    inventory[sku].price = Math.trunc(inventory[sku].price);
+  }
+
+  if (inventory == null && sessions == null) {
+    return { inventory: {}, receipts: [] };
+  }
+
+  console.log("------ INITAL INVENTORY--------");
+  console.log(inventory);
+  if (sessions == null) return;
 
   for (const session of sessions) {
     console.log(session);
     let receipt: Receipt = {
-      dispensed: null,
+      dispensed: undefined,
       spent: 0,
       changeCoins: {},
       changeTotal: 0,
-      errors: []
+      errors: [],
     };
+    let givenCoinSet: coinSet = {};
     let currentCredit = 0;
 
-
     for (const action of session) {
-      if(action[0] == "cancel")
-      {
-        return;
+      if (action[0] == "cancel") {
+        receipt.dispensed = action[1];
+        receipt.changeCoins = givenCoinSet;
+        receipt.changeTotal = currentCredit;
+        console.log("rece");
+        break;
 
-      }
-      if(action[0] == "insert")
-      {
-        receipt.spent += action[1];
-        currentCredit += action[1];
-      }
-
-      if(action[0] == "select")
-      {
-        if(inventory[action[1]].stock == 0 )
-        {
-          receipt.errors.push("out of stock: " + action[1])
+      } else if (action[0] == "insert") {
+        if (!theDenominations.includes(action[1])) {
+          receipt.errors.push("unsupported coin: " + action[1]);
+        } else {
+          if (givenCoinSet[action[1]] === undefined) {
+            givenCoinSet[action[1]] = 1;
+          } else {
+            givenCoinSet[action[1]] += 1;
+          }
+          currentCredit += action[1];
+          console.log(givenCoinSet);
         }
-        if(inventory[action[1]].price > currentCredit)
-        {
-          receipt.errors.push(`insufficient credit: have ${currentCredit}, need ${inventory[action[1]].price}`);
-        }
-        if(inventory[action[1]].price <= currentCredit)
-        {
+      } else if (action[0] == "select") {
+        if (!skus.includes(action[1])) {
+          receipt.errors.push("invalid sku: " + action[1]);
+        } else if (inventory[action[1]].stock <= 0) {
+          receipt.errors.push("out of stock: " + action[1]);
+        } else if (inventory[action[1]].price > currentCredit) {
+          receipt.errors.push(
+            `insufficient credit: have ${currentCredit}, need ${
+              inventory[action[1]].price
+            }`
+          );
+          receipt.spent = 0;
+        } else if (inventory[action[1]].price <= currentCredit) {
           inventory[action[1]].stock -= 1;
 
-          let change = currentCredit-inventory[action[1]].price
+          console.log("----Changing Spent-----");
+          console.log("price: " + inventory[action[1]].price);
+          console.log("currentMoney " + currentCredit);
+          let change = currentCredit - inventory[action[1]].price;
           currentCredit -= inventory[action[1]].price;
 
-          let coinSet: coinSet;
-//[100,50,25,10,5,1]
+          let coinSet: coinSet = {};
+          const denominations = [100, 50, 25, 10, 5, 1];
 
-          while(change != 0)
-          {
-            if(change >= 100)
-            {
-                coinSet[100] += 1;
-            }
-            if(change >= 50)
-            {
-                coinSet[50] += 1;
-            }
-            if(change >= 25)
-            {
-                coinSet[25] += 1;
-            }
-             if(change >= 10)
-            {
-                coinSet[10] += 1;
-            }
-            if(change >= 5)
-            {
-                coinSet[5] += 1;
-            }
-            if(change >= 1)
-            {
-                coinSet[1] += 1;
+          receipt.dispensed = action[1];
+
+          for (const denom of denominations) {
+            let count = Math.floor(change / denom);
+            if (count > 0) {
+              coinSet[denom] = count;
+              change -= denom * count;
             }
           }
 
-          receipt.dispensed = action[1]
+          receipt.changeCoins = coinSet;
+          receipt.changeTotal = currentCredit;
+          console.log("----Changing Spent-----");
+          console.log("price: " + inventory[action[1]].price);
+          console.log("currentMoney " + currentCredit);
+          receipt.spent = inventory[action[1]].price;
 
+          console.log("-------BUYING--------");
+          console.log(coinSet);
+          break;
         }
       } 
+      else if(action[0] == "noop")
+      {
+
+      }
+      
+      else {
+        receipt.errors.push("unknown action: " + action[0]);
+      }
     }
     receipts.push(receipt);
   }
 
-  console.log("------INVENTORY--------");
+  console.log("------FINAL INVENTORY--------");
   console.log(inventory);
-    console.log("------RECEIPTS--------");
+  console.log("------RECEIPTS--------");
   console.log(receipts);
-  return {inventory :inventory, receipts: receipts};
+  return { inventory: inventory, receipts: receipts };
 }
