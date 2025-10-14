@@ -80,6 +80,31 @@ type Output = {
   receipts: Array<Receipt>;
 };
 
-export function processVendingSessions(input) {
-  return {}
+class Vendor {
+  credit: number;
+  coinPouch: number;
+
+  constructor() {
+    this.credit = 0;
+    this.coinPouch = 0;
+  }
+
+  tryThing() {
+    console.log("UwU", credit);
+  }
+}
+
+export function processVendingSessions(input: Input): Output {
+  const vend = new Vendor();
+  vend.tryThing();
+  if (input.sessions.length == 0) {
+    return {
+      inventory: input.inventory,
+      receipts: [],
+    };
+  }
+  if (input.inventory) {
+  }
+
+  return {};
 }
