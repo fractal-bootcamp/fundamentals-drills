@@ -1,4 +1,4 @@
-// @ts-nocheck
+//
 /**
  * Programming Puzzle — Turnstile Trip Processor
  *
@@ -58,6 +58,79 @@
  *    ]
  *    ⇒ active: { x:{enteredAt:"A"} }
  */
-export function processTurnstileTrips(events: Event[]) {
-  return {} // TODO
+
+type Event = { id: string; action: Action; station: string }
+type Action = 'enter' | 'exit'
+type Reason = "not in-system" | "already in-system"
+type Output = {
+  active: Record<string, { enteredAt: string }>;
+  completed: Array<{ id: string; from: string; to: string }>;
+  rejected: Array<{ id: string; action: "enter" | "exit"; station: string; reason: string; }>;
+  stats: {
+    entries: Record<string, number>;
+    exits: Record<string, number>;
+  }
 }
+const activeRiders = new Map()
+
+
+  export function processTurnstileTrips(events: Event[]):Output {
+    activeRiders.clear()
+    let result:Output = {
+      active:{},
+      completed:[],
+      rejected:[],
+      stats:{entries:{},exits:{}}
+    }
+
+    for (const event of events){
+      result = handleEvent(result, event)
+    }
+    return result
+  }
+
+  function handleEvent(result:Output, event:Event):Output {
+    if (!event || !event.action || !event.id || !event.station) return result
+    if (event.action == "enter") result = handleEnter(result, event)
+    if (event.action == "exit") result = handleExit(result, event)
+
+
+    return result
+  }
+
+  function handleEnter(result:Output, event:Event):Output {
+    let rider = event.id
+
+    if (activeRiders.get(rider)) {
+      let rejectedRider = {id:rider,action:event.action,station:event.station, reason:"already in-system"}
+      result.rejected.push(rejectedRider)  
+
+    } else {
+      result.active[rider] = {enteredAt:event.station}
+      
+      result.stats.entries[event.station]  = (result.stats.entries[event.station] ?? 0) + 1
+      activeRiders.set(rider,event.station)
+    }
+
+    return result
+  }
+
+  function handleExit(result:Output, event:Event):Output {
+    let exiter = event.id
+
+    if (activeRiders.get(exiter)) {
+      let exitRider = {id:exiter,from:activeRiders.get(exiter), to:event.station}
+      result.completed.push(exitRider)
+
+      delete result.active[exiter]
+
+      result.stats.exits[event.station] = (result.stats.exits[event.station] ?? 0) + 1
+      activeRiders.delete(exiter)
+
+    } else {
+      let rejectedRider = {id:exiter, action:event.action,station:event.station, reason:"not in-system"}
+      result.rejected.push(rejectedRider)  
+    }
+
+    return result
+  }
