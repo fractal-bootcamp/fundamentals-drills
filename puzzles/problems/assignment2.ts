@@ -45,92 +45,19 @@
  * - Mixed stations are allowed; station names are case-sensitive strings.
  *
  * Examples:
- * 1) events = [
- *      { id:"a", action:"enter", station:"Alpha" },
- *      { id:"a", action:"exit",  station:"Beta"  }
- *    ]
- *    ⇒ completed: [{ id:"a", from:"Alpha", to:"Beta" }], active:{}, rejected:[]
+ *   Example A:
+ *     inv={A:{price:125,stock:1}}, sessions=[
+ *       [ ["insert",100],["insert",25],["select","A"] ]
+ *     ]
+ *     => dispensed A, spent 125, change 0, inventory A.stock=0
  *
- * 2) events = [
- *      { id:"x", action:"enter", station:"A" },
- *      { id:"x", action:"enter", station:"B" }, // rejected: already in-system
- *      { id:"y", action:"exit",  station:"A" }  // rejected: not in-system
- *    ]
- *    ⇒ active: { x:{enteredAt:"A"} }
+ *   Example B:
+ *     inv={B:{price:130,stock:1}}, sessions=[
+ *       [ ["insert",100],["insert",25],["select","B"] ], // insufficient: error, session continues
+ *       [ ["insert",100],["select","B"] ]                // success with change 70 = 50+10+10
+ *     ]
  */
 
-type Event = { id: string; action: Action; station: string }
-type Action = 'enter' | 'exit'
-type Reason = "not in-system" | "already in-system"
-type Output = {
-  active: Record<string, { enteredAt: string }>;
-  completed: Array<{ id: string; from: string; to: string }>;
-  rejected: Array<{ id: string; action: "enter" | "exit"; station: string; reason: string; }>;
-  stats: {
-    entries: Record<string, number>;
-    exits: Record<string, number>;
-  }
+export function processVendingSessions(input) {
+  return {}
 }
-const activeRiders = new Map()
-
-
-  export function processTurnstileTrips(events: Event[]):Output {
-    activeRiders.clear()
-    let result:Output = {
-      active:{},
-      completed:[],
-      rejected:[],
-      stats:{entries:{},exits:{}}
-    }
-
-    for (const event of events){
-      result = handleEvent(result, event)
-    }
-    return result
-  }
-
-  function handleEvent(result:Output, event:Event):Output {
-    if (!event || !event.action || !event.id || !event.station) return result
-    if (event.action == "enter") result = handleEnter(result, event)
-    if (event.action == "exit") result = handleExit(result, event)
-
-
-    return result
-  }
-
-  function handleEnter(result:Output, event:Event):Output {
-    let rider = event.id
-
-    if (activeRiders.get(rider)) {
-      let rejectedRider = {id:rider,action:event.action,station:event.station, reason:"already in-system"}
-      result.rejected.push(rejectedRider)  
-
-    } else {
-      result.active[rider] = {enteredAt:event.station}
-      
-      result.stats.entries[event.station]  = (result.stats.entries[event.station] ?? 0) + 1
-      activeRiders.set(rider,event.station)
-    }
-
-    return result
-  }
-
-  function handleExit(result:Output, event:Event):Output {
-    let exiter = event.id
-
-    if (activeRiders.get(exiter)) {
-      let exitRider = {id:exiter,from:activeRiders.get(exiter), to:event.station}
-      result.completed.push(exitRider)
-
-      delete result.active[exiter]
-
-      result.stats.exits[event.station] = (result.stats.exits[event.station] ?? 0) + 1
-      activeRiders.delete(exiter)
-
-    } else {
-      let rejectedRider = {id:exiter, action:event.action,station:event.station, reason:"not in-system"}
-      result.rejected.push(rejectedRider)  
-    }
-
-    return result
-  }
