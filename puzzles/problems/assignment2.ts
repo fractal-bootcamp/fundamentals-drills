@@ -55,6 +55,78 @@
  *     ]
  */
 
-export function processVendingSessions(input) {
-  return {}
+type Item = { price: number; stock: number }
+type Inventory = { [sku: string]: Item }
+type Action = { action: string, sku?: string, number?: number }
+// ["insert", number]     // coin must be one of the allowed denominations [100,50,25,10,5,1]
+// ["select", string]     // attempt to buy sku
+// ["cancel"]             // abort session & refund inserted coins
+// ["noop"]               // does nothing
+type Session = Action[]
+type Sessions = Session[]
+type Input = { inventory: Inventory, sessions: Sessions }
+type Receipt = { dispensed?: string, changeCoins: { denom: number, number: number }, changeTotal: number, spent: number, errors: string[] }
+type Output = { inventory: Inventory, receipts: Receipt[] }
+// receipts: Array<{
+// dispensed?: string;                        // sku if an item was dispensed
+// changeCoins: { [denom: number]: number };  // change returned as a greedy breakdown in the allowed denominations
+// changeTotal: number;                        // total change (cents)
+// spent: number;                              // cents the machine kept this session
+// errors: string[];                           // rule violations or unsupported ops
+
+
+export function processVendingSessions(input: Input): Output {
+  const denoms = [100, 50, 25, 10, 5, 1]
+  const inventory = input.inventory
+  const skus = inventory.map((item) => item.sku)
+  const sessions: Sessions = input.sessions
+  const receipts: Receipt[] = []
+  const newInventory = structuredClone(inventory)
+  for (let i = 0; i < sessions.length; i++) {
+    // Start each session with credit=0 and an empty "inserted" coin pouch.
+    let credit = 0
+    const errors = []
+    const receipt = {}
+    let dispensed
+    let changeTotal = 0
+    const session = sessions[i]
+    for (let j = 0; j < session.length; session++) {
+      const action = session[i]
+      if (action.action === "insert") {
+        // "insert" adds to the session credit if the coin is in the allowed denominations; otherwise record an error and ignore it.
+        if (denoms.includes(action.number)) {
+          credit += number
+        } else {
+          errors.push(`unsupported coin: ${action.number}`)
+        }
+        // *   - "select":
+      } else if (action.action === "select") {
+        const sku = action.sku
+        const stock = newInventory[sku].stock
+        const price = newInventory[sku].price
+        // *       * Fails if sku is invalid, out of stock, or credit < price (record an error; session continues).
+        if (!skus.includes(sku)) {
+          errors.push(`invalid sku: ${sku}`)
+        } else if (stock < 1) {
+          errors.push(`out of stock: ${sku}`)
+        } else if (credit < price) {
+          errors.push(`insufficient credit: have ${credit}, need ${price}`)
+        } else {
+          // *       * On success: dispense the item, decrement inventory, keep exactly the price as spent, return change = credit - price
+          dispensed = sku
+          newInventory[sku].stock--
+          changeTotal = credit - price
+          // *         using greedy breakdown (unlimited coins; no bank constraints), then the session ENDS (ignore further actions).
+          const spent = price
+          const changeCoins = 
+          receipt = { dispensed, changeCoins, changeTotal, spent, errors }
+          receipts.push(receipt)
+        }
+      }
+      // *   - "cancel" refunds exactly the coins the user inserted this session (returned as a breakdown; session ENDS).
+      // *   - If a session ends without "select" success or "cancel", nothing is dispensed or refunded; it's just an idle session end.
+      // *   - Deterministic; integers only; no randomness or timing.
+    }
+  }
+  return {inventory: newInventory, receipts}
 }
