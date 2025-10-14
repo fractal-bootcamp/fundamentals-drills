@@ -55,6 +55,86 @@
  *     ]
  */
 
-export function processVendingSessions(input) {
-  return {}
+
+
+type Action = {
+  type: "insert" | "select" | "cancel" | "noop";
+  coinInput?: number;
+  choice?: string;
+};
+
+type Inventory = {
+  [sku: string]: {
+    price: number;
+    stock: number;
+  };
+};
+
+
+type Session = Action[];
+
+type VendingInput = {
+  inventory: Inventory;
+  sessions: Session[];
+};
+
+type Receipt = {
+  dispensed?: string;
+  changeCoins: { [denom: number]: number };
+  changeTotal: number;
+  spent: number;
+  errors: string[];
+};
+
+type VendingOutput = {
+  inventory: Inventory;
+  receipts: Receipt[];
+};
+
+type Input = {
+  inventory: Inventory;
+  sessions: Session[];
+};
+
+export function processVendingSessions(input: Input) {
+  const { inventory, sessions } = input;
+  let currentCredit = 0;
+  const receipts: Receipt[] = [];
+
+  if(sessions.length == 0 ) return;
+
+  for (const session of sessions) {
+    console.log(session);
+    let receipt: Receipt = {
+      
+    };
+    for (const action of session) {
+      if(action[0] == "insert")
+      {
+        receipt.spent += action[1];
+        currentCredit += action[1];
+      }
+
+      if(action[0] == "select")
+      {
+        if(inventory[action[1]].stock == 0 )
+        {
+          receipt.errors.push("out of stock: " + action[1])
+        }
+        if(inventory[action[1]].price > currentCredit)
+        {
+          receipt.errors.push(`insufficient credit: have ${currentCredit}, need ${inventory[action[1]].price}`);
+        }
+        if(inventory[action[1]].price <= currentCredit)
+        {
+          inventory[action[1]].stock -= 1;
+          receipt.dispensed = inventory[action[1]]
+        }
+
+      }
+
+    }
+  }
+
+  return {};
 }
