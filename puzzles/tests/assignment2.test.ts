@@ -91,6 +91,9 @@ describe("processVendingSessions", () => {
     }]);
   });
 
+
+
+
   it("should handle cancel operation", () => {
     const input = {
       inventory: { E: { price: 50, stock: 1 } },
