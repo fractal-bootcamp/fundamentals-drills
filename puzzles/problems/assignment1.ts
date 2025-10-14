@@ -17,5 +17,14 @@
  *   longestStreak([]) -> 0
  */
 export function longestStreak(nums: number[]): number {
-  return 0
+  if (nums.length == 0) return 0
+
+  let [current, longest]: [number, number] = [1, 1]
+  
+  for (let i = 0; i < nums.length - 1; i++) {
+    if (nums[i] + 1 == nums[i + 1]) [current, longest] = [current + 1, Math.max(longest, current + 1)]
+    else current = 1
+  }
+
+  return longest
 }
