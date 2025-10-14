@@ -70,6 +70,9 @@ type Inventory = {
   };
 };
 
+type coinSet = { [denom: number]: number }
+
+
 
 type Session = Action[];
 
@@ -98,17 +101,28 @@ type Input = {
 
 export function processVendingSessions(input: Input) {
   const { inventory, sessions } = input;
-  let currentCredit = 0;
   const receipts: Receipt[] = [];
 
-  if(sessions.length == 0 ) return;
+  if(sessions == null ) return;
 
   for (const session of sessions) {
     console.log(session);
     let receipt: Receipt = {
-      
+      dispensed: null,
+      spent: 0,
+      changeCoins: {},
+      changeTotal: 0,
+      errors: []
     };
+    let currentCredit = 0;
+
+
     for (const action of session) {
+      if(action[0] == "cancel")
+      {
+        return;
+
+      }
       if(action[0] == "insert")
       {
         receipt.spent += action[1];
@@ -128,13 +142,52 @@ export function processVendingSessions(input: Input) {
         if(inventory[action[1]].price <= currentCredit)
         {
           inventory[action[1]].stock -= 1;
-          receipt.dispensed = inventory[action[1]]
+
+          let change = currentCredit-inventory[action[1]].price
+          currentCredit -= inventory[action[1]].price;
+
+          let coinSet: coinSet;
+//[100,50,25,10,5,1]
+
+          while(change != 0)
+          {
+            if(change >= 100)
+            {
+                coinSet[100] += 1;
+            }
+            if(change >= 50)
+            {
+                coinSet[50] += 1;
+            }
+            if(change >= 25)
+            {
+                coinSet[25] += 1;
+            }
+             if(change >= 10)
+            {
+                coinSet[10] += 1;
+            }
+            if(change >= 5)
+            {
+                coinSet[5] += 1;
+            }
+            if(change >= 1)
+            {
+                coinSet[1] += 1;
+            }
+          }
+
+          receipt.dispensed = action[1]
+
         }
-
-      }
-
+      } 
     }
+    receipts.push(receipt);
   }
 
-  return {};
+  console.log("------INVENTORY--------");
+  console.log(inventory);
+    console.log("------RECEIPTS--------");
+  console.log(receipts);
+  return {inventory :inventory, receipts: receipts};
 }
