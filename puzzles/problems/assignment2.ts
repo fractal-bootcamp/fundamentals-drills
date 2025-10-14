@@ -60,40 +60,26 @@
 //track stock
 //reciepts
 
+type ActionType = "insert" | "select" | "cancel" | "noop";
+
 type Action = {
-	action: string = "insert" | "select" | "cancel" | "noop";
+	actionType: ActionType;
 	coin?: number;
 	selection?: string;
 };
 
 type Session = Action[];
 
-type SkuInfo = {
-  price: string;
-	stock: number;
-}
-
-
-type Sku = {
-  name: string
-  info: SkuInfo
-};
-
-type Inventory = {
-	sku: string;
-};
-
-type Input = {
-	inventory: { [sku: string]: { price: number; stock: number } };
-	sessions: Array<Session>;
-};
-
 type Coin = {
 	denom: number;
 	amount: number;
 };
 
-type Coins = Coin[];
+type Balance = Coin[];
+
+type ChangeCoins = {
+	[denom: number]: number;
+};
 
 type Reciept = {
 	dispensed?: string;
@@ -103,34 +89,61 @@ type Reciept = {
 	errors: string[];
 };
 
+type SkuInfo = {
+	price: string;
+	stock: number;
+};
+
+type Inventory = {
+	[sku: string]: SkuInfo;
+};
+
+type Input = {
+	inventory: Inventory;
+	sessions: Array<Session>;
+};
+
 type Output = {
 	inventory: Inventory;
 	reciepts: Reciept[];
 };
 
-//process sessions
-  //process Action
-    //process insert
-      //update inventory
-    //process select
-      //update inventory
-      //update output
-    //process cancel
-      //update inventory
+//read in input
 
+// process sessions
+//    process Action
+//        process insert
+//            allowed denomination
+//            update balance
+//        process select
+//          check balance
+//          update inventory
+//          update output receipt
+//        process cancel
+//          refund balance
 
+const inv = { A: { price: 125, stock: 1 } };
+const sess = [
+	[
+		["insert", 100],
+		["insert", 25],
+		["select", "A"],
+	],
+];
 
-export function processVendingSessions(input: Input) {
+export function processVendingSessions(input: Input): Output {
 	let inventory = input.inventory;
 	let sessions = input.sessions;
-  let output: Output = {
-    ...inventory,
-    reciepts = []
-  }
-  
+	//for each action in sessions
+	//  check action
+	//  do what is required
+	//  update inventory and balance
 
-	return {};
+	let output: Output = {
+		...inventory,
+		reciepts: [],
+	};
+	return output;
 }
 
-
-//processVendingSessions()
+console.log(processVendingSessions({ inv, sess }));
