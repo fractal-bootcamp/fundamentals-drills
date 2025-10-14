@@ -19,7 +19,7 @@
 
 // check the array
 // hold a previous value that starts off as undefined
-// hold a value for streak counter, starts off as 0
+// hold a value for streak counter, starts off as 1
 // for each number in the array, 
 // check if the value is equal to 1 + previous value
 // if so, then increment the streak counter by 1
@@ -38,29 +38,36 @@ export function longestStreak(nums: number[]): number {
 
   // if nums.length === 0 then push 0
 
-  for (let i = 0; i < nums.length; i++) {
-    let currentValue = nums[i]
-    
-    if (!comparisonValue) {
-        console.log('No comparison value')
-        streakArray.push(streakCounter)
+  if (nums.length === 0) {
+    streakArray.push(0) 
+  } else {
+    for (let i = 0; i < nums.length; i++) {
+      let currentValue = nums[i]
+      
+      if (comparisonValue === undefined ) {
+          console.log('No comparison value')
+          streakArray.push(streakCounter)
+          comparisonValue = currentValue
+      } else if (currentValue === comparisonValue + 1) {
+        streakCounter += 1
         comparisonValue = currentValue
-    } else if (currentValue === comparisonValue + 1) {
-      streakCounter += 1
-      comparisonValue = currentValue
-      console.log(`Streak is now ${streakCounter} at position index ${i} (value: ${currentValue}, comparison value ${comparisonValue}`)
-    } else if (currentValue !== comparisonValue + 1) {
-        streakArray.push(streakCounter)
-        comparisonValue = currentValue
-        streakCounter = 1
-        console.log(`Streak reset at position index ${i} (value: ${currentValue}, comparison value ${comparisonValue}`)
-    // } else if (currentValue !== comparisonValue + 1 && streakCounter <= 1) {
-    //   streakCounter = 1  
-    //   break
+        console.log(`Streak is now ${streakCounter} at position index ${i} (value: ${currentValue}, comparison value ${comparisonValue}`)
+      } else if (currentValue !== comparisonValue + 1) {
+          streakArray.push(streakCounter)
+          comparisonValue = currentValue
+          streakCounter = 1
+          console.log(`Streak reset at position index ${i} (value: ${currentValue}, comparison value ${comparisonValue}`)
+      // } else if (currentValue !== comparisonValue + 1 && streakCounter <= 1) {
+      //   streakCounter = 1  
+      //   break
+      }
     }
+    streakArray.push(streakCounter)
   }
 
-  streakArray.push(streakCounter)
+  
+
+  
 
 
   for (let j = 0; j < streakArray.length; j++) {
