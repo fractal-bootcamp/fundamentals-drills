@@ -66,11 +66,7 @@
 // there is an inventory wiht prices
 
 
-
-
-// get types
-
-
+// make types
 type Inventory = {
   price: number
   stock: number
@@ -95,12 +91,12 @@ type Result = {
 
 }
 
+
 // hold a value to sum the insert events
 // when a select event occurs, check the value of the Item selected
 // lookup the price of the value selected
 // compare the summed inserted value with the price of the selected item
 // return the result
-
 
 export function processVendingSessions(input) {
 
