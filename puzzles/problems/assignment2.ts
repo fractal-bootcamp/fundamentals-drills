@@ -55,6 +55,82 @@
  *     ]
  */
 
-export function processVendingSessions(input) {
-  return {}
+//track current balance and coins types
+//inventory
+//track stock
+//reciepts
+
+type Action = {
+	action: string = "insert" | "select" | "cancel" | "noop";
+	coin?: number;
+	selection?: string;
+};
+
+type Session = Action[];
+
+type SkuInfo = {
+  price: string;
+	stock: number;
 }
+
+
+type Sku = {
+  name: string
+  info: SkuInfo
+};
+
+type Inventory = {
+	sku: string;
+};
+
+type Input = {
+	inventory: { [sku: string]: { price: number; stock: number } };
+	sessions: Array<Session>;
+};
+
+type Coin = {
+	denom: number;
+	amount: number;
+};
+
+type Coins = Coin[];
+
+type Reciept = {
+	dispensed?: string;
+	changeCoins?: Coins;
+	changeTotal: number;
+	spent: number;
+	errors: string[];
+};
+
+type Output = {
+	inventory: Inventory;
+	reciepts: Reciept[];
+};
+
+//process sessions
+  //process Action
+    //process insert
+      //update inventory
+    //process select
+      //update inventory
+      //update output
+    //process cancel
+      //update inventory
+
+
+
+export function processVendingSessions(input: Input) {
+	let inventory = input.inventory;
+	let sessions = input.sessions;
+  let output: Output = {
+    ...inventory,
+    reciepts = []
+  }
+  
+
+	return {};
+}
+
+
+//processVendingSessions()
