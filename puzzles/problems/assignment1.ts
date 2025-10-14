@@ -1,48 +1,21 @@
 /**
- * Student Grade Calculator
+ * Assignment 1 — Consecutive Sum Streak
  *
- * Given an array of student records, find the student with the highest average grade.
- * Each student record contains a name and an array of test scores. Calculate each
- * student's average and return the name of the student with the highest average.
- * If there's a tie, return the student whose name appears first in the array.
+ * Context:
+ * In analytics or signal processing, we sometimes want to detect “streaks” of rising data. Given an array of integers,
+ * return the length of the longest consecutive increasing run (where each next number is exactly 1 greater).
+ * For example, [1,2,3,5,6,7,8,10] has a longest streak [5,6,7,8] of length 4.
  *
- * Input: Array of objects with { name: string, scores: number[] }
- * Output: String representing the name of the top student
+ * Input:
+ *   - nums: number[] — may be empty or contain duplicates.
+ * Output:
+ *   - number — length of the longest strictly consecutive +1 run.
  *
  * Examples:
- * - [{ name: "Alice", scores: [85, 90, 78] }, { name: "Bob", scores: [92, 88] }] → "Bob"
- * - [{ name: "Charlie", scores: [80] }, { name: "Dana", scores: [80, 80] }] → "Charlie"
+ *   longestStreak([1,2,3,5,6,7,8,10]) -> 4
+ *   longestStreak([5,5,5]) -> 1
+ *   longestStreak([]) -> 0
  */
-
-interface student {
-  name: string;
-  scores: number[];
-}
-
-export function findTopStudent(students: student[]): string {
-  let averageScores = [];
-
-  for (let student = 0; student < students.length; student++) {
-    // for each student
-    let Totalscores = 0;
-
-    for (let s = 0; s < students[student].scores.length; s++) {
-      // for each grade in student
-      Totalscores += students[student].scores[s];
-    }
-
-    const average = Totalscores / students[student].scores.length;
-    const name = students[student].name;
-
-    averageScores.push({ name, average });
-  }
-
-  averageScores.sort((a, b) => a.average - b.average);
-  console.log("students" + JSON.stringify(averageScores));
-
-  if (averageScores.length === 0) {
-    return "No students provided";
-  } else {
-    return averageScores[averageScores.length - 1].name;
-  }
+export function longestStreak(nums: number[]): number {
+  return 0
 }

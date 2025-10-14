@@ -1,156 +1,60 @@
+// @ts-nocheck
 /**
- * Movie Theater Seating System
+ * Programming Puzzle — Vending Sessions
  *
- * You are implementing a movie theater seating system. The theater has rows of seats,
- * and customers can request to reserve seats. You need to process reservation requests
- * and determine the final seating arrangement.
+ * You will implement a tiny vending machine that processes a list of user sessions.
+ * Each session is a sequence of actions: inserting coins, selecting an item, or cancelling.
+ * There is NO persistent coin bank: change is conceptual and unlimited; only inventory changes over time.
+ * Sessions are independent except for inventory stock, which is shared and persists across sessions.
  *
- * The theater is represented as a grid where each seat can be "available", "reserved",
- * or "blocked" (unusable). Customers request seats by specifying their preferred row
- * and the number of consecutive seats they need.
+ * Input:
+ *   {
+ *     inventory: { [sku: string]: { price: number; stock: number } } // price in whole cents (>=0), stock>=0
+ *     sessions: Array<Session>                                        // Session = Action[]
+ *   }
+ *   Action is one of:
+ *     ["insert", number]     // coin must be one of the allowed denominations [100,50,25,10,5,1]
+ *     ["select", string]     // attempt to buy sku
+ *     ["cancel"]             // abort session & refund inserted coins
+ *     ["noop"]               // does nothing
  *
- * Rules:
- * - Seats must be consecutive in the same row
- * - Choose the leftmost available group of seats in the requested row
- * - If the requested row doesn't have enough consecutive seats, deny the request
- * - Blocked seats cannot be reserved and break consecutiveness
+ * Output:
+ *   {
+ *     inventory: { ...updated inventory... },
+ *     receipts: Array<{
+ *       dispensed?: string;                        // sku if an item was dispensed
+ *       changeCoins: { [denom: number]: number };  // change returned as a greedy breakdown in the allowed denominations
+ *       changeTotal: number;                        // total change (cents)
+ *       spent: number;                              // cents the machine kept this session
+ *       errors: string[];                           // rule violations or unsupported ops
+ *     }>
+ *   }
  *
- * Input: Theater layout (2D array) and list of reservation requests
- * Theater: "A" = available, "R" = reserved, "B" = blocked
- * Requests: { customerId: string, row: number, seatsNeeded: number }
+ * Rules & Notes:
+ *   - Start each session with credit=0 and an empty "inserted" coin pouch.
+ *   - "insert" adds to the session credit if the coin is in the allowed denominations; otherwise record an error and ignore it.
+ *   - "select":
+ *       * Fails if sku is invalid, out of stock, or credit < price (record an error; session continues).
+ *       * On success: dispense the item, decrement inventory, keep exactly the price as spent, return change = credit - price
+ *         using greedy breakdown (unlimited coins; no bank constraints), then the session ENDS (ignore further actions).
+ *   - "cancel" refunds exactly the coins the user inserted this session (returned as a breakdown; session ENDS).
+ *   - If a session ends without "select" success or "cancel", nothing is dispensed or refunded; it's just an idle session end.
+ *   - Deterministic; integers only; no randomness or timing.
  *
- * Return: Object with successful reservations and final theater state
+ * Examples:
+ *   Example A:
+ *     inv={A:{price:125,stock:1}}, sessions=[
+ *       [ ["insert",100],["insert",25],["select","A"] ]
+ *     ]
+ *     => dispensed A, spent 125, change 0, inventory A.stock=0
  *
- * Example:
- * Initial theater: [["A", "A", "B", "A", "A"], ["A", "A", "A", "A", "A"]]
- * Request: { customerId: "customer1", row: 0, seatsNeeded: 2 }
- * Result: Seats 0-1 in row 0 reserved, seats 3-4 still available
+ *   Example B:
+ *     inv={B:{price:130,stock:1}}, sessions=[
+ *       [ ["insert",100],["insert",25],["select","B"] ], // insufficient: error, session continues
+ *       [ ["insert",100],["select","B"] ]                // success with change 70 = 50+10+10
+ *     ]
  */
 
-type Request = { customerId: string; row: number; seatsNeeded: number };
-
-type SeatState = "A" | "B" | "R";
-
-type Row = SeatState[];
-
-type Theater = Row[];
-
-type Reservation = {
-  customerId: string;
-  row: number;
-  startSeat: number;
-  endSeat: number;
-};
-
-type Result = {
-  successfulReservations: Reservation[];
-  finalTheater: Theater;
-};
-
-function requestIsValid(req: Request): boolean {
-  if (req.row < 0) {
-    return false;
-  }
-  return true;
-}
-
-function checkRequestAgainstRow(req: Request, row: Row): Reservation | null {
-  if (req.seatsNeeded > row.length) {
-    return null;
-  }
-
-  // Start at leftmost "A"
-  // Check if the next req.seatsNeeded are all A
-  // if so, add to reservation and return
-  // else continue
-
-  const firstAvailableIndex = row.indexOf("A");
-  if (firstAvailableIndex < 0) {
-    return null;
-  }
-
-  for (let s = 0; s < row.length - req.seatsNeeded + 1; s++) {
-    let sliceValid = true;
-    let startSeat = firstAvailableIndex + s;
-    for (let i = startSeat; i < req.seatsNeeded; i++) {
-      if (i >= row.length) {
-        sliceValid = false;
-        break;
-      }
-
-      if (row[i] != "A") {
-        sliceValid = false;
-        break;
-      }
-    }
-    if (sliceValid) {
-      return {
-        customerId: req.customerId,
-        row: req.row,
-        startSeat: startSeat,
-        endSeat: startSeat + req.seatsNeeded - 1,
-      };
-    }
-  }
-
-  return null;
-}
-
-function applyReservationToTheater(reservation: Reservation, theater: Theater) {
-  const newRow = theater[reservation.row];
-  for (let r = reservation.startSeat; r <= reservation.endSeat; r++) {
-    newRow[r] = "R";
-  }
-  return structuredClone(theater);
-}
-
-export function processReservations(
-  initialTheater: Theater,
-  requests: Request[]
-): Result {
-  if (initialTheater.length == 0 || requests.length == 0) {
-    return {
-      successfulReservations: [],
-      finalTheater: initialTheater,
-    };
-  }
-
-  const reservations: Reservation[] = [];
-  // const reservations2 = new Array<Reservation>();
-  let currentTheater = structuredClone(initialTheater);
-
-  // Loop through each request,
-  // see if it can be satisfied,
-  // if so add a reservation and update theater,
-  // else continue to next request
-  for (let i = 0; i < requests.length; i++) {
-    const req = requests[i];
-    const row = currentTheater[req.row];
-
-    if (!row) {
-      continue;
-    }
-
-    if (!requestIsValid(req)) {
-      continue;
-    }
-
-    // Check the request against each row in the theater
-    // If the row satisfies, then add that resy to the array and update theater
-    // else continue until no more rows remain
-    const maybeReservation = checkRequestAgainstRow(req, row);
-    if (maybeReservation) {
-      // Add row to the set of reservations and update theater
-      reservations.push(maybeReservation);
-      currentTheater = applyReservationToTheater(
-        maybeReservation,
-        currentTheater
-      );
-    }
-  }
-
-  return {
-    successfulReservations: reservations,
-    finalTheater: currentTheater,
-  };
+export function processVendingSessions(input) {
+  return {}
 }

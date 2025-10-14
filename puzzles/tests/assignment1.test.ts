@@ -1,84 +1,85 @@
 import { describe, it, expect } from 'vitest';
-import { findTopStudent } from '../problems/assignment1';
+import { longestStreak } from '../problems/assignment1';
 
-describe('findTopStudent', () => {
-  it('should find student with highest average', () => {
-    const students = [
-      { name: "Alice", scores: [85, 90, 78] },
-      { name: "Bob", scores: [92, 88] }
-    ];
-    expect(findTopStudent(students)).toBe("Bob");
+describe('longestStreak', () => {
+  it('should find longest consecutive streak from example', () => {
+    expect(longestStreak([1,2,3,5,6,7,8,10])).toBe(4);
   });
 
-  it('should return first student in case of tie', () => {
-    const students = [
-      { name: "Charlie", scores: [80] },
-      { name: "Dana", scores: [80, 80] }
-    ];
-    expect(findTopStudent(students)).toBe("Charlie");
+  it('should return 1 for array with all same numbers', () => {
+    expect(longestStreak([5,5,5])).toBe(1);
   });
 
-  it('should handle single student', () => {
-    const students = [
-      { name: "Eve", scores: [95, 87, 92] }
-    ];
-    expect(findTopStudent(students)).toBe("Eve");
+  it('should return 0 for empty array', () => {
+    expect(longestStreak([])).toBe(0);
   });
 
-  it('should handle students with single scores', () => {
-    const students = [
-      { name: "Frank", scores: [75] },
-      { name: "Grace", scores: [85] },
-      { name: "Henry", scores: [80] }
-    ];
-    expect(findTopStudent(students)).toBe("Grace");
+  it('should handle single element array', () => {
+    expect(longestStreak([42])).toBe(1);
   });
 
-  it('should handle students with different numbers of scores', () => {
-    const students = [
-      { name: "Ivy", scores: [70, 80, 90, 85] },
-      { name: "Jack", scores: [95, 85] },
-      { name: "Kate", scores: [88] }
-    ];
-    expect(findTopStudent(students)).toBe("Jack");
+  it('should handle perfectly consecutive array', () => {
+    expect(longestStreak([1,2,3,4,5])).toBe(5);
   });
 
-  it('should handle empty scores array', () => {
-    const students = [
-      { name: "Leo", scores: [] },
-      { name: "Mia", scores: [75, 85] }
-    ];
-    expect(findTopStudent(students)).toBe("Mia");
+  it('should handle array with no consecutive elements', () => {
+    expect(longestStreak([1,3,5,7,9])).toBe(1);
   });
 
-  it('should handle all students with empty scores', () => {
-    const students = [
-      { name: "Nina", scores: [] },
-      { name: "Oscar", scores: [] }
-    ];
-    expect(findTopStudent(students)).toBe("Nina");
+  it('should handle array with multiple streaks', () => {
+    expect(longestStreak([1,2,3,10,11,12,13,14,20,21,22,0,0,0,45,46,47])).toBe(5);
   });
 
-  it('should handle large class with various scores', () => {
-    const students = [
-      { name: "Alice", scores: [78, 82, 85] },
-      { name: "Bob", scores: [90, 88, 92, 87] },
-      { name: "Charlie", scores: [95] },
-      { name: "Diana", scores: [85, 88] },
-      { name: "Edward", scores: [76, 79, 81, 84, 88] }
-    ];
-    expect(findTopStudent(students)).toBe("Charlie");
+  it('should handle negative consecutive numbers', () => {
+    expect(longestStreak([-3,-2,-1,0,1])).toBe(5);
   });
 
-  it('should throw error for empty array', () => {
-    expect(() => findTopStudent([])).toThrow('No students provided');
+  it('should handle mixed positive and negative with gaps', () => {
+    expect(longestStreak([-5,-4,-3,0,1,2,10,11])).toBe(3);
   });
 
-  it('should handle perfect scores', () => {
-    const students = [
-      { name: "Perfect", scores: [100, 100, 100] },
-      { name: "AlmostPerfect", scores: [99, 100, 99] }
-    ];
-    expect(findTopStudent(students)).toBe("Perfect");
+  it('should handle unsorted array', () => {
+    expect(longestStreak([3,1,2,4,5])).toBe(2); // 1,2 is the longest consecutive run in array order
+  });
+
+  it('should handle duplicates breaking consecutive runs', () => {
+    expect(longestStreak([1,2,2,3,4])).toBe(3); // 2,3,4 is the longest consecutive run
+  });
+
+  it('should handle large numbers', () => {
+    expect(longestStreak([1000,1001,1002,2000,2001])).toBe(3);
+  });
+
+  it('should handle array starting with consecutive sequence', () => {
+    expect(longestStreak([1,2,3,4,10,15,20])).toBe(4);
+  });
+
+  it('should handle array ending with consecutive sequence', () => {
+    expect(longestStreak([1,5,10,15,16,17,18,19])).toBe(5); // 15,16,17,18,19 is the longest consecutive run
+  });
+
+  it('should handle two element consecutive array', () => {
+    expect(longestStreak([5,6])).toBe(2);
+  });
+
+  it('should handle two element non-consecutive array', () => {
+    expect(longestStreak([5,10])).toBe(1);
+  });
+
+  it('should handle reverse sorted array', () => {
+    expect(longestStreak([10,9,8,7,6])).toBe(1);
+  });
+
+  it('should handle array with zeros', () => {
+    expect(longestStreak([0,1,2,0,0,3,4,5])).toBe(3); // 0,1,2 and 3,4,5 are both length 3
+  });
+
+  it('should handle very long consecutive sequence', () => {
+    const longArray = Array.from({length: 100}, (_, i) => i + 1);
+    expect(longestStreak(longArray)).toBe(100);
+  });
+
+  it('should handle array with repeated consecutive patterns', () => {
+    expect(longestStreak([1,2,5,6,7,10,11])).toBe(3);
   });
 });
