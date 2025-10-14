@@ -22,11 +22,10 @@ export function longestStreak(nums: number[]): number {
   let newCount = 0;
 
   for (let i = 0; i < nums.length; i++) {
-    let currentInteger = i;
+    let currentInteger = nums[i];
 
     if (currentInteger > prevInteger && currentInteger < prevInteger + 2) {
       newCount += 1
-
     }
     else oldCount = newCount;
     newCount = 0;
