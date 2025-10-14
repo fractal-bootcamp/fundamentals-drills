@@ -55,6 +55,66 @@
  *     ]
  */
 
+type Receipts = Array<{
+  dispensed?: string
+  changeCoins: { [denom: number]: number }
+  changeTotal: number
+  spent: number
+  errors: string[]
+}>
+
+function calculateChange(amount) {
+  // splits change in coins
+}
+
 export function processVendingSessions(input) {
-  return {}
+  let {inventory, sessions} = input
+
+  console.log('inv:', inventory, '\n', 'sns:', sessions)
+  console.log(Object.keys(inventory).length)
+
+  let credit = 0
+  let spent = 0
+  let receipts: Receipts
+
+  // for (let i = 0; i < sessions.length; i++) {
+  //   for (let j = 0; j < i.length; j++) {
+  //     if (sessions[i][j][0] === 'insert' && [100, 50, 25, 10, 5, 1].includes(sessions[i][j][1])) {
+  //       credit += sessions[i][j][1]
+  //     } else if (sessions[i][j][0] === 'select' && inventory.sessions[i][j][1]) {
+  //       if (inventory.sessions[i][j][1].stock >= 1 && inventory.sessions[i][j][1].price <= credit) {
+  //         inventory.sessions[i][j][1].price = inventory.sessions[i][j][1].price - credit
+  //         inventory.sessions[i][j][1].stock = inventory.sessions[i][j][1].stock - 1
+  //         receipts.dispensed = sessions[i][j][1]
+          
+  //       }
+  //     }
+  //   }
+  // }
+
+  sessions.map(session => {
+    session.map(action => {
+
+      if (action[0] === 'insert' && [100, 50, 25, 10, 5, 1].includes(action[1])) {
+        credit += action[1]
+      } else if (action[0] === 'select' && inventory.action[1]) {
+
+        if (inventory.action[1].stock >= 1 && inventory.action[1].price <= credit) {
+          credit -= inventory.action[1].price
+          spent += inventory.action[1].price
+          inventory.action[1].stock = inventory.action[1].stock - 1
+          receipts.dispensed = action[1]
+          
+        }
+
+      }
+
+    })
+  })
+
+  receipts.changeCoins = calculateChange(credit)
+  receipts.changeTotal = credit
+  receipts.spent = spent
+
+  return {inventory, receipts}
 }
