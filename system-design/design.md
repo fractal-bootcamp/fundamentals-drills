@@ -8,20 +8,85 @@ Design a minimal Etsy shop with the following features:
 
 
 ## 1. Core User Flows
-For each flow, describe what happens end-to-end with bullet points. 
+For each flow, describe what happens end-to-end with bullet points. For the Twitter question, this might be:
 
-1) User/Admin Views 'Home Page' with Login/Register Options
-2) User/Admin Login/Register from 'Home Page' Redirects to 'Storefront' Page which displays:
-   - 'Product List' Products Available with 'Add to Cart' Button Under each Product. 
-   - 'Cart Sidebar' Togglable Display for Products Added to Cart with 'Go To Checkout' button
-3) User Clicks 'Go to Checkout' (in Cart Sidebar) -> Redirected to 'Checkout' Page from Product List
-   - User fills in Shipping/Billing Information and Clicks 'Purchase' -> Redirects to Transaction Summary Page
-4) If Admin: Display 'Manage Products' Button that Redirects to 'Product Management' Page on 'Storefront Page'
-- Admin Adds/Removes Products from Product List (Admin Inventory Page) 
+Ability to view a product in the Storefront
+- User views products listed for that particular storefront
+- Homepage contains basic information: Product Image, Pricing, Quantity Available
+- Clicks on a single product, and gets directed to its specific product listing page.
+
+
+Ability to View Product Listing and add to cart from Multiple Listings
+- View each product page with its description, title, and quantity available.
+- User shall add desired quantity into their shopping cart.
+- User shall be able to click checkout, or go to another product page and add that to checkout.
+
+Ability to Checkout
+- User shall be able to click on checkout from any product page.
+- User shall be able to see all their items and their quantity during the checkout stage.
+- Before checking out, user shall be prompted to log in (if not done so already), authenticated wiht Better Auth.
+- Upon succesfully checking out, the product's available quantity will automatically decrement based on the customer's order.
+
+Ability for Administrator to Add New Products
+- Admin will have special privilleges
+- Ability for Store Administrator to manually add new products and specify their quantity before listing.
+- Authenticate with BetterAuth and use isAdmin flag to check for Admin role.
+
 
 
  ## 2. Data models
-List your tables and columns, with primary keys and any unique constraints or indexes you need for V1. Include 1–2 example rows where helpful.
+Products
+ - ProductID: UUID
+ - Name : String
+ - Description : String
+ - Quantity_Available: Number
+
+Customers
+ - ID: UUID
+ - Name: String
+ - Email: String
+ - Address: String
+
+Order 
+ - OrderID : UUID
+ - CustomerID : UUID (FK)
+ - Address : String
+ - Subtotal : Number
+ - Total : Number
+ - Shipping : Number
+ - Tax : Number
+
+ Product_Order Bridge Table
+ - ProductID: FK
+ - OrderID: FK
+ - Quantity
+
+
+
+1) ADD NEW Products:
+UPDATE Products
+SET Name = ... , Description = ..., Quantity_Available = ...
+
+2) New Orders:
+UPDATE Order
+SET Order_ID = .... , CustomerID = ... 
+
+UPDATE Product_Order
+SET ProductID = ... , OrderID = ..., Quantity = ... 
+
+
+3) Add New Customer (during Login)
+UPDATE Customers
+SET Name = ..., Email = ... , Address = ....
+
+
+4) View all Products
+SELECT * FROM Products
+
+5) View specific Products
+SELECT * FROM Products WHERE ProductID = .....
+
+
 
 - User
   - UUID
@@ -40,6 +105,9 @@ List your tables and columns, with primary keys and any unique constraints or in
 ## 3. Architecture Diagram
 Attach a simple boxes-and-arrows diagram showing client, API server, and database. Label arrows with the main requests (e.g., "POST /follow", "GET /timeline"). Keep it legible and minimal.
 
+[Vite | Express / React Router Framework Mode] => On the same port
+
+React Router calls Database through Drizzle's ORM 
 ## 4. API Sketch
 List the minimal endpoints and their request/response shapes at a high level. Keep this terse.
 
@@ -55,5 +123,17 @@ List the minimal endpoints and their request/response shapes at a high level. Ke
 
 Route protection: Better Auth and Scope defined in user, handled on server and client side.
 
-Diagram ( I ran out of time to finish this, sorry that flew buy and I thought I had more time)
-![alt text](image.png)
+State what each returns on success and what errors matter in V1.
+
+GET /Products
+
+GET /Products/P_ID
+
+POST /Products/
+Body: Name, Description, Quantity Available
+
+Delete /Products/P_ID
+
+POST /Order/C_ID
+C_ID: CustomerID
+Body: An array of the ProductID and Quantities
