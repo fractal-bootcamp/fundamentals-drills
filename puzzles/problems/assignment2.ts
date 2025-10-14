@@ -91,6 +91,41 @@ export function processVendingSessions(input: Input): Output {
 
   let credit = 0;
 
+  function purchaseItem(
+    credit,
+    sku: string,
+    item: { price: number; stock: number },
+  ): Receipt {
+    if (credit < item.price) {
+      return {
+        dispensed: undefined,
+        changeCoins: {},
+        changeTotal: 0,
+        spent: 0,
+        errors: [`insufficient credit: have ${credit}, need ${item.price}`],
+      };
+    }
+
+    if (item.stock <= 0) {
+      return {
+        dispensed: undefined,
+        changeCoins: {},
+        changeTotal: 0,
+        spent: 0,
+        errors: [`out of stick: ${sku}`],
+      };
+    }
+
+    // else, successfully purchase
+    return {
+      dispensed: sku,
+      changeCoins: {}, // TODO
+      changeTotal: credit - item.price,
+      spent: item.price,
+      errors: [],
+    };
+  }
+
   for (const session of input.sessions) {
     for (const action of session) {
       switch (action[0]) {
