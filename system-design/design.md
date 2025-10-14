@@ -122,3 +122,13 @@ For twitter:
 - `GET /timeline`
 
 State what each returns on success and what errors matter in V1.
+
+- GET /items/:itemId
+- 
+- GET /cart/:userId
+  - returns: list of Cart Row items associated w user; item pictures associated w each row.
+- POST /purchaseCart 
+  - input: user_id, session token.
+  - returns: boolean (successful purchase) or redirect to payment page
+- 
+
