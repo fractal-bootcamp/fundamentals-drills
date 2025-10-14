@@ -54,7 +54,102 @@
  *       [ ["insert",100],["select","B"] ]                // success with change 70 = 50+10+10
  *     ]
  */
+type Output = {
 
-export function processVendingSessions(input) {
-  return {}
+  inventory: inventory,
+  receipts: Array<{
+    dispensed?: string,
+    changeCoins: { [denom: number]: number },
+    changeTotal: number;
+    spent: number;
+    errors: string[];
+  }>
+
 }
+
+type inventory = {
+  [sku: string]: {
+    price: number,
+    stock: number
+  }
+}
+
+type input = {
+  inventory: inventory,
+  sessions: actions[]
+}
+
+type action = ["insert", number] | ["select", string] | ["cancel"] | ["noop"]
+
+export function processVendingSessions(input: input): Output {
+
+  if (input.inventory === null || input.sessions === null) {
+    return {
+      inventory: {},
+      receipts: []
+    }
+  }
+
+  if (input.sessions === []) {
+    return {
+      inventory: input.inventory,
+      receipts: [{
+        dispensed: undefined,
+        changeCoins: {},
+        changeTotal: 0,
+        spent: 0,
+        errors: []
+      }]
+    }
+  }
+
+
+  let initial_inventory = input.inventory
+  let initial_actions = input.sessions
+  let totalActions = initial_actions.length
+
+  let initial_credit = 0
+
+  let inventoryOutput = structuredClone(input.inventory)
+
+  for (let i = 0; i < totalActions; i++) { // For each action 
+
+    let action = initial_actions[i]
+
+    if (action[0] === "insert") {
+      insertCoins(action[1])
+    }
+
+    if (action[0] === "select") {
+      makeSelection(action[2])
+    }
+
+    if (action[0] === "cancel") {
+      cancelAndRefund() // input ? 
+    }
+
+    if (action[0] === "noop") {
+      continue
+    }
+
+
+  }
+
+  return inventoryOutput
+}
+
+// const insertCoins = (input: input): Output => {
+
+
+// }
+
+
+console.log(processVendingSessions(
+  {
+    inventory:
+      { N: { price: 50, stock: 1 } },
+    actions: [
+      []
+    ]
+  }
+))
