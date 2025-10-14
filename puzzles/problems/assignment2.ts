@@ -80,32 +80,46 @@ type Output = {
   receipts: Array<Receipt>;
 };
 
+function isCoin(amount: number) {
+  const COINS = [100, 50, 25, 10, 5, 1];
+  return COINS.includes(amount);
+}
+
 export function processVendingSessions(input: Input): Output {
   let inventory: Inventory = input.inventory;
   let receipts: Receipt[] = [];
 
-  if (inventory["A"]) {
-    console.log("FOUND ITEM A");
-  }
+  let credit = 0;
 
-  for (const action of input.sessions) {
-    switch (action[0]) {
-      case ["insert"]:
-        console.log("INSERT CASE");
-        break;
-      case ["select"]:
-        console.log("SELECT CASE");
-        break;
-      case ["cancel"]:
-        console.log("CANCEL CASE");
-        break;
-      case ["noop"]:
-        console.log("NOOP CASE");
-        console.log("THE THINGY", blah.price, blah.stock);
-        break;
-      default:
-        console.log("DEFAULT CASE");
-        break;
+  for (const session of input.sessions) {
+    for (const action of session) {
+      switch (action[0]) {
+        case "insert":
+          console.log("INSERT CASE");
+          if (action[1] && isCoin(action[1])) {
+            credit += action[1];
+            console.log("ADDED COIN", action[1]);
+          }
+
+          break;
+        case "select":
+          console.log("SELECT CASE");
+          if (action[1] && inventory[action[1]]) {
+            console.log("SELECTING ITEM", inventory[action[1]]);
+            credit += action[1];
+          }
+          break;
+        case "cancel":
+          console.log("CANCEL CASE");
+          break;
+        case "noop":
+          console.log("NOOP CASE");
+          console.log("THE THINGY", blah.price, blah.stock);
+          break;
+        default:
+          console.log("DEFAULT CASE");
+          break;
+      }
     }
   }
 
