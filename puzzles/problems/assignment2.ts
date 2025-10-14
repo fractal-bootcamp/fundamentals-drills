@@ -55,6 +55,84 @@
  *     ]
  */
 
-export function processVendingSessions(input) {
-  return {}
+type SessionsInput = {
+  inventory: InventoryItem[],
+  sessions: VendingSession[]
+}
+
+type InventoryStore = {
+  [itemName]: InventoryItem
+}
+
+type InventoryItem = {
+  price: number;
+  stock: number;
+}
+
+type VendingSession = Action[]
+
+type ActionOption = "insert" | "select" | "cancel" | "noop"
+type ActionValue = number | string
+
+type Action = [
+  ActionOption,
+  ActionValue | void
+]
+
+type Change = {
+  [denomination: string]: string;
+}
+
+type Result = {
+  receipts: Receipt[];
+  inventory: InventoryStore
+}
+
+type Receipt = {
+  dispensed: string | undefined;
+  spent: number;
+  errors: string[];
+  changeCoins: Change;
+  changeTotal: number;
+}
+
+export function processVendingSessions(input: SessionsInput) {
+  const { inventory, sessions } = input
+  const result: Result = { receipts: [], inventory }
+  sessions.forEach((session: VendingSession) => {
+    const sessionCoinPouch = { credit: 0, inserted: 0 }
+    const receipt: Receipt = {
+      dispensed: undefined,
+      spent: 0,
+      errors: [],
+      changeCoins: {},
+      changeTotal: 0
+    }
+
+    const sessionSpend = 0;
+    const actions = session
+
+    actions.forEach((action: Action) => {
+      const actionType: ActionOption = action[0]
+      const actionValue: ActionValue = action[1]
+      if (actionType === "insert" && typeof actionValue === "number" && actionValue > 0) {
+        console.log('inserting!!')
+        sessionCoinPouch.credit += actionValue
+      } else if (actionType === "select" && actionValue) {
+        console.log('selecting!!')
+        if (sessionCoinPouch.credit === inventory[actionValue].price) {
+          receipt.dispensed = actionValue
+          receipt.spent = sessionCoinPouch.credit
+          sessionCoinPouch.credit = 0
+          console.log(inventory[actionValue])
+          inventory[actionValue].stock -= 1
+        }
+      }
+    })
+
+    console.log(receipt)
+    result.receipts.push(receipt)
+  })
+
+  return result
 }
