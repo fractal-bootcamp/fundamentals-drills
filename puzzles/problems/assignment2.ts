@@ -64,10 +64,7 @@ type Coin = [100, 50, 25, 10, 5, 1]
 
 
 type Action = {
-  insert: [Coin, number]
-  select: ["select", string]
-  cancel: ["cancel"]
-  noop: ["noop"]
+  ["insert", Coin], ["select", string], ["cancel"], ["noop"]
 }
 
 type inventory = {
@@ -87,14 +84,38 @@ type vendorOutput = {
   updatedInventory: inventory
   receipts: receipt[]
 }
+
+//helper fn only to handle one array of actions
+function processActions(actions: Action[]): vendorOutput {
+  let dummyVariable: vendorOutput;
+  for (let i = 0; i < actions.length; i++) { //switch statement, ******TODO dont know how to use Action objects atm
+    //do something if insert
+    if (actions[i].) {
+      //coin? add to the session credit:record an error and ignore
+      //
+    }
+    //do something if select
+
+    //do something if cancel
+    //do something if noop
+  }
+
+
+  return dummyVariable;
+}
+
+
 export function processVendingSessions(initInventory: inventory, sessions: Sessions[]): vendorOutput {
   //take in inventory + array of sessions
 
   let output: vendorOutput; //fill in output with information
 
   //for the sessions, do something, iterate over them 
-  
+  for (let i = 0; i < sessions.length; i++) {
+    //helper fn? to deal with each session -> each session is an action array, so multiple to process 
+    output = processActions(sessions[i]) //sessions[i] contains an array of actions, process the array of actions and keep updating the inventory and the receipts
 
+  }
 
   //output inventory + array of receipts
   return {
