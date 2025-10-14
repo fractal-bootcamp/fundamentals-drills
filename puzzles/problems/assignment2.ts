@@ -55,30 +55,101 @@
  *     ]
  */
 
-const input = {
-  inventory: { G: { price: 50, stock: 1 } },
-  sessions: [
-    [
-      ["insert", 100],
-      ["select", "INVALID"],
-    ],
-  ],
-};
-
 export function processVendingSessions(input) {
-  let inventoryKeys = Object.keys(input["inventory"]);
-  let sessions = input["sessions"];
+  let inventory = input.inventory || {};
+  let sessions = input.sessions || [];
 
-  console.log("Keys: " + inventoryKeys);
-  console.log("Sessions: " + sessions.length);
+  if (inventory === {} || sessions === [])
+    return { inventory: {}, sessions: [] };
 
-  //   ["insert", number]     // coin must be one of the allowed denominations [100,50,25,10,5,1]
-  //   ["select", string]     // attempt to buy sku
-  //   ["cancel"]             // abort session & refund inserted coins
-  //   ["noop"]               // does nothing
-
-  for (const key in inventoryKeys) {
+  for (const sku in inventory) {
+    const item = inventory[sku];
+    item.price = Math.max(0, Math.floor(item.price));
+    item.stock = Math.max(0, Math.floor(item.stock));
   }
 
-  return {};
+  function makeChange(changeTotal) {
+    let coins = {};
+    let remaining = changeTotal;
+    for (const coin of acceptedCoins) {
+      const count = Math.floor(remaining / coin);
+      if (count > 0) {
+        coins[coin] = count;
+        remaining -= coin * count;
+      }
+    }
+    return coins;
+  }
+  let acceptedCoins = [100, 50, 25, 10, 5, 1];
+  const result = { inventory, receipts: [] };
+
+  for (const sesh of sessions) {
+    let receipt = {
+      dispensed: undefined,
+      changeCoins: {},
+      changeTotal: 0,
+      spent: 0,
+      errors: [],
+    };
+
+    let credit = 0;
+    let sessionEnded = false;
+
+    for (const action of sesh) {
+      if (sessionEnded) break;
+
+      const choice = action[0];
+      const val = action[1];
+
+      if (choice === "noop") continue;
+      else if (choice === "cancel") {
+        receipt.changeTotal = credit;
+        if (credit > 0) receipt.changeCoins = makeChange(credit);
+        sessionEnded = true;
+      } else if (choice === "insert") {
+        if (!acceptedCoins.includes(val)) {
+          receipt.errors.push("unsupported coin: " + val);
+          continue;
+        }
+        credit += val;
+      } else if (choice === "select") {
+        const sku = val;
+        if (!inventory[sku]) {
+          receipt.errors.push("invalid sku: " + sku);
+          continue;
+        }
+
+        const item = inventory[sku];
+        if (item.stock <= 0) {
+          receipt.errors.push("out of stock: " + sku);
+          continue;
+        }
+
+        if (credit < item.price) {
+          receipt.errors.push(
+            `insufficient credit: have ${credit}, need ${item.price}`
+          );
+          continue;
+        }
+
+        receipt.spent = item.price;
+        item.stock -= 1;
+        receipt.dispensed = sku;
+        const change = credit - item.price;
+
+        if (change > 0) {
+          receipt.changeTotal = change;
+          receipt.changeCoins = makeChange(change);
+        }
+
+        sessionEnded = true;
+      } else {
+        receipt.errors.push("unknown action: " + choice);
+      }
+    }
+
+    result.receipts.push(receipt);
+  }
+
+  return result;
 }
