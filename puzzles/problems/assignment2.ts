@@ -84,15 +84,28 @@ export function processVendingSessions(input: Input): Output {
   let inventory: Inventory = input.inventory;
   let receipts: Receipt[] = [];
 
-  console.log("COMPARING");
+  if (inventory["A"]) {
+    console.log("FOUND ITEM A");
+  }
+
   for (const action of input.sessions) {
     switch (action[0]) {
       case ["insert"]:
         console.log("INSERT CASE");
         break;
-
+      case ["select"]:
+        console.log("SELECT CASE");
+        break;
+      case ["cancel"]:
+        console.log("CANCEL CASE");
+        break;
+      case ["noop"]:
+        console.log("NOOP CASE");
+        console.log("THE THINGY", blah.price, blah.stock);
+        break;
       default:
         console.log("DEFAULT CASE");
+        break;
     }
   }
 
