@@ -31,3 +31,23 @@ export function longestStreak(nums: number[]): number {
 	}
 	return maxStreak;
 }
+
+//the fucked reduce way
+// export const longestStreak = (nums: number[]): number => {
+// 	if (nums.length === 0) return 0;
+
+// 	const [max] = nums.reduce(
+// 		([max, cur], n, i, arr) => {
+// 			if (i === 0) return [1, 1];
+// 			if (n === arr[i - 1] + 1) {
+// 				const newCur = cur + 1;
+// 				return [Math.max(max, newCur), newCur];
+// 			} else {
+// 				return [max, 1];
+// 			}
+// 		},
+// 		[0, 0]
+// 	);
+
+// 	return max;
+// };
