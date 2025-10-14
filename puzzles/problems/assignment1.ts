@@ -16,6 +16,21 @@
  *   longestStreak([5,5,5]) -> 1
  *   longestStreak([]) -> 0
  */
+
 export function longestStreak(nums: number[]): number {
-  return 0
+  let streak = 1;
+  let maxStreak = 1;
+
+  if (nums.length === 0) return 0;
+
+  for (let i = 0; i < nums.length - 1; i++) {
+    // if num + 1 = next number streak
+    if (nums[i] + 1 === nums[i + 1]) streak++;
+    // if next num different than +1 curr number reset
+    else if (nums[i] + 1 !== nums[i + 1]) streak = 1;
+
+    maxStreak = Math.max(maxStreak, streak);
+  }
+
+  return maxStreak;
 }
