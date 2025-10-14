@@ -38,7 +38,7 @@ export function longestStreak(nums: number[]): number {
   }
   streaks.push(currentStreak)
 
-  console.log(streaks.filter((a, b) => a - b))
+  console.log("SORTED STREAKS", streaks.filter((a, b) => b - a))
 
 
 
@@ -47,5 +47,5 @@ export function longestStreak(nums: number[]): number {
 
 
 
-  return streaks.filter((a, b) => a - b)[0]
+  return Math.max(...streaks)
 }
