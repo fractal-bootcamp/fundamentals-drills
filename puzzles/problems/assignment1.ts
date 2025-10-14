@@ -17,5 +17,33 @@
  *   longestStreak([]) -> 0
  */
 export function longestStreak(nums: number[]): number {
-  return 0
+  let newArray: number[] = []
+  let count = 0
+
+  for (let i = 0; i < nums.length; i++) {
+    if (nums.length === 0) {
+      count = 0
+    } else if (nums[i + 1] - nums[i] === 1) {
+      newArray.push(nums[i])
+      count = newArray.length
+      if (i === nums.length) {
+        count = count + 1
+      }
+      //  {
+      //   newArray.push(nums[i])
+      //   count = newArray.length
+      // } else {
+      //  newArray.push(nums[i])
+      // count = newArray.length + 1
+      // }
+    }  else if (nums.length === 1) {
+      count = 1
+    } else if (nums[i + 1] - nums[i] !== 1) {
+      count = 1
+    }
+  }
+  console.log(count, newArray)
+  return count
 }
+
+// (nums[i + 1] - nums[i] === 0)
