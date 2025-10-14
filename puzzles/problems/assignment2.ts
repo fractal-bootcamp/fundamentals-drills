@@ -52,7 +52,8 @@ function theaterIsFull(theater: Theater): boolean {
 
 export function processReservations(
   initialTheater: Theater, requests: Request[]): { successfulReservations: SuccessfulReservations[], finalTheater: Theater } {
-  //TODO
+
+  // deep clone the theater object that we're going to mutate TF out of
   const finalTheater = structuredClone(initialTheater)
   // 1. Check for presence of requests
   if (!requests) {
@@ -63,14 +64,7 @@ export function processReservations(
     return { finalTheater, successfulReservations: [] }
   }
 
-  // 3. Check for available seats. I could make a map!!
-  const theaterMap = initialTheater.map((row: Seat[], index) => {
-    return [index, row.map((seat, index) => {
-      return [index, seat];
-    })]
-  })
-  const availableSeats = new Map(theaterMap)
-
+  // make an array to hold processed requests
   const successfulReservations: SuccessfulReservations[] = []
 
   // 4. Check requests against row
@@ -80,45 +74,55 @@ export function processReservations(
   // Ok now this needs to happen in the requests loop
 
   requests.forEach(request => {
+    if (request.row < 0) return
+    if (!finalTheater[request.row]) return
+
     const { seatsNeeded } = request
+    const requestedRow = finalTheater[request.row]
     let reservableSeats: number[][] = []
-    // const theaterRow: Seat[] = availableSeats.get(request.row)
-    // console.log(theaterRow)
     let consecutiveSeatsAvailable = 0;
-    for (let i = 0; i < request.seatsNeeded; i++) {
-      const currentSeat = initialTheater[request.row][i]
+
+    // while i is less than the length of the row, iterate over the row
+    for (let i = 0; i < finalTheater[request.row].length; i++) {
+
+      // break the loop as soon as we have all the seats we need
+      if (reservableSeats.length == seatsNeeded) {
+        break
+      }
+      const currentSeat = requestedRow[i]
+      // check the current seat, if it's availble, push it in to the array
       if (currentSeat === "A") {
         consecutiveSeatsAvailable++
         reservableSeats.push([request.row, i])
 
+        // if not available, reset the count and empty the array
       } else if (currentSeat === "B" || currentSeat === "R") {
         consecutiveSeatsAvailable = 0
         reservableSeats = []
       }
     }
 
-    if (consecutiveSeatsAvailable < requests[0].seatsNeeded) {
+    // if there's not enough consecutive seats available on the row, end the loop and give up on the request
+    if (consecutiveSeatsAvailable < seatsNeeded) {
       return
     }
 
-    console.log("reservableSeats: ", reservableSeats)
     // 5. Update theater object
     reservableSeats.forEach(seat => {
       finalTheater[seat[0]][seat[1]] = "R"
     })
 
-    console.log("finalTheater: ", finalTheater)
-
     const reservationSize = reservableSeats.length
-    console.log("reservationSize, reservableSeats: ", reservationSize, reservableSeats)
 
     if (reservationSize == seatsNeeded) {
-      successfulReservations.push({
+      const reservation = {
         customerId: request.customerId,
         row: request.row,
         startSeat: reservableSeats[0][1],
         endSeat: reservableSeats[reservationSize - 1][1]
-      })
+      }
+
+      successfulReservations.push(reservation)
     }
 
   })
