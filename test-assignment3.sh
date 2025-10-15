@@ -1,0 +1,1 @@
+bun test ./puzzles/tests/assignment3.test.ts
