@@ -56,137 +56,142 @@
  */
 
 export function processVendingSessions(input) {
-  let currentInventory = structuredClone(input.inventory)
-  console.log(currentInventory)
-
-  let errorstr = []
-  let credit = 0
-  let insert = {
-    1:0,
-    5:0,
-    10:0,
-    25:0,
-    50:0,
-    100:0
+  type Inventory = { [sku: string]: { price: number; stock: number } }
+  type Action = ["insert", number] | ["select", string] | ["cancel"] | ["noop"]
+  type Sessions = Session[]
+  type Session = Action[]
+  type Denomination = 1 | 5 | 10 | 25 | 50 | 100
+  type Receipt = {
+    dispensed?: string;                        // sku if an item was dispensed
+    changeCoins: { [denom: Denomination]: number };  // change returned as a greedy breakdown in the allowed denominations
+    changeTotal: number;                        // total change (cents)
+    spent: number;                              // cents the machine kept this session
+    errors: string[];                           // rule violations or unsupported ops
   }
-  let userActions = structuredClone(input.sessions[0])
-  console.log(userActions)
-  let receipts = []
+  type Output = {
+    inventory: Inventory,
+    receipts: Receipt[]
+  }
 
-  for (action of userActions) {
+  let result: Output = {}
+  let allReceipts: Receipt[] = []
+  let curInventory: Inventory = input.inventory
 
-    //handle noop
-    if (action[0] =='noop') continue
 
-    //handle insert coins
-    if (action[0]=='insert') {
 
-      //only increment if allowed coin
-      switch (action[1]) {
-          case 1:
-            credit += action[1]
-            insert[1] ++
-            break
-          case 5:
-            credit += action[1]
-            insert[5] ++
-            break
-          case 10:
-            credit += action[1]
-            insert[10] ++
-            break
-          case 25:
-            credit += action[1]
-            insert[25] ++
-            break
-          case 50:
-            credit += action[1]
-            insert[50] ++
-            break
-          case 100:
-            credit += action[1]
-            insert[100] ++
-            break
-          default:
-            errorstr.push(`unsupported coin: ${action[1]}`)
-            
-          
-        
-      }
-    }
-
-    //handle cancel
-    if (action[0] =='cancel') {
-      return receipts.push({
-        inventory:currentInventory,
-        changeCoins: insert,
-        changeTotal: credit,
+  if (!input.inventory) return {inventory:{},receipts:[]}
+  if (!input.sessions) return {inventory:{},receipts:[]}
+    for (const session of input.sessions) {
+      let sessionEnded: boolean = false
+      let credit: number = 0
+      let insert: { [key: Denomination]: number } = {}
+      let curSession: Session = session
+      let curReceipt: Receipt = {
+        dispensed:undefined,
+        changeCoins:{},
+        changeTotal:0,
         spent:0,
-        errors:errorstr
-      })
-    }
-
-    //handle buy
-    if (action[0] == 'select' ) {
-
-      
-      //sku exists
-      if (!Object.keys(currentInventory).includes(action[1])) {
-        errorstr.push(`Invalid sku: ${action[1]}`)
-        continue
+        errors:[]
       }
 
-      //out of stock
-      if (currentInventory.action[1].stock <= 0) {
-        errorstr.push(`outofstock: ${action[1]}`)
-        continue
-      }
 
-      //credit < price
-      if (currentInventory.action[i].price > credit) {
-        errorstr.push(`insufficient credit: have ${creditt}, need ${currentInventory.action[1].price}`)
-        continue
-      }
-
-      //vend it
-        currentInventory.action[1].stock --
-        credit =- currentInventory.action[1]
-        const changeTotal = credit
-        let change = {}
-        while (credit > 0) {
-          if (credit> 100) {
-            change[100] ++
-            credit -= 100
-          }
-          if (credit > 50) {
-            change[50] ++
-            credit -= 50
-          }
-          if (credit > 25) {
-            change[25] ++
-            credit -= 25
-          }
-          if (credit > 10) {
-            change[10] ++
-            credit -= 10
-          }
-          if (credit > 5) {
-            change[5] ++
-            credit -= 5
-          }
-          if (credit > 1) {
-            change[1] ++
-            credit -= 1
-          }
+      for (const userAction of session) {
+        if (sessionEnded) break
+        switch (userAction[0]) {
+          case 'insert': ({credit,insert}=handleInsert(curReceipt, curInventory, userAction[1], credit, insert)); break;
+          case 'select': ({credit,sessionEnded}=handleSelect(curReceipt, curInventory, userAction[1], credit, sessionEnded)); break;
+          case 'cancel': ({sessionEnded}=handleCancel(curReceipt, curInventory, credit, insert, sessionEnded)); break;
+          case 'noop': break;
+          default: curReceipt.errors.push(`unknown action: ${userAction[0]}`)
         }
+      }
 
-        receipts.push({dispense: action[1],
-          changeCoins: change,
-          changeTotal: changeTotal,
-          spent: currentInventory.action[1].price,
-          errors:errorstr
-        })
+      allReceipts.push(curReceipt)
+      result.inventory = curInventory
     }
+
+    result.receipts = allReceipts
+    return result
+
+
+  function handleInsert(receipt:Receipt, inventory:Inventory, denom:Denomination, credit:number, insert:Record<number,number>):{credit:number,insert:Record<number,number>} {
+    if (![1,5,10,25,50,100].includes(denom)) {
+      receipt.errors.push(`unsupported coin: ${denom}`)
+    } else {
+      credit += denom
+      insert[denom] = (insert[denom] || 0) + 1
+    }
+    return {credit,insert}
+  }
+
+  function handleCancel(receipt:Receipt, inventory:Inventory, credit:number, insert:Record<number,number>, sessionEnded:boolean):{sessionEnded:boolean} {
+    receipt.changeCoins = insert
+    receipt.changeTotal = credit
+    sessionEnded = true
+    return {sessionEnded}
+  }
+
+  function handleSelect(receipt:Receipt, inventory:Inventory, item:string, credit:numnber, sessionEnded:boolean):{credit:number,sessionended:boolean} {
+    inventory = normalizeIdontapproveofthisnonsensebutiguess(inventory)
+    if (validItem(receipt,item,inventory,credit)) {
+    inventory[item].stock --
+    credit -= inventory[item].price
+    receipt.dispensed = item
+    receipt.spent = inventory[item].price
+    sessionEnded = true
+    makeChange(receipt,credit)
+  }
+  return {credit,sessionEnded}
 }
-  return receipts
-}
+
+  function validItem(receipt:Receipt,item:string,inventory:Inventory,credit):boolean {
+    if (!(item in inventory)) {
+      receipt.errors.push(`invalid sku: ${item}`)
+      return false
+    } else if (inventory[item].stock<=0) {
+      receipt.errors.push(`out of stock: ${item}`)
+      inventory[item].stock = 0
+      return false
+    } else if (inventory[item].price>credit) {
+      receipt.errors.push(`insufficient credit: have ${credit}, need ${inventory[item].price}`)
+      return false
+    }
+    return true
+  }
+
+  function makeChange(receipt:Receipt,credit:number):void {
+    let acceptableDenom = [100,50,25,10,5,1]
+    let remaining = credit
+    let changeProvided = {}
+
+    for (const denom of acceptableDenom) {
+      while (remaining>=denom && remaining > 0) {
+        changeProvided[denom] = (changeProvided[denom] || 0) + 1
+        remaining -= denom
+      }
+    }
+    receipt.changeCoins = changeProvided
+    receipt.changeTotal = credit
+  }
+
+  function normalizeIdontapproveofthisnonsensebutiguess(inventory:Inventory):Inventory {
+    for (const key of Object.keys(inventory)) {
+      if (inventory[key].price<0) inventory[key].price = 0
+      if (inventory[key].stock<0) inventory[key].stock = 0
+      inventory[key].price=inventory[key].price - (inventory[key].price%1)
+      inventory[key].stock=inventory[key].stock - (inventory[key].stock%1)
+    }
+    return inventory
+    }
+  }
+  
+
+
+
+
+
+
+
+
+
+
