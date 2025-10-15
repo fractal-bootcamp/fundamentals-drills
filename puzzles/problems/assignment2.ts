@@ -59,5 +59,137 @@
  */
 
 export function processVendingSessions(input) {
-  return {}
+  let currentInventory = structuredClone(input.inventory)
+  console.log(currentInventory)
+
+  let errorstr = []
+  let credit = 0
+  let insert = {
+    1:0,
+    5:0,
+    10:0,
+    25:0,
+    50:0,
+    100:0
+  }
+  let userActions = structuredClone(input.sessions[0])
+  console.log(userActions)
+  let receipts = []
+
+  for (action of userActions) {
+
+    //handle noop
+    if (action[0] =='noop') continue
+
+    //handle insert coins
+    if (action[0]=='insert') {
+
+      //only increment if allowed coin
+      switch (action[1]) {
+          case 1:
+            credit += action[1]
+            insert[1] ++
+            break
+          case 5:
+            credit += action[1]
+            insert[5] ++
+            break
+          case 10:
+            credit += action[1]
+            insert[10] ++
+            break
+          case 25:
+            credit += action[1]
+            insert[25] ++
+            break
+          case 50:
+            credit += action[1]
+            insert[50] ++
+            break
+          case 100:
+            credit += action[1]
+            insert[100] ++
+            break
+          default:
+            errorstr.push(`unsupported coin: ${action[1]}`)
+            
+          
+        
+      }
+    }
+
+    //handle cancel
+    if (action[0] =='cancel') {
+      return receipts.push({
+        inventory:currentInventory,
+        changeCoins: insert,
+        changeTotal: credit,
+        spent:0,
+        errors:errorstr
+      })
+    }
+
+    //handle buy
+    if (action[0] == 'select' ) {
+
+      
+      //sku exists
+      if (!Object.keys(currentInventory).includes(action[1])) {
+        errorstr.push(`Invalid sku: ${action[1]}`)
+        continue
+      }
+
+      //out of stock
+      if (currentInventory.action[1].stock <= 0) {
+        errorstr.push(`outofstock: ${action[1]}`)
+        continue
+      }
+
+      //credit < price
+      if (currentInventory.action[i].price > credit) {
+        errorstr.push(`insufficient credit: have ${creditt}, need ${currentInventory.action[1].price}`)
+        continue
+      }
+
+      //vend it
+        currentInventory.action[1].stock --
+        credit =- currentInventory.action[1]
+        const changeTotal = credit
+        let change = {}
+        while (credit > 0) {
+          if (credit> 100) {
+            change[100] ++
+            credit -= 100
+          }
+          if (credit > 50) {
+            change[50] ++
+            credit -= 50
+          }
+          if (credit > 25) {
+            change[25] ++
+            credit -= 25
+          }
+          if (credit > 10) {
+            change[10] ++
+            credit -= 10
+          }
+          if (credit > 5) {
+            change[5] ++
+            credit -= 5
+          }
+          if (credit > 1) {
+            change[1] ++
+            credit -= 1
+          }
+        }
+
+        receipts.push({dispense: action[1],
+          changeCoins: change,
+          changeTotal: changeTotal,
+          spent: currentInventory.action[1].price,
+          errors:errorstr
+        })
+    }
+}
+  return receipts
 }
