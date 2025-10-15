@@ -95,6 +95,7 @@ const createInitialSessionState = (): SessionState => {
     sessionEnded: false
   };
 }
+
 const denoms = [100, 50, 25, 10, 5, 1];
 
 const getChange = (amount: number): { [denom: number]: number } => {
