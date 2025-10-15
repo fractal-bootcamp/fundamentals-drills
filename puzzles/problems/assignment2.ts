@@ -54,7 +54,50 @@
  *       [ ["insert",100],["select","B"] ]                // success with change 70 = 50+10+10
  *     ]
  */
+type Input = {
+  inventory: Inventory
+  sessions: Session[]
+}
 
-export function processVendingSessions(input) {
-  return {}
+type Inventory = {
+  [sku: string]: InventoryItem
+};
+
+type InventoryItem = {
+  price: number;
+  stock: number;
+};
+
+type Session = Action[];
+type Action = InsertAction | SelectAction | CancelAction | NoopAction;
+
+type InsertAction = ["insert", number];
+type SelectAction = ["select", string];
+type CancelAction = ["cancel"];
+type NoopAction = ["noop"];
+
+
+// type Inventory = Record<string, InventoryItem>;
+
+export function processVendingSessions(input: Input) {
+  let credit = 0;
+  // create an empty array for receipts
+  let receipts = []
+  let insertedCoins = []
+
+  const allowedDenominations = [100, 50, 25, 10, 5, 1];
+
+  // start with initial inventory
+  // loop through each session in the sessions array
+  for (let i = 0; i < input.sessions.length; i++) {
+
+  }
+
+  // process that session's actions
+  // generate a receipt
+  // update inventory if needed
+
+  // return final inventory + all receipts
+
+  return {};
 }

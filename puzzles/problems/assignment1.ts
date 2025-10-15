@@ -17,28 +17,29 @@
  *   longestStreak([]) -> 0
  */
 export function longestStreak(nums: number[]): number {
-  let maxStreak = 0
-  let streak = 1
-  console.log('maxStreak count at start:', maxStreak)
+  let maxStreak = 0;
+  let streak = 1;
+  console.log("maxStreak count at start:", maxStreak);
 
-  console.log('starting array:', nums)
+  console.log("starting array:", nums);
 
-  if (nums.length === 1) return 1
+  if (nums.length === 1) return 1;
 
   for (let i = 0; i < nums.length - 1; i++) {
-    let difference = nums[i + 1] - nums[i]
+    const difference = nums[i + 1] - nums[i];
 
-    console.log(`difference b/t ${nums[i + 1]} - ${nums[i]}:`, difference)
+    console.log(`difference b/t ${nums[i + 1]} - ${nums[i]}:`, difference);
 
     if (difference === 1) {
-      streak++
-      console.log(`streak if difference of ${nums[i + 1]} - ${nums[i]} === 1:`, streak) // increment count by 1 if num 1 greater
-    } else {  // decrement count by 1 if num not 1 greater
-      streak = 1
-      console.log(`streak if difference of ${nums[i + 1]} - ${nums[i]} !== 1:`, streak)
+      streak++;
+      console.log(`streak if difference of ${nums[i + 1]} - ${nums[i]} === 1:`, streak); // increment count by 1 if num 1 greater
+    } else {
+      // decrement count by 1 if num not 1 greater
+      streak = 1;
+      console.log(`streak if difference of ${nums[i + 1]} - ${nums[i]} !== 1:`, streak);
     }
-    if (streak > maxStreak) maxStreak = streak
+    if (streak > maxStreak) maxStreak = streak;
   }
-  console.log('maxStreak count at end:', maxStreak)
-  return maxStreak
+  console.log("maxStreak count at end:", maxStreak);
+  return maxStreak;
 }
