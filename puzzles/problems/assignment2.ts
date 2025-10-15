@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Programming Puzzle — Vending Sessions
  *
@@ -55,6 +54,10 @@
  *     ]
  */
 
+type Action = ['insert', number] | ['select', string] | ['noop'] | ['cancel']
+
+type Session = Action[]
+
 type Receipts = Array<{
   dispensed?: string
   changeCoins: { [denom: number]: number }
@@ -63,58 +66,117 @@ type Receipts = Array<{
   errors: string[]
 }>
 
-function calculateChange(amount) {
-  // splits change in coins
+type Change = {
+  100?: number,
+  50?: number,
+  25?: number,
+  10?: number,
+  5?: number,
+  1?: number
+}
+
+type Receipt = {
+  dispensed?: string;
+  changeCoins: { [denom: number]: number } | {};
+  changeTotal: number;
+  spent: number;
+  errors: string[];
+}
+
+export function calculateChange(amount: number): Change {
+
+  let result = {}
+  const denominations = [100, 50, 25, 10, 5, 1]
+
+  for (let i = 0; i < denominations.length; i++) {
+    const coinsOfThisDenom = Math.floor(amount / denominations[i])
+    amount -= coinsOfThisDenom * denominations[i]
+    if (coinsOfThisDenom != 0) {
+      result[denominations[i]] = coinsOfThisDenom
+    }
+  }
+
+  return result
+
 }
 
 export function processVendingSessions(input) {
-  let {inventory, sessions} = input
 
-  console.log('inv:', inventory, '\n', 'sns:', sessions)
-  console.log(Object.keys(inventory).length)
-
+  let { inventory, sessions } = input
   let credit = 0
   let spent = 0
-  let receipts: Receipts
+  let receipts: Receipts = []
+  let currentSession: Session = []
 
-  // for (let i = 0; i < sessions.length; i++) {
-  //   for (let j = 0; j < i.length; j++) {
-  //     if (sessions[i][j][0] === 'insert' && [100, 50, 25, 10, 5, 1].includes(sessions[i][j][1])) {
-  //       credit += sessions[i][j][1]
-  //     } else if (sessions[i][j][0] === 'select' && inventory.sessions[i][j][1]) {
-  //       if (inventory.sessions[i][j][1].stock >= 1 && inventory.sessions[i][j][1].price <= credit) {
-  //         inventory.sessions[i][j][1].price = inventory.sessions[i][j][1].price - credit
-  //         inventory.sessions[i][j][1].stock = inventory.sessions[i][j][1].stock - 1
-  //         receipts.dispensed = sessions[i][j][1]
-          
-  //       }
-  //     }
-  //   }
-  // }
+  for (let key in inventory) {
+    if (inventory[key].price < 0) inventory[key].price = 0
+    if (inventory[key].stock < 0) inventory[key].stock = 0
+    inventory[key].price = Math.floor(inventory[key].price)
+    inventory[key].stock = Math.floor(inventory[key].stock)
+  }
 
-  sessions.map(session => {
-    session.map(action => {
+  if (Object.keys(inventory).length != 0) {
 
-      if (action[0] === 'insert' && [100, 50, 25, 10, 5, 1].includes(action[1])) {
-        credit += action[1]
-      } else if (action[0] === 'select' && inventory.action[1]) {
+    sessions.map((session: Session) => {
 
-        if (inventory.action[1].stock >= 1 && inventory.action[1].price <= credit) {
-          credit -= inventory.action[1].price
-          spent += inventory.action[1].price
-          inventory.action[1].stock = inventory.action[1].stock - 1
-          receipts.dispensed = action[1]
-          
+      for (let i = 0; i < session.length; i++) {
+        if (session[i][0] === 'cancel') {
+          currentSession = session.slice(0, i)
+          break
         }
+      }
+      currentSession.length === 0 ? currentSession = session : null
 
+      let receipt: Receipt = {
+        changeCoins: {},
+        changeTotal: 0,
+        spent: 0,
+        errors: [] as string[],
       }
 
+      currentSession.map(action => {
+
+        if (action[0] === 'insert' && [100, 50, 25, 10, 5, 1].includes(action[1])) {
+          credit += action[1]
+        } else if (action[0] === 'select' && Object.keys(inventory).includes(action[1])) {
+
+          if (inventory[action[1]].stock >= 1 && inventory[action[1]].price <= credit) {
+            credit -= inventory[action[1]].price
+            spent += inventory[action[1]].price
+            inventory[action[1]].stock -= 1
+            receipt.dispensed = action[1]
+          } else if (inventory[action[1]].stock === 0) {
+            receipt.errors.push(`out of stock: ${action[1]}`)
+          } else if (inventory[action[1]].price < credit) {
+            receipt.errors.push(`insufficient credit: have ${credit}, need ${inventory[action[1]].price}`)
+          }
+
+        }
+
+      })
+
+      console.log('INV', inventory)
+      console.log('SNS', sessions)
+      console.log('RCP', receipts)
+
+      receipt.changeCoins = calculateChange(credit)
+      receipt.changeTotal = credit
+      receipt.spent = spent
+
+      receipts.push(receipt)
+
     })
-  })
 
-  receipts.changeCoins = calculateChange(credit)
-  receipts.changeTotal = credit
-  receipts.spent = spent
+  } else {
+    receipts = [{
+      dispensed: undefined,
+      changeCoins: {},
+      changeTotal: 0,
+      spent: 0,
+      errors: ["invalid sku: ANYTHING"]
+    }]
+  }
 
-  return {inventory, receipts}
+  return { inventory, receipts }
+
 }
