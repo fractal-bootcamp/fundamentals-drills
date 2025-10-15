@@ -1,32 +1,39 @@
-// Counts how many numbers in nums are within the range [start, end].
-// The range is inclusive — that is, numbers equal to start or end should be counted.
-// Example:
-// countInRange([1, 2, 3, 4, 5], 2, 4) → 3
+/**
+ * Temperature Threshold Counter
+ * 
+ * You are analyzing temperature readings from a weather station. Given an array
+ * of temperature readings (in Celsius) and a threshold temperature, count how many
+ * consecutive days the temperature stayed at or above the threshold. Return the
+ * length of the longest such streak.
+ * 
+ * Input:
+ *  - temperatures: number[] - Array of temperature readings (can be negative, zero, or positive)
+ *  - threshold: number - The minimum temperature for a day to count toward the streak
+ * 
+ * Output:
+ *  - number - The length of the longest consecutive streak at or above threshold
+ * 
+ * Examples:
+ *  - longestHeatStreak([20, 25, 30, 18, 22, 24, 26], 22) → 2 (days with 22, 24, 26)
+ *  - longestHeatStreak([15, 14, 13, 20, 21, 22], 20) → 3 (days with 20, 21, 22)
+ */
 
+export function longestHeatStreak(temperatures: number[], threshold: number): number {
+  let longestStreak = 0
+  let streak = 0
 
+  for (let i = 0; i < temperatures.length; i++) {
+    const currentTemp = temperatures[i]
 
-/** 
-@param nums - Array of integers.
-@param start - The inclusive start of the range.
-@param end - The inclusive end of the range.
-@returns The count of numbers x such that start <= x <= end.*
-*/
-
-export function countInRange(nums: number[], start: number, end: number): number {
-  // Be careful about off-by-one errors with inclusive bounds!
-
-  let range = 0
-
-  // handles reversed ranges (start > end) gracefully
-  if (start > end) range = 0
-
-  for (let i = 0; i < nums.length; i++) {
-    const currentNumber = nums[i]
-
-    if (currentNumber >= start && currentNumber <= end) {
-      range++
+    if (currentTemp >= threshold) {
+      streak++
+    } else {
+      streak = 0
     }
+
+    if (streak > longestStreak) longestStreak = streak
   }
 
-  return range
+  // return longestStreak
+  return longestStreak;
 }
