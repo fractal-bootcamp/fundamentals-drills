@@ -87,27 +87,14 @@ export function getChangeOf(credit: number, changeCoins: { [denom: number]: numb
   //Can you tell i am not a big math guy lmao, don't have time for modular arithmetic
   let workingCredit = credit
 
-  while (workingCredit >= 100) {
-    workingCredit -= 100;
-    (changeCoins[100]) ? changeCoins[100]++ : changeCoins[100] = 1;
-
-  } while (workingCredit >= 50) {
-    workingCredit -= 50;
-    (changeCoins[50]) ? changeCoins[50]++ : changeCoins[50] = 1;
-
-  } while (workingCredit >= 25) {
-    workingCredit -= 25;
-    (changeCoins[25]) ? changeCoins[25]++ : changeCoins[25] = 1;
-
-  } while (workingCredit >= 10) {
-    workingCredit -= 10;
-    (changeCoins[10]) ? changeCoins[10]++ : changeCoins[10] = 1;
-
-  } while (workingCredit >= 5) {
-    workingCredit -= 5;
-    (changeCoins[5]) ? changeCoins[5]++ : changeCoins[5] = 1;
-
-  } while (workingCredit > 0) {
+  const validDenominations = [100, 50, 25, 10, 5]
+  for (const denom of validDenominations) {
+    while (workingCredit >= denom) {
+      workingCredit -= denom;
+      (changeCoins[denom]) ? changeCoins[denom]++ : changeCoins[denom] = 1;
+    }
+  }
+  while (workingCredit > 0) {
     workingCredit -= 1;
     (changeCoins[1]) ? changeCoins[1]++ : changeCoins[1] = 1;
   }
@@ -131,7 +118,6 @@ export function processSession(session: Action[], inventory: Inventory): Output 
   let workingRec = emptyRec
   //deal with all the action types insert, select, cancel, noop
   sessionLoop: for (const action of session) {
-
     switch (action[0]) {
       case "insert":
         if (validCoin(action[1])) {
@@ -178,9 +164,24 @@ export function processSession(session: Action[], inventory: Inventory): Output 
   return { inventory: inventory, receipts: finalRecs }
 }
 
+export function removeNegAndFrac(inventory: Inventory): Inventory {
+  for (const item in inventory) {
+    if (inventory[item].price < 0 || inventory[item].stock < 0) {
+      inventory[item].price = 0;
+      inventory[item].stock = 0;
+    }
+
+    if (inventory[item].price % 1 !== 0 || inventory[item].stock % 1 !== 0) {
+      inventory[item].price = Math.trunc(inventory[item].price);
+      inventory[item].stock = Math.trunc(inventory[item].stock);
+    }
+  }
+  return inventory
+
+}
 
 
-export function processVendingSessions(input: { inventory: Inventory, sessions: Array<Action[]> }) {
+export function processVendingSessions(input: { inventory: Inventory, sessions: Array<Action[]> }): Output {
   // deref to get inventory and sessions
   const { inventory, sessions } = input
 
@@ -188,20 +189,8 @@ export function processVendingSessions(input: { inventory: Inventory, sessions: 
   if (sessions == null || inventory == null) {
     return { inventory: {}, receipts: [] }
   }
-
-  let workingInventory: Inventory = inventory
   // deal with negatives and fractions in the inventory
-  for (const item in workingInventory) {
-    if (workingInventory[item].price < 0 || workingInventory[item].stock < 0) {
-      workingInventory[item].price = 0;
-      workingInventory[item].stock = 0;
-    }
-
-    if (workingInventory[item].price % 1 !== 0 || workingInventory[item].stock % 1 !== 0) {
-      workingInventory[item].price = Math.trunc(workingInventory[item].price);
-      workingInventory[item].stock = Math.trunc(workingInventory[item].stock);
-    }
-  }
+  let workingInventory = removeNegAndFrac(structuredClone(inventory))
 
   let finalReceipts: Array<Receipt> = []
 
