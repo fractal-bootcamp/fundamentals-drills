@@ -55,6 +55,89 @@
  *     ]
  */
 
+const validCoins = [100,50,25,10,5,1]
+
 export function processVendingSessions(input) {
-  return {}
+  const inventory = input?.inventory ?? {}
+  // normalize inventory with negative values
+  for (const item of Object.values(inventory)) {
+    item.price = (item.price < 0) ? 0 : Math.floor(item.price)
+    item.stock = (item.stock < 0) ? 0 : Math.floor(item.stock)
+  }
+  
+  const receipts = []
+  for (const session of input?.sessions ?? []) {
+    let centsInserted = 0
+    // tracking this in case there's a cancel operation
+    const coinsInserted = {}
+    let receipt = {
+      dispensed: undefined,
+      changeCoins: {},
+      changeTotal: 0,
+      spent: 0,
+      errors: []
+    }
+    for (const action of session) {
+      const actionType = action[0] ?? null
+      if (actionType === 'insert') {
+        const insertAmount = action[1]
+        if (validCoins.includes(insertAmount)) {
+          centsInserted += insertAmount
+          coinsInserted[insertAmount] = (coinsInserted[insertAmount]) ? (coinsInserted[insertAmount] + 1) : 1
+        } else {
+          // invalid coin error
+          receipt.errors.push(`unsupported coin: ${insertAmount}`)
+        }
+      } else if (actionType === 'select') {
+        const productName = action[1] ?? null
+        if (inventory[productName]) {
+          const product = inventory[productName]
+          if (product.price <= centsInserted && product.stock > 0) {
+            // we can buy the item
+            centsInserted -= product.price
+            receipt.spent += product.price
+            product.stock -= 1
+            receipt.dispensed = productName
+            // whatever remains of centsInserted becomes the change
+            receipt.changeTotal = centsInserted
+            receipt.changeCoins = makeChange(centsInserted)
+            // break out of for loop to end the session
+            break
+          } else if (product.stock === 0) { // we already got rid of any stock < 0
+            receipt.errors.push(`out of stock: ${productName}`)
+          } else { 
+            // we can't afford the item!
+            receipt.errors.push(`insufficient credit: have ${centsInserted}, need ${product.price}`)
+          }
+        } else {
+          // invalid selection
+          receipt.errors.push(`invalid sku: ${productName}`)
+        }
+      } else if (actionType === 'cancel') {
+        receipt.changeTotal = centsInserted
+        receipt.changeCoins = coinsInserted
+        break
+      } else if (actionType === 'noop') {
+        // no operation
+      } else {
+        receipt.errors.push(`unknown action: ${actionType}`)
+      }
+    }
+    receipts.push(receipt)
+  }
+  return {inventory: inventory, receipts: receipts}
+}
+
+function makeChange(changeTotal: number) {
+  const changeCoins = {}
+  for (const coinValue of validCoins) {
+    while (changeTotal >= coinValue) {
+      changeTotal -= coinValue
+      changeCoins[coinValue] = (changeCoins[coinValue] ? (changeCoins[coinValue] + 1) : 1)
+    }
+    if (changeTotal === 0) {
+      break
+    }
+  }
+  return changeCoins
 }
