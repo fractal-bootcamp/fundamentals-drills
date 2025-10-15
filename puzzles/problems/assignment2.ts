@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Programming Puzzle — Vending Sessions
  *
@@ -65,7 +64,7 @@ type Action = string[]
 type Session = Action[]
 type Sessions = Session[]
 type Input = { inventory: Inventory, sessions: Sessions }
-type Receipt = { dispensed?: string, changeCoins: { [denom: number], number: number }, changeTotal: number, spent: number, errors: string[] }
+type Receipt = { dispensed?: string, changeCoins: { [denom: number]: number }, changeTotal: number, spent: number, errors: string[] }
 type Output = { inventory: Inventory, receipts: Receipt[] }
 // receipts: Array<{
 // dispensed?: string;                        // sku if an item was dispensed
@@ -73,107 +72,234 @@ type Output = { inventory: Inventory, receipts: Receipt[] }
 // changeTotal: number;                        // total change (cents)
 // spent: number;                              // cents the machine kept this session
 // errors: string[];                           // rule violations or unsupported ops
-
-export function processVendingSessions(input: Input): Output {
-  const denoms = [100, 50, 25, 10, 5, 1]
-  const inventory = input.inventory
-  const skus = Object.keys(inventory)
-  const sessions: Sessions = input.sessions
-  const receipts: Receipt[] = []
-  const newInventory = structuredClone(inventory)
-  for (let i = 0; i < sessions.length; i++) {
-    // Start each session with credit=0 and an empty "inserted" coin pouch.
-    let credit = 0
-    let changeCoins = {}
-    const errors = []
-    let receipt = {}
-    let dispensed
-    let changeTotal = 0
-    const session = sessions[i]
-    const insertedCoins = {}
-    for (let j = 0; j < session.length; j++) {
-      const action = session[j]
-      let oGChangeTotal = 0
-      let spent = 0
-      if (action[0] === "insert") {
-        // "insert" adds to the session credit if the coin is in the allowed denominations; otherwise record an error and ignore it.
-        if (denoms.includes(action[1])) {
-          credit += action[1]
-          if (insertedCoins[action[1]]) {
-            insertedCoins[action[1]]++
-          } else {
-            insertedCoins[action[1]] = 1
-          }
-        } else {
-          errors.push(`unsupported coin: ${action[1]}`)
-        }
-        // *   - "select":
-      } else if (action[0] === "select") {
-        const sku = action[1]
-        if (!skus.includes(sku)) {
-          errors.push(`invalid sku: ${sku}`)
-          break
-        }
-        const stock = newInventory[sku].stock
-        const price = newInventory[sku].price
-        // *       * Fails if sku is invalid, out of stock, or credit < price (record an error; session continues).
-        if (stock < 1) {
-          errors.push(`out of stock: ${sku}`)
-        } else if (credit < price) {
-          errors.push(`insufficient credit: have ${credit}, need ${price}`)
-        } else {
-          // *       * On success: dispense the item, decrement inventory, keep exactly the price as spent, return change = credit - price
-          dispensed = sku
-          newInventory[sku].stock--
-          oGChangeTotal = credit - price
-          changeTotal = oGChangeTotal
-          spent = price
-          let currentTotal = changeTotal
-          denoms.forEach((denom) => {
-            const remainder = currentTotal % denom
-            const number = (currentTotal - remainder) / denom
-            currentTotal = remainder
-            if (number) { changeCoins[denom] = number }
-          })
-        }
-        // *         using greedy breakdown (unlimited coins; no bank constraints), then the session ENDS (ignore further actions).
-        receipt = { dispensed, changeCoins, changeTotal: oGChangeTotal, spent, errors }
-        receipts.push(receipt)
-      } else if (action[0] === "cancel") {
-        // *   - "cancel" refunds exactly the coins the user inserted this session (returned as a breakdown; session ENDS).
-        changeCoins = insertedCoins
-        changeTotal = credit
-        receipt = { dispensed, changeCoins, changeTotal: changeTotal, spent, errors }
-        receipts.push(receipt)
-        break
-      }
-      // *   - If a session ends without "select" success or "cancel", nothing is dispensed or refunded; it's just an idle session end.
-      // *   - Deterministic; integers only; no randomness or timing.
-    }
-  }
-  return { inventory: newInventory, receipts }
+type SessionState = {
+  credit: number;
+  insertedCoins: { [denom: number]: number };
+  errors: string[];
+  dispensed?: string;
+  spent: number;
+  changeTotal: number;
+  changeCoins: { [denom: number]: number };
+  sessionEnded: boolean;
 }
 
-console.log(
-  processVendingSessions({
-    inventory: { G: { price: 50, stock: 1 } },
-    sessions: [
-      [["insert", 100], ["select", "INVALID"]]
-    ]
-  })
-)
+const createInitialSessionState = (): SessionState => {
+  return {
+    credit: 0,
+    insertedCoins: {},
+    errors: [],
+    dispensed: undefined,
+    spent: 0,
+    changeTotal: 0,
+    changeCoins: {},
+    sessionEnded: false
+  };
+}
+const denoms = [100, 50, 25, 10, 5, 1];
 
-// const hundoRemainder = changeTotal % 100
-// const hundos = (changeTotal - hundoRemainder) / 100
-// if (hundos) { changeCoins[100] = hundos }
-// const fiftyRemainder = hundoRemainder % 50
-// const fifties = (hundoRemainder - fiftyRemainder) / 50
-// if (fifties) { changeCoins[50] = fifties }
-// const twentyFivesRemainder = fiftyRemainder % 50
-// const twentyFives = (fiftyRemainder - twentyFivesRemainder) / 50
-// if (twentyFives) { changeCoins[25] = twentyFives }
-// const tensRemainder = twentyFivesRemainder % 50
-// const tens = (twentyFivesRemainder - tensRemainder) / 50
-// if (tens) { changeCoins[10] = tens }
-// const ones = tensRemainder
-// if (ones) { changeCoins[1] = ones }
+const getChange = (amount: number): { [denom: number]: number } => {
+  const changeCoins = {}
+  let currentTotal = amount
+  denoms.forEach((denom) => {
+    const remainder = currentTotal % denom
+    const number = (currentTotal - remainder) / denom
+    currentTotal = remainder
+    if (number) { changeCoins[denom] = number }
+  })
+  return changeCoins
+}
+
+const processInsert = (
+  insertedCoins: { [denom: number]: number },
+  credit: number,
+  coin: number,
+  errors: string[]
+): {
+  insertedCoins: { [denom: number]: number },
+  credit: number, errors: string[]
+} => {
+  // *   - "insert" adds to the session credit if the coin is in the allowed denominations; otherwise record an error and ignore it.
+  // if bullshit coin
+  if (!denoms.includes(coin)) {
+    return {
+      insertedCoins,
+      credit,
+      errors: [...errors, `unsupported coin: ${coin}`]
+    };
+  }
+
+  // update insertedCoins
+  return {
+    insertedCoins: {
+      ...insertedCoins,
+      [coin]: (insertedCoins[coin] || 0) + 1
+    },
+    credit: credit + coin,
+    errors
+  };
+}
+
+const processSelect = (
+  state: SessionState,
+  sku: string,
+  inventory: Inventory
+): SessionState => {
+  // *       * Fails if sku is invalid, out of stock, or credit < price (record an error; session continues).
+  // bad sku
+  if (!inventory[sku]) {
+    return {
+      ...state,
+      errors: [...state.errors, `invalid sku: ${sku}`]
+    };
+  }
+
+  const item = inventory[sku];
+
+  // no stock
+  if (item.stock < 1) {
+    return {
+      ...state,
+      errors: [...state.errors, `out of stock: ${sku}`]
+    };
+  }
+
+  // credit < price
+  if (state.credit < item.price) {
+    return {
+      ...state,
+      errors: [...state.errors, `insufficient credit: have ${state.credit}, need ${item.price}`]
+    };
+  }
+  //  *       * On success: dispense the item, decrement inventory, keep exactly the price as spent, return change = credit - price
+  // *         using greedy breakdown (unlimited coins; no bank constraints), then the session ENDS (ignore further actions).
+  // good sale:
+  // calc change
+  const change = state.credit - item.price;
+
+  // adjust inventory stock
+  inventory[sku].stock--;
+
+  // conver change to coins
+  const changeCoins = getChange(change)
+  return {
+    ...state,
+    dispensed: sku,
+    spent: item.price,
+    changeTotal: change,
+    changeCoins: changeCoins,
+    sessionEnded: true
+  };
+}
+
+const processCancel = (state: SessionState): SessionState => {
+  //  *   - "cancel" refunds exactly the coins the user inserted this session (returned as a breakdown; session ENDS).
+  return {
+    ...state,
+    changeCoins: state.insertedCoins,
+    changeTotal: state.credit,
+    sessionEnded: true
+  };
+}
+
+const processOther = (state: SessionState, action: string): SessionState => {
+  return {
+    ...state,
+    errors: [...state.errors, `unknown action: ${action}`]
+  };
+}
+
+function validateInput(input: Input): Input {
+  if (!input || !input.inventory || !input.sessions) {
+    return { inventory: {}, sessions: [] };
+  }
+
+  const normalizedInventory: Inventory = {};
+  for (const [sku, item] of Object.entries(input.inventory)) {
+    normalizedInventory[sku] = {
+      price: Math.max(0, Math.floor(item.price)),
+      stock: Math.max(0, Math.floor(item.stock))
+    };
+  }
+
+  return {
+    inventory: normalizedInventory,
+    sessions: input.sessions
+  };
+}
+
+export const processVendingSessions = (input: Input): Output => {
+  const normalisedInput = validateInput(input);
+
+  // clone inventory (shared mutable state across sessions)
+  const inventory = structuredClone(normalisedInput.inventory);
+  const receipts: Receipt[] = [];
+
+  // process each session
+  for (const session of normalisedInput.sessions) {
+    // initial state
+    // *   - Start each session with credit=0 and an empty "inserted" coin pouch.
+    let state = createInitialSessionState();
+
+    // process each action
+    for (const action of session) {
+      // if an action has ended the session, break the loop
+      if (state.sessionEnded) break;
+
+      const actionType = action[0];
+
+      switch (actionType) {
+        case "insert": {
+          const coin = action[1];
+          const result = processInsert(
+            state.insertedCoins,
+            state.credit,
+            coin,
+            state.errors
+          );
+          // insertedCoins, credit, errors
+          state = { ...state, ...result };
+          break;
+        }
+
+        case "select": {
+          const sku = action[1];
+          state = processSelect(state, sku, inventory);
+          break;
+        }
+
+        case "cancel": {
+          state = processCancel(state);
+          break;
+        }
+
+        //  *   - If a session ends without "select" success or "cancel", nothing is dispensed or refunded; it's just an idle session end.
+        case "noop": {
+          break;
+        }
+
+        default: {
+          state = processOther(state, actionType);
+          break;
+        }
+      }
+    }
+
+    // receeipt
+    receipts.push({
+      dispensed: state.dispensed,
+      changeCoins: state.changeCoins,
+      changeTotal: state.changeTotal,
+      spent: state.spent,
+      errors: state.errors
+    });
+  }
+
+  return { inventory, receipts };
+}
+
+// LESSONS
+// pure functions: no extenral changes
+// use "..." to create new shit, do not update old shit
+// types types types
+// narrow down functions, and make them follow patterns (identical inputs and outputs)
+// state makes the whole thing organised and centralised
