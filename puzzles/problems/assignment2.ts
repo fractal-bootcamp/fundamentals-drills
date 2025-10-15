@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Programming Puzzle — Vending Sessions
  *
@@ -56,32 +55,167 @@
  */
 
 
-type Inventory = {
-  str: // how does one type this??? the property name is a string somehow??? maybe i'm just drastically misinterpreting this
-  // wasted 20 min in the typescript docs lmao :(
-  {
-    price: number,
-    stock: number,
-  }
-}
+type Inventory = { [sku: string]: { price: number; stock: number } }
 
-type Session = Action[]
-
-type Action = [string, string | number]
+type Action =
+  ["insert", number] |
+  ["select", string] |
+  ["cancel"] |
+  ["noop"]
 
 type Output =
   {
     inventory: Inventory,
-    receipts: Array<{
-      dispensed?: string;
-      changeCoins: { [denom: number]: number };
-      changeTotal: number;
-      spent: number;
-      errors: string[];
-    }>
+    receipts: Array<Receipt>
   }
 
-export function processVendingSessions(input: { inventory: Inventory, sessions: Session[] }) {
+type Receipt = {
+  dispensed?: string;
+  changeCoins: { [denom: number]: number };
+  changeTotal: number;
+  spent: number;
+  errors: string[];
+}
 
-  return {}
+export function validCoin(coin: number): boolean {
+  const validDenominations = [100, 50, 25, 10, 5, 1];
+  const isValid = validDenominations.includes(coin);
+  return isValid;
+}
+
+export function getChangeOf(credit: number, changeCoins: { [denom: number]: number }) {
+  //Can you tell i am not a big math guy lmao, don't have time for modular arithmetic
+  let workingCredit = credit
+
+  while (workingCredit >= 100) {
+    workingCredit -= 100;
+    (changeCoins[100]) ? changeCoins[100]++ : changeCoins[100] = 1;
+
+  } while (workingCredit >= 50) {
+    workingCredit -= 50;
+    (changeCoins[50]) ? changeCoins[50]++ : changeCoins[50] = 1;
+
+  } while (workingCredit >= 25) {
+    workingCredit -= 25;
+    (changeCoins[25]) ? changeCoins[25]++ : changeCoins[25] = 1;
+
+  } while (workingCredit >= 10) {
+    workingCredit -= 10;
+    (changeCoins[10]) ? changeCoins[10]++ : changeCoins[10] = 1;
+
+  } while (workingCredit >= 5) {
+    workingCredit -= 5;
+    (changeCoins[5]) ? changeCoins[5]++ : changeCoins[5] = 1;
+
+  } while (workingCredit > 0) {
+    workingCredit -= 1;
+    (changeCoins[1]) ? changeCoins[1]++ : changeCoins[1] = 1;
+  }
+
+  return (changeCoins)
+}
+
+export function processSession(session: Action[], inventory: Inventory): Output {
+  const emptyRec: Receipt = {
+    dispensed: undefined,
+    changeCoins: {},
+    changeTotal: 0,
+    spent: 0,
+    errors: []
+  }
+  let finalRecs: Receipt[] = []
+
+  //These are here bc they persist between actions but not sessions
+  let credit = 0
+  let coinPouch: { [denom: number]: number } = {}
+  let workingRec = emptyRec
+  //deal with all the action types insert, select, cancel, noop
+  sessionLoop: for (const action of session) {
+
+    switch (action[0]) {
+      case "insert":
+        if (validCoin(action[1])) {
+          credit += action[1];
+          (coinPouch[action[1]]) ? coinPouch[action[1]]++ : coinPouch[action[1]] = 1;
+        } else {
+          workingRec.errors.push(`unsupported coin: ${action[1]}`)
+        }
+        break
+      case "select":
+        if (!Object.keys(inventory).includes(action[1])) {
+          workingRec.errors.push(`invalid sku: ${action[1]}`)
+
+        } else if (inventory[action[1]].price > credit) {
+          workingRec.errors.push(`insufficient credit: have ${credit}, need ${inventory[action[1]].price}`)
+
+        } else if (inventory[action[1]].stock === 0) {
+          workingRec.errors.push(`out of stock: ${action[1]}`)
+
+        } else {
+          // actually vend this shit here!
+          workingRec.dispensed = action[1];
+          credit = credit - inventory[action[1]].price;
+          inventory[action[1]].stock -= 1;
+          workingRec.spent += inventory[action[1]].price
+          workingRec.changeTotal = credit
+          workingRec.changeCoins = getChangeOf(credit, workingRec.changeCoins)
+          break sessionLoop
+        }
+        break
+      case "cancel":
+        workingRec.changeCoins = coinPouch
+        workingRec.changeTotal = credit
+        break sessionLoop
+      case "noop":
+        break
+      default:
+        workingRec.errors.push(`unknown action: ${action[0]}`);
+    }
+  }
+
+  finalRecs.push(workingRec)
+
+  return { inventory: inventory, receipts: finalRecs }
+}
+
+
+
+export function processVendingSessions(input: { inventory: Inventory, sessions: Array<Action[]> }) {
+  // deref to get inventory and sessions
+  const { inventory, sessions } = input
+
+  // deal with malformed input
+  if (sessions == null || inventory == null) {
+    return { inventory: {}, receipts: [] }
+  }
+
+  let workingInventory: Inventory = inventory
+  // deal with negatives and fractions in the inventory
+  for (const item in workingInventory) {
+    if (workingInventory[item].price < 0 || workingInventory[item].stock < 0) {
+      workingInventory[item].price = 0;
+      workingInventory[item].stock = 0;
+    }
+
+    if (workingInventory[item].price % 1 !== 0 || workingInventory[item].stock % 1 !== 0) {
+      workingInventory[item].price = Math.trunc(workingInventory[item].price);
+      workingInventory[item].stock = Math.trunc(workingInventory[item].stock);
+    }
+  }
+
+  let finalReceipts: Array<Receipt> = []
+
+  //loop through the sessions in the array (remember inventory stock persists through sessions)
+  for (const session of sessions) {
+    // deal with each possible action here, remember that the credits reset after each session?
+    // we will essentially return an entire output for each session, so lets make this a function!! OR NOT?
+    // pass in the working inventory so we can mutate it as necessary
+
+    const finishedSession = processSession(session, workingInventory)
+    workingInventory = finishedSession.inventory
+    finalReceipts = finalReceipts.concat(finishedSession.receipts)
+
+  }
+
+  return { inventory: workingInventory, receipts: finalReceipts }
 }
