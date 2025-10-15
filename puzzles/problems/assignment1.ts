@@ -14,22 +14,36 @@
  * - [{ name: "Charlie", scores: [80] }, { name: "Dana", scores: [80, 80] }] → "Charlie"
  */
 
-export function findTopStudent(students): string {
-  let totals = {}
-  
-  students.forEach(e => 
-    e.map((name,scores)=>{totals = {name:name, total:sumscores(scores) }}))
-  
-  const total.avg = 
-
-  return 
+type studentRecords= {
+  name:string,
+  scores:score[]
 }
 
-function sumscores( arr):number {
-  let total = 0
-  for (let e of arr) {
-    total += e
-  }
+type score = number
 
-  return total
+export function findTopStudent(students): string {
+  if (students.length == 0) throw new Error("No students provided");
+  
+  let maxName: string = students[0].name
+  let maxScore: number | null = null 
+
+  students.map(student=> student.average=avg(student))
+
+
+  for (const student of students) {
+      if (student.average> maxScore!) {
+        maxName = student.name
+        maxScore = student.average
+      }
+    
+  }
+return maxName
+}
+
+function avg(student:studentRecords):score {
+  let total = 0
+  for (const score of student.scores) {
+    total += score
+  }
+  return total/student.scores.length
 }

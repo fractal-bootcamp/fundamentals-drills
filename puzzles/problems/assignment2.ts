@@ -27,6 +27,79 @@
  * Result: Seats 0-1 in row 0 reserved, seats 3-4 still available
  */
 
-export function processReservations(initialTheater, requests): any {
-  //TODO
+type theater = string[][]
+
+type reservationRequest = {
+  customerId: string,
+  row: number,
+  seatsNeeded: number
 }
+
+type successReservation = {
+  customerId: string,
+  row: number,
+  startSeat: number,
+  endSeat: number
+}
+
+
+type finalResult = {
+  successfulReservations: successReservation[]
+  finalTheater: theater
+}
+
+export function processReservations(initialTheater, requests): any {
+
+  let finalTheater = structuredClone(initialTheater)
+  let updatedResult: finalResult = {
+    successfulReservations: [],
+    finalTheater: finalTheater
+  }
+
+  for (const request of requests) {
+    const validRequest = isValidRequest(request, finalTheater)
+    if (!validRequest) return updatedResult
+
+    const space = hasSpace(request, finalTheater)
+    console.log('start processing at: ', space)
+    if (space < 0) return updatedResult
+
+    updatedResult = processReservation(request, space, updatedResult)
+  }
+  return updatedResult
+}
+
+function processReservation(req: reservationRequest, space: number, result: finalResult): finalResult {
+  let success: successReservation = { customerId: req.customerId, row: req.row, startSeat: space, endSeat: space + req.seatsNeeded - 1 }
+
+  for (let i = space; i < space + req.seatsNeeded; i++) {
+    result.finalTheater[req.row][i] = "R"
+  }
+
+  result.successfulReservations.push(success)
+  return result
+}
+
+function hasSpace(req: reservationRequest, finalTheater: theater): number {
+  let needed = req.seatsNeeded
+  const row = finalTheater[req.row]
+
+  for (let i = 0; i < row.length; i++) {
+    if (row[i] == 'A') {
+      needed -= 1
+    } else {
+      needed = req.seatsNeeded
+    }
+    if (needed == 0) return i - req.seatsNeeded + 1
+  }
+  return -1
+}
+
+
+function isValidRequest(req: reservationRequest, finalTheater): boolean {
+  if (req.row < 0) return false
+  if (req.row > finalTheater.length) return false
+  if (finalTheater.length == 0 ) return false
+  return true
+}
+
