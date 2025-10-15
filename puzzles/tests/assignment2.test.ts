@@ -1,59 +1,90 @@
-// puzzles/tests/assignment2.test.ts
 import { describe, it, expect } from "vitest";
-import { simulateEditor } from "../problems/assignment2";
+import { optimizeDeliveryRoute } from "../problems/assignment2";
 
-describe("simulateEditor", () => {
-  it("minimal: empty program yields empty text at cursor 0", () => {
-    expect(simulateEditor([])).toEqual({ text: "", cursor: 0 });
+describe("optimizeDeliveryRoute", () => {
+  it("handles single stop within capacity", () => {
+    const result = optimizeDeliveryRoute(10, [
+      { id: "A", x: 2, y: 3, weight: 5 },
+    ]);
+
+    expect(result.trips).toEqual([["A"]]);
+    expect(result.totalDistance).toBe(10); // 5 there + 5 back
   });
 
-  it("typing, moving, and backspacing", () => {
-    const res = simulateEditor([
-      { op: "type", text: "hello" },
-      { op: "move", offset: -2 }, // cursor at 3
-      { op: "type", text: "X" }, // helXlo
-      { op: "backspace", count: 2 }, // remove 'l' and 'X' -> helo, cursor 2
+  it("handles multiple stops requiring separate trips due to weight", () => {
+    const result = optimizeDeliveryRoute(10, [
+      { id: "A", x: 1, y: 1, weight: 5 },
+      { id: "B", x: 2, y: 2, weight: 6 },
     ]);
-    expect(res).toEqual({ text: "helo", cursor: 2 });
+
+    expect(result.trips).toEqual([["A"], ["B"]]);
+    expect(result.totalDistance).toBe(12); // Trip1: 2+2=4, Trip2: 4+4=8
   });
 
-  it("undo/redo basic", () => {
-    const res = simulateEditor([
-      { op: "type", text: "ab" },
-      { op: "undo" },
-      { op: "redo" },
+  it("handles multiple stops in single trip when capacity allows", () => {
+    const result = optimizeDeliveryRoute(15, [
+      { id: "A", x: 3, y: 0, weight: 5 },
+      { id: "B", x: 0, y: 4, weight: 5 },
     ]);
-    expect(res).toEqual({ text: "ab", cursor: 2 });
+
+    expect(result.trips).toEqual([["A", "B"]]);
+    expect(result.totalDistance).toBe(14); // 3 + 7 + 4
   });
 
-  it("redo stack is cleared after new edit (forces intended abstraction)", () => {
-    const res = simulateEditor([
-      { op: "type", text: "ab" }, // state S1
-      { op: "undo" }, // back to S0
-      { op: "type", text: "X" }, // new branch, clears redo
-      { op: "redo" }, // no effect
+  it("chooses nearest stop first within each trip", () => {
+    const result = optimizeDeliveryRoute(20, [
+      { id: "FAR", x: 10, y: 10, weight: 5 },
+      { id: "NEAR", x: 1, y: 1, weight: 5 },
+      { id: "MID", x: 5, y: 5, weight: 5 },
     ]);
-    expect(res).toEqual({ text: "X", cursor: 1 });
+
+    expect(result.trips[0][0]).toBe("NEAR"); // Nearest to depot
+    expect(result.trips).toEqual([["NEAR", "MID", "FAR"]]);
   });
 
-  it("backspace clamps at start and handles large count", () => {
-    const res = simulateEditor([
-      { op: "type", text: "abc" },
-      { op: "backspace", count: 10 }, // deletes all
-      { op: "backspace", count: 1 }, // no-op at start
-    ]);
-    expect(res).toEqual({ text: "", cursor: 0 });
+  it("handles empty stops array", () => {
+    const result = optimizeDeliveryRoute(10, []);
+
+    expect(result.trips).toEqual([]);
+    expect(result.totalDistance).toBe(0);
   });
 
-  it("move clamps within bounds and can insert in the middle", () => {
-    const res = simulateEditor([
-      { op: "type", text: "world" },
-      { op: "move", offset: -5 }, // to 0
-      { op: "move", offset: -10 }, // clamp to 0
-      { op: "type", text: "hello " }, // "hello world", cursor 6
-      { op: "move", offset: 100 }, // clamp to end
-      { op: "type", text: "!" },
+  it("breaks tie by choosing first stop in input order", () => {
+    const result = optimizeDeliveryRoute(20, [
+      { id: "FIRST", x: 2, y: 0, weight: 5 },
+      { id: "SECOND", x: 0, y: 2, weight: 5 },
     ]);
-    expect(res).toEqual({ text: "hello world!", cursor: 12 });
+
+    expect(result.trips[0][0]).toBe("FIRST"); // Both distance 2, FIRST comes first
+  });
+
+  it("forces multiple trips with realistic scenario", () => {
+    const result = optimizeDeliveryRoute(12, [
+      { id: "A", x: 1, y: 0, weight: 4 },
+      { id: "B", x: 2, y: 0, weight: 5 },
+      { id: "C", x: 3, y: 0, weight: 6 },
+      { id: "D", x: 4, y: 0, weight: 3 },
+    ]);
+
+    // Trip 1: A(4kg) + B(5kg) = 9kg <= 12kg ✓
+    // Can't add C (would be 15kg > 12kg)
+    // Trip 2: C(6kg) + D(3kg) = 9kg <= 12kg ✓
+    expect(result.trips).toEqual([
+      ["A", "B"],
+      ["C", "D"],
+    ]);
+
+    // Trip 1: 0->A(1) + A->B(1) + B->0(2) = 4
+    // Trip 2: 0->C(3) + C->D(1) + D->0(4) = 8
+    expect(result.totalDistance).toBe(12);
+  });
+
+  it("handles stops with exact capacity", () => {
+    const result = optimizeDeliveryRoute(10, [
+      { id: "EXACT", x: 5, y: 5, weight: 10 },
+    ]);
+
+    expect(result.trips).toEqual([["EXACT"]]);
+    expect(result.totalDistance).toBe(20); // 10 there + 10 back
   });
 });
