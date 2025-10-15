@@ -1,149 +1,55 @@
-// @ts-nocheck
+// puzzles/problems/assignment2.ts
+
 /**
- * Programming Puzzle — Vending Sessions
+ * Problem: Conveyor Belt Package Sorter
  *
- * You will implement a tiny vending machine that processes a list of user sessions.
- * Each session is a sequence of actions: inserting coins, selecting an item, or cancelling.
- * There is NO persistent coin bank: change is conceptual and unlimited; only inventory changes over time.
- * Sessions are independent except for inventory stock, which is shared and persists across sessions.
+ * You are simulating a conveyor belt system in a warehouse.
+ * Packages arrive in order with a type (string) and weight (number).
+ * The belt operator can remove packages from the front and place them on separate sorting lanes.
+ * Return the final contents of each lane by type.
+ *
+ * Rules:
+ *   - Packages of the same type go to the same lane.
+ *   - Lanes are created lazily when the first package of that type arrives.
+ *   - Maintain original arrival order within each lane.
  *
  * Input:
- *   {
- *     inventory: { [sku: string]: { price: number; stock: number } } // price in whole cents (>=0), stock>=0
- *     sessions: Array<Session>                                        // Session = Action[]
- *   }
- *   Action is one of:
- *     ["insert", number]     // coin must be one of the allowed denominations [100,50,25,10,5,1]
- *     ["select", string]     // attempt to buy sku
- *     ["cancel"]             // abort session & refund inserted coins
- *     ["noop"]               // does nothing
- *
+ *   - Array of { type: string, weight: number } objects
  * Output:
- *   {
- *     inventory: { ...updated inventory... },
- *     receipts: Array<{
- *       dispensed?: string;                        // sku if an item was dispensed
- *       changeCoins: { [denom: number]: number };  // change returned as a greedy breakdown in the allowed denominations
- *       changeTotal: number;                        // total change (cents)
- *       spent: number;                              // cents the machine kept this session
- *       errors: string[];                           // rule violations or unsupported ops
- *     }>
- *   }
- *
- * Rules & Notes:
- *   - Start each session with credit=0 and an empty "inserted" coin pouch.
- *   - "insert" adds to the session credit if the coin is in the allowed denominations; otherwise record an error and ignore it.
- *   - "select":
- *       * Fails if sku is invalid, out of stock, or credit < price (record an error; session continues).
- *       * On success: dispense the item, decrement inventory, keep exactly the price as spent, return change = credit - price
- *         using greedy breakdown (unlimited coins; no bank constraints), then the session ENDS (ignore further actions).
- *   - "cancel" refunds exactly the coins the user inserted this session (returned as a breakdown; session ENDS).
- *   - If a session ends without "select" success or "cancel", nothing is dispensed or refunded; it's just an idle session end.
- *   - Deterministic; integers only; no randomness or timing.
+ *   - Record<string, { type: string, weight: number }[]> mapping lane type to packages
  *
  * Examples:
- *   Example A:
- *     inv={A:{price:125,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","A"] ]
- *     ]
- *     => dispensed A, spent 125, change 0, inventory A.stock=0
- *
- *   Example B:
- *     inv={B:{price:130,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","B"] ], // insufficient: error, session continues
- *       [ ["insert",100],["select","B"] ]                // success with change 70 = 50+10+10
- *     ]
+ *   conveyorSort([{type:"A",weight:2},{type:"B",weight:1},{type:"A",weight:3}])
+ *     => { A: [{type:"A",weight:2},{type:"A",weight:3}], B: [{type:"B",weight:1}] }
+ *   conveyorSort([]) => {}
  */
+type Package = { type: string; weight: number };
 
-//track current balance and coins types
-//inventory
-//track stock
-//reciepts
-
-type ActionType = "insert" | "select" | "cancel" | "noop";
-
-type Action = {
-	actionType: ActionType;
-	coin?: number;
-	selection?: string;
+type Record = {
+	[type: string]: Package[];
 };
+export function conveyorSort(
+	packages: { type: string; weight: number }[]
+): Record {
+	let output: Record = {};
 
-type Session = Action[];
+	for (const pack of packages) {
+		if (pack.type in output) {
+			output[pack.type].push(pack);
+		} else {
+			output = {
+				...output,
+				[pack.type]: [pack],
+			};
+		}
+	}
 
-type Coin = {
-	denom: number;
-	amount: number;
-};
-
-type Balance = Coin[];
-
-type ChangeCoins = {
-	[denom: number]: number;
-};
-
-type Reciept = {
-	dispensed?: string;
-	changeCoins?: Coins;
-	changeTotal: number;
-	spent: number;
-	errors: string[];
-};
-
-type SkuInfo = {
-	price: string;
-	stock: number;
-};
-
-type Inventory = {
-	[sku: string]: SkuInfo;
-};
-
-type Input = {
-	inventory: Inventory;
-	sessions: Array<Session>;
-};
-
-type Output = {
-	inventory: Inventory;
-	reciepts: Reciept[];
-};
-
-//read in input
-
-// process sessions
-//    process Action
-//        process insert
-//            allowed denomination
-//            update balance
-//        process select
-//          check balance
-//          update inventory
-//          update output receipt
-//        process cancel
-//          refund balance
-
-const inv = { A: { price: 125, stock: 1 } };
-const sess = [
-	[
-		["insert", 100],
-		["insert", 25],
-		["select", "A"],
-	],
-];
-
-export function processVendingSessions(input: Input): Output {
-	let inventory = input.inventory;
-	let sessions = input.sessions;
-	//for each action in sessions
-	//  check action
-	//  do what is required
-	//  update inventory and balance
-
-	let output: Output = {
-		...inventory,
-		reciepts: [],
-	};
 	return output;
 }
 
-console.log(processVendingSessions({ inv, sess }));
+const input = [
+	{ type: "A", weight: 2 },
+	{ type: "B", weight: 1 },
+	{ type: "A", weight: 3 },
+];
+//console.log(conveyorSort(input));
