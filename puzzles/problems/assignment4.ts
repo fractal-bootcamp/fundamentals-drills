@@ -14,17 +14,6 @@
  * - Distance is Manhattan distance: |x1 - x2| + |y1 - y2|
  * - If multiple stops are equidistant, choose the one that appears first in the input
  * 
- * start at 000
- * find closest stop
- * if combined weight exceeds capacity, go to depot
- *     input: location/weight, trip, trips
- *     set 000
- *     end trip, push to 'trips'
- *     output: location/weight, trip, trips
- * otherwise
- *     set new location, weight to stop location, weight
- *     input: location/weight, stop location/weight
- *     output: location/weight, trip, trips
  * Input: 
  * - capacity: number (max weight per trip, > 0)
  * - stops: array of {id: string, x: number, y: number, weight: number}
@@ -59,94 +48,92 @@ type TravelState = {
   y: number;
   weight: number;
   currentTrip: Trip;
-  trips: Trip[];
+  totalTrips: Trip[];
+  totalDistance: number;
+  futureStops: Stop[]
+  pastStops: string[]
 }
 
-const createInitialTravelState = (): TravelState => {
+const createInitialTravelState = (stops): TravelState => {
   return {
     x: 0,
     y: 0,
     weight: 0,
     currentTrip: [],
-    trips: [],
+    totalTrips: [],
+    totalDistance: 0,
+    futureStops: stops,
+    pastStops: []
   };
 }
 
-const findClosestStopId = (currentLocation, remainingStops) => {
-  // if equidistance, choose first stop.
-  // use currentTruck x/y and each stop x/y
-  // for each, create object/key {stopId: distance}
-  console.log("currentLocation", currentLocation, "remainingStops", remainingStops)
-  const stopDistances = {}
-  for (let i = 0; i < remainingStops.length; i++) {
-    const currentStop = remainingStops[i]
-    const distance = Math.abs(currentLocation.x - currentStop.x) + Math.abs(currentLocation.y - currentStop.y)
-    stopDistances[currentStop.id] = distance
-  }
-  const distances = Object.values(stopDistances)
-  const minDistance = Math.min(...distances)
-  const closestStopId = Object.keys(stopDistances).find(key => stopDistances[key] === minDistance)
-  return closestStopId
+const findClosestStop = (state) => {
+  const x = state.x
+  const y = state.y
+  const futureStops = state.futureStops
+  let closestStop = {}
+  let minDistance = 99999999999999999999999999999999
+  futureStops.forEach((stop) => {
+    const distance = Math.abs(x - stop.x) + Math.abs(y - stop.y)
+    if (distance < minDistance) {
+      minDistance = distance
+      closestStop = stop
+    }
+  })
+  return closestStop
 }
 
-// const processTravel = (nextStop, currentLocation) => {
+const goToDepot = (state) => {
+  // *     input: location/weight, trip, trips
+  // *     set 000
+  const distance = Math.abs(state.x) + Math.abs(state.y)
+  const x = 0
+  const y = 0
+  const weight = 0
+  // add distance
+  const totalDistance = state.totalDistance + distance
+  // push to 'trips'
+  const newTrip = state.currentTrip
+  // *     end trip, 
+  const currentTrip = []
+  // *     output: location/weight, trip, trips
+  return { x, y, weight, totalDistance, totalTrips: [...state.totalTrips, newTrip], currentTrip }
+}
 
-// }
+const processStop = (state, stop) => {
+  // *     input: location/weight, stop location/weight
+  // *     set new location, weight to stop location, weight
+  const distance = Math.abs(state.x - stop.x) + Math.abs(state.y - stop.y)
+  const x = stop.x
+  const y = stop.y
+  const weight = state.weight + stop.weight
+  // add distance
+  const totalDistance = state.totalDistance + distance
+  const id = stop.id
+  // remove stop from futureStops
+  const futureStops = state.futureStops.filter(stop => stop.id !== id)
+  // *     output: location/weight, trip, trips, push to 'hit trips'
+  return { x, y, weight, totalDistance, currentTrip: [...state.currentTrip, id], pastStops: [...state.pastStops, id], futureStops: futureStops }
+}
 
 export function optimizeDeliveryRoute(capacity: number, stops: Stop[]): TravelRecord {
-  // * - The delivery truck starts at the depot (0, 0) with a weight capacity
-  const currentLocation = { x: 0, y: 0, weight: 0 }
-  let remainingStops = stops
-  const pastTrips = []
-  let totalDistance = 0
-  while (pastTrips.length < stops.length) {
-    // find closest stop
-    const closestStopId = findClosestStopId(currentLocation, remainingStops)
-    const closestStop = remainingStops.find(stop => stop.id === closestStopId)
-    let nextStop
-    let currentTrip = []
-    // if truck is full, next stop is depot
-    // if closest stop would exceed, next stop is depot
-    if (currentLocation.weight + closestStop.weight > capacity) {
-      nextStop = { x: 0, y: 0 }
-      currentLocation.x = 0
-      currentLocation.y = 0
-      currentLocation.weight = 0
-      pastTrips.push(currentTrip)
-      currentTrip = []
+  // * start at 000
+  let state = createInitialTravelState(stops)
+  while (state.pastStops.length < stops.length) {
+    // * find closest stop
+    const closestStop = findClosestStop(state)
+    // * if combined weight exceeds capacity, go to depot
+    if (state.weight + closestStop.weight > capacity) {
+      const result = goToDepot(state)
+      state = { ...state, ...result}
     } else {
-      nextStop = closestStop
-      // remove stop from remainingStops
-      remainingStops = remainingStops.filter(stop => stop.id !== closestStopId)
-      // if next stop not depot, add stopId to past trips
-      currentTrip.push(closestStopId)
-      // add to total distance
-      const distance = Math.abs(currentLocation.x - closestStop.x) + Math.abs(currentLocation.y - closestStop.y)
-      totalDistance += distance
-      // add weight
-      currentLocation.weight += nextStop.weight
-      // set currentTruck location
-      currentLocation.x = nextStop?.x
-      currentLocation.y = nextStop.y
+      const result = processStop(state, closestStop)
+      state = { ...state, ...result}
     }
   }
-  // const result = processTravel(nextStop, currentLocation)
-
-  // * - Each stop has coordinates (x, y) and a package weight
-
-  // * - The truck must return to depot when capacity is reached or exceeded
-
-  // * - After returning, the truck can make another trip with full capacity
-
-  // * - Within each trip, visit stops in order of closest-first (greedy nearest neighbor)
-
-  // * - Distance is Manhattan distance: |x1 - x2| + |y1 - y2|
-
-  // * - If multiple stops are equidistant, choose the one that appears first in the input
-
-  return { trips: pastTrips, totalDistance }
+  return { trips: state.totalTrips, totalDistance: state.totalDistance }
 }
 
-// console.log(optimizeDeliveryRoute(10, [{ id: "A", x: 1, y: 1, weight: 5 }, { id: "B", x: 2, y: 2, weight: 6 }]))
+console.log(optimizeDeliveryRoute(10, [{ id: "A", x: 1, y: 1, weight: 5 }, { id: "B", x: 2, y: 2, weight: 6 }]))
 // console.log(optimizeDeliveryRoute(15, [{id:"A",x:3,y:0,weight:5}, {id:"B",x:0,y:4,weight:5}]))
-console.log(optimizeDeliveryRoute(10, [{ id: 'EXACT', x: 5, y: 5, weight: 10 }]))
+// console.log(optimizeDeliveryRoute(10, [{ id: 'EXACT', x: 5, y: 5, weight: 10 }]))
