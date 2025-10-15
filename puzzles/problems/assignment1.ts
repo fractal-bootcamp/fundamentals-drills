@@ -28,7 +28,6 @@ export function longestStreak(nums: number[]): number {
   let isStreak = false
 
   let previous = nums[0]
-  let current: number;
 
   for (let i = 1; i < numsLen; i++) { //Go through each index i 
 
