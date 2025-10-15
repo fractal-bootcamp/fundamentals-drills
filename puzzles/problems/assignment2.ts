@@ -1,60 +1,119 @@
-// @ts-nocheck
+// puzzles/problems/assignment2.ts
+
 /**
- * Programming Puzzle — Vending Sessions
+ * Tiny Text Editor — Undo/Redo, Cursor, and Editing
  *
- * You will implement a tiny vending machine that processes a list of user sessions.
- * Each session is a sequence of actions: inserting coins, selecting an item, or cancelling.
- * There is NO persistent coin bank: change is conceptual and unlimited; only inventory changes over time.
- * Sessions are independent except for inventory stock, which is shared and persists across sessions.
+ * Build a tiny text editor that processes a list of commands and returns the final `text`
+ * and `cursor` position. The cursor is an index in `[0, text.length]` (between characters).
+
  *
- * Input:
- *   {
- *     inventory: { [sku: string]: { price: number; stock: number } } // price in whole cents (>=0), stock>=0
- *     sessions: Array<Session>                                        // Session = Action[]
- *   }
- *   Action is one of:
- *     ["insert", number]     // coin must be one of the allowed denominations [100,50,25,10,5,1]
- *     ["select", string]     // attempt to buy sku
- *     ["cancel"]             // abort session & refund inserted coins
- *     ["noop"]               // does nothing
+ * Example:
+ *   simulateEditor(
+ * [                        [1,2,3,4,5]
+ *                          cursor = 1
+ * 
+ *     { op: "type", text: "hello" },
+ *     { op: "move", offset: -2 },
+ *     { op: "type", text: "X" }
+ *   ]
+ * )  // -> { text: "helXlo", cursor: 4 }
  *
- * Output:
- *   {
- *     inventory: { ...updated inventory... },
- *     receipts: Array<{
- *       dispensed?: string;                        // sku if an item was dispensed
- *       changeCoins: { [denom: number]: number };  // change returned as a greedy breakdown in the allowed denominations
- *       changeTotal: number;                        // total change (cents)
- *       spent: number;                              // cents the machine kept this session
- *       errors: string[];                           // rule violations or unsupported ops
- *     }>
- *   }
- *
- * Rules & Notes:
- *   - Start each session with credit=0 and an empty "inserted" coin pouch.
- *   - "insert" adds to the session credit if the coin is in the allowed denominations; otherwise record an error and ignore it.
- *   - "select":
- *       * Fails if sku is invalid, out of stock, or credit < price (record an error; session continues).
- *       * On success: dispense the item, decrement inventory, keep exactly the price as spent, return change = credit - price
- *         using greedy breakdown (unlimited coins; no bank constraints), then the session ENDS (ignore further actions).
- *   - "cancel" refunds exactly the coins the user inserted this session (returned as a breakdown; session ENDS).
- *   - If a session ends without "select" success or "cancel", nothing is dispensed or refunded; it's just an idle session end.
- *   - Deterministic; integers only; no randomness or timing.
- *
- * Examples:
- *   Example A:
- *     inv={A:{price:125,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","A"] ]
- *     ]
- *     => dispensed A, spent 125, change 0, inventory A.stock=0
- *
- *   Example B:
- *     inv={B:{price:130,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","B"] ], // insufficient: error, session continues
- *       [ ["insert",100],["select","B"] ]                // success with change 70 = 50+10+10
- *     ]
+ *   simulateEditor([
+ *     { op: "type", text: "ab" },
+ *     { op: "undo" },
+ *     { op: "redo" }
+ *   ])  // -> { text: "ab", cursor: 2 }
  */
 
-export function processVendingSessions(input) {
-  return {}
+//  * Supported commands (objects) are:
+//  *   - { op: "type", text: string } → insert `text` at the cursor, cursor moves to end of inserted text
+//  *   - { op: "backspace", count?: number } → delete up to `count` chars before cursor (default 1), cursor moves left
+//  *   - { op: "move", offset: number } → move cursor by `offset` (negative = left, positive = right), clamped to bounds
+//  *   - { op: "undo" } → revert to the previous state if available
+//  *   - { op: "redo" } → reapply a state undone by `undo` if available
+//  *
+//  * Rules & Edge Cases:
+//  * - Applying any command other than `undo`/`redo` clears the redo stack.
+//  * - `undo` when there is no prior state is a no-op (same for `redo` with empty redo stack).
+//  * - `backspace` on an empty document or with cursor at 0 is a no-op.
+//  * - `move` clamps the cursor to `[0, text.length]`.
+//  * - Inputs are pure data (no I/O); output is `{ text: string, cursor: number }`.
+
+// add 0
+// old --  []
+// current [0]
+// redo    []
+
+//next run
+//
+
+// undo
+// old     [0]   - current (current)
+// current []    - old
+// redo    [0]   - current (redo)
+
+// redo
+// old     []   - current (current)
+// current [0]  - current (redo)
+// redo    []   -
+
+type commands =
+  | { op: "type"; text: string }
+  | { op: "backspace"; count?: number }
+  | { op: "move"; offset: number }
+  | { op: "undo" }
+  | { op: "redo" };
+
+export function simulateEditor(program: commands[]) {
+  let current = { text: "", cursor: 0 };
+  let old = [];
+  let redo = [];
+
+  for (const command of program) {
+    if (command.op === "undo") {
+      if (old.length > 0) {
+        //current -> redo
+        redo.push(structuredClone(current));
+        // old -> current
+        current = old.pop()!;
+      }
+      continue;
+    }
+
+    if (command.op === "redo") {
+      if (redo.length > 0) {
+        // current -> old
+        old.push(structuredClone(current));
+        //current on redo -> current
+        current = redo.pop()!;
+      }
+      continue;
+    }
+
+    //current -> old
+    old.push(structuredClone(current));
+    // new redo for next command
+    redo = [];
+
+    if (command.op === "move") {
+      const newCursor = current.cursor + command.offset;
+      current.cursor = Math.max(0, Math.min(current.text.length, newCursor));
+    } else if (command.op === "backspace") {
+      const count = command.count ?? 1;
+      if (current.cursor > 0) {
+        const newCursor = Math.max(0, current.cursor - count);
+        const before = current.text.slice(0, newCursor);
+        const after = current.text.slice(current.cursor);
+        current.text = before + after;
+        current.cursor = newCursor;
+      }
+    } else if (command.op === "type") {
+      const before = current.text.slice(0, current.cursor);
+      const after = current.text.slice(current.cursor);
+      current.text = before + command.text + after;
+      current.cursor += command.text.length;
+    }
+  }
+
+  return current;
 }
