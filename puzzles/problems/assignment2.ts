@@ -56,11 +56,11 @@
 
 type Item = { price: number; stock: number }
 type Inventory = { [sku: string]: Item }
-type Action = string[]
-// ["insert", number]     // coin must be one of the allowed denominations [100,50,25,10,5,1]
-// ["select", string]     // attempt to buy sku
-// ["cancel"]             // abort session & refund inserted coins
-// ["noop"]               // does nothing
+type Action =
+  ["insert", number]     // coin must be one of the allowed denominations [100,50,25,10,5,1]
+  | ["select", string]     // attempt to buy sku
+  | ["cancel"]             // abort session & refund inserted coins
+  | ["noop"]               // does nothing
 type Session = Action[]
 type Sessions = Session[]
 type Input = { inventory: Inventory, sessions: Sessions }

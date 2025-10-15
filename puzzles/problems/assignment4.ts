@@ -72,7 +72,7 @@ const findClosestStop = (state) => {
   const y = state.y
   const futureStops = state.futureStops
   let closestStop = {}
-  let minDistance = 99999999999999999999999999999999
+  let minDistance = Infinity
   futureStops.forEach((stop) => {
     const distance = Math.abs(x - stop.x) + Math.abs(y - stop.y)
     if (distance < minDistance) {
@@ -131,9 +131,13 @@ export function optimizeDeliveryRoute(capacity: number, stops: Stop[]): TravelRe
       state = { ...state, ...result}
     }
   }
+  if (state.currentTrip.length > 0) {
+    const result = goToDepot(state)
+    state = { ...state, ...result}
+  }
   return { trips: state.totalTrips, totalDistance: state.totalDistance }
 }
 
-console.log(optimizeDeliveryRoute(10, [{ id: "A", x: 1, y: 1, weight: 5 }, { id: "B", x: 2, y: 2, weight: 6 }]))
+// console.log(optimizeDeliveryRoute(10, [{ id: "A", x: 1, y: 1, weight: 5 }, { id: "B", x: 2, y: 2, weight: 6 }]))
 // console.log(optimizeDeliveryRoute(15, [{id:"A",x:3,y:0,weight:5}, {id:"B",x:0,y:4,weight:5}]))
 // console.log(optimizeDeliveryRoute(10, [{ id: 'EXACT', x: 5, y: 5, weight: 10 }]))
