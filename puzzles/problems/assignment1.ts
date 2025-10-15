@@ -1,21 +1,43 @@
+// puzzles/problems/assignment1.ts
+
 /**
- * Assignment 1 — Consecutive Sum Streak
+ * Peaks in an Elevation Profile
  *
- * Context:
- * In analytics or signal processing, we sometimes want to detect “streaks” of rising data. Given an array of integers,
- * return the length of the longest consecutive increasing run (where each next number is exactly 1 greater).
- * For example, [1,2,3,5,6,7,8,10] has a longest streak [5,6,7,8] of length 4.
+ * You are given a discrete elevation profile as an array of integers. An index `i` is a *peak*
+ * if its value is strictly greater than each adjacent neighbor that exists. For index 0, only
+ * compare the right neighbor; for the last index, only compare the left neighbor. A single-element
+ * array counts as having a peak at index 0.
  *
- * Input:
- *   - nums: number[] — may be empty or contain duplicates.
- * Output:
- *   - number — length of the longest strictly consecutive +1 run.
+ * Input: `heights: number[]` (finite array of integers; may be empty; values may repeat)
+ * Output: `number[]` — the indices of all peaks in strictly increasing order.
  *
  * Examples:
- *   longestStreak([1,2,3,5,6,7,8,10]) -> 4
- *   longestStreak([5,5,5]) -> 1
- *   longestStreak([]) -> 0
+ *   findPeaks([1,2,1,9,4,6,4]) -> [1,3,5]
+ *   findPeaks([5]) -> [0]
  */
-export function longestStreak(nums: number[]): number {
-  return 0
+
+// Time to Complete 10 min, but spent extra 30 playing around with conditionals cause it was kinda fun
+
+export function findPeaks(heights: number[]): number[] {
+  let peaks: number[] = [];
+
+  if (heights.length === 1) return [0];
+
+  for (let i = 0; i < heights.length; i++) {
+    const hasLeft = i > 0 ? true : false;
+    const hasRight = i < heights.length - 1 ? true : false;
+    const initialPeak = !hasLeft && hasRight && heights[i + 1] < heights[i];
+    const lastPeak = !hasRight && hasLeft && heights[i - 1] < heights[i];
+    const peak =
+      hasLeft &&
+      heights[i - 1] < heights[i] &&
+      hasRight &&
+      heights[i + 1] < heights[i];
+
+    if (peak) peaks.push(i);
+    if (lastPeak) peaks.push(i);
+    if (initialPeak) peaks.push(i);
+  }
+
+  return peaks;
 }
