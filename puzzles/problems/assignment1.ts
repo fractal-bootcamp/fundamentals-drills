@@ -1,45 +1,32 @@
-/**
- * Assignment 1 — Consecutive Sum Streak
- *
- * Context:
- * In analytics or signal processing, we sometimes want to detect “streaks” of rising data. Given an array of integers,
- * return the length of the longest consecutive increasing run (where each next number is exactly 1 greater).
- * For example, [1,2,3,5,6,7,8,10] has a longest streak [5,6,7,8] of length 4.
- *
- * Input:
- *   - nums: number[] — may be empty or contain duplicates.
- * Output:
- *   - number — length of the longest strictly consecutive +1 run.
- *
- * Examples:
- *   longestStreak([1,2,3,5,6,7,8,10]) -> 4
- *   longestStreak([5,5,5]) -> 1
- *   longestStreak([]) -> 0
- */
-export function longestStreak(nums: number[]): number {
-  let maxStreak = 0;
-  let streak = 1;
-  console.log("maxStreak count at start:", maxStreak);
+// Counts how many numbers in nums are within the range [start, end].
+// The range is inclusive — that is, numbers equal to start or end should be counted.
+// Example:
+// countInRange([1, 2, 3, 4, 5], 2, 4) → 3
 
-  console.log("starting array:", nums);
 
-  if (nums.length === 1) return 1;
 
-  for (let i = 0; i < nums.length - 1; i++) {
-    const difference = nums[i + 1] - nums[i];
+/** 
+@param nums - Array of integers.
+@param start - The inclusive start of the range.
+@param end - The inclusive end of the range.
+@returns The count of numbers x such that start <= x <= end.*
+*/
 
-    console.log(`difference b/t ${nums[i + 1]} - ${nums[i]}:`, difference);
+export function countInRange(nums: number[], start: number, end: number): number {
+  // Be careful about off-by-one errors with inclusive bounds!
 
-    if (difference === 1) {
-      streak++;
-      console.log(`streak if difference of ${nums[i + 1]} - ${nums[i]} === 1:`, streak); // increment count by 1 if num 1 greater
-    } else {
-      // decrement count by 1 if num not 1 greater
-      streak = 1;
-      console.log(`streak if difference of ${nums[i + 1]} - ${nums[i]} !== 1:`, streak);
+  let range = 0
+
+  // handles reversed ranges (start > end) gracefully
+  if (start > end) range = 0
+
+  for (let i = 0; i < nums.length; i++) {
+    const currentNumber = nums[i]
+
+    if (currentNumber >= start && currentNumber <= end) {
+      range++
     }
-    if (streak > maxStreak) maxStreak = streak;
   }
-  console.log("maxStreak count at end:", maxStreak);
-  return maxStreak;
+
+  return range
 }
