@@ -56,140 +56,119 @@
  */
 
 type Input = {
-  inventory: { [sku: string]: { price: number; stock: number } },
+  inventory: Inventory,
   sessions: Array<Session>
 }
+
+type Inventory = { [sku: string]: { price: number; stock: number } }
 
 type Session = Action[]
 
 type Action = ["insert", number] | ["select", string] | ["cancel"] | ["noop"]
 
+type Receipt = {
+  dispensed?: string;
+  changeCoins: { [denom: number]: number };
+  changeTotal: number;
+  spent: number;
+  errors: string[];
+}
+
 type Output = {
   inventory: { [sku: string]: { price: number; stock: number } },
-  receipts: Array<{
-    dispensed?: string;
-    changeCoins: { [denom: number]: number };
-    changeTotal: number;
-    spent: number;
-    errors: string;
-  }>
+  receipts: Array<Receipt>
+}
+
+function calculateChangeCoins(changeTotal: number, denominations: Array<number>): Record<number, number> {
+  const changeCoins: Record<number, number> = {}
+  while (changeTotal > 0) {
+    for (const coin of denominations) {
+      if (coin <= changeTotal) {
+        changeTotal -= coin
+        if (!(coin in changeCoins))
+          changeCoins[coin] = 0
+        changeCoins[coin] += 1
+        break
+      }
+    }
+  }
+
+  return changeCoins
+}
+
+function processVendingSession(inventory: Inventory, session: Session): Receipt {
+  const denominations: Array<number> = [100, 50, 25, 10, 5, 1]
+  const insertedCoins: Record<number, number> = {}
+  let credit: number = 0
+  let receipt: Receipt = {
+    dispensed: undefined,
+    changeCoins: {},
+    changeTotal: 0,
+    spent: 0,
+    errors: []
+  }
+
+  for (const action of session) {
+    const type = action[0]
+    if (type === "insert") {
+      const amount = action[1]
+      if (!denominations.includes(amount)) {
+        receipt.errors.push(`unsupported coin: ${amount}`)
+      } else {
+        credit += amount
+        if (!(amount in insertedCoins))
+          insertedCoins[amount] = 0
+        insertedCoins[amount] += 1
+      }
+    } else if (type === "select") {
+      const sku = action[1]
+      if (!(sku in inventory)) {
+        receipt.errors.push(`invalid sku: ${sku}`)
+      } else if (inventory[sku].stock < 1) {
+        receipt.errors.push(`out of stock: ${sku}`)
+      } else if (credit < inventory[sku].price) {
+        receipt.errors.push(`insufficient credit: have ${credit}, need ${inventory[sku].price}`)
+      } else {
+        inventory[sku].stock -= 1
+        receipt.dispensed = sku
+        receipt.spent = inventory[sku].price
+        receipt.changeTotal = credit - inventory[sku].price
+        receipt.changeCoins = calculateChangeCoins(receipt.changeTotal, denominations)
+        break
+      }
+    } else if (type === "cancel") {
+      receipt.changeCoins = insertedCoins
+      receipt.changeTotal = credit
+      break
+    } else if (type !== "noop") {
+      receipt.errors.push(`unknown action: ${type}`)
+    }
+  }
+
+  return receipt
 }
 
 export function processVendingSessions(input: Input): Output {
-  const denominations: Array<number> = [100, 50, 25, 10, 5, 1]
-  let receipts: Array<{
-    dispensed?: string;
-    changeCoins: { [denom: number]: number };
-    changeTotal: number;
-    spent: number;
-    errors: string;
-  }> = []
-  
-  let inserted: Map<number, number> = {
-    100: 0,
-    50: 0,
-    25: 0,
-    10: 0,
-    5: 0,
-    1: 0
-  }
+  const sessions: Action[] = input.sessions
+  const inventory: Inventory = input.inventory
 
-  let credit: number = 0;
-  let spent: number = 0;
-  let errors: Array<string> = []
-  
-  for (const session of input.sessions) {
-    if (session[0] === "insert") {
-      if (denominations.contains(session[1])) {
-        credit += session[1]
-        inserted.set(session[1], inserted.get(session[1]) + 1)
-      } else {
-        errors.push(`unsupported coin: ${session[1]}`)
-      }
-    } else if (session[0] === "select") {
-      if (!input.inventory.keys().contains(session[1])) {
-        errors.push(`invalid sku: ${session[1]}`)
-      } else if (input.inventory.get(session[1]).stock <= 0) {
-        errors.push(`out of stock: ${session[1]}`)
-      } else if (credit < input.inventory.get(session[1]).price) {
-        errors.push(`insufficient credit: have ${credit}, need ${input.inventory.get(session[1]).price}`)
-      } else {
-        input.inventory.get(session[1]).stock -= 1
-        spent += input.inventory.get(session[1]).price
-        let changeTotal: number = credit - price
-        // handle change
-        let changeCoins: Map<number, number> = {
-          100: 0,
-          50: 0,
-          25: 0,
-          10: 0,
-          5: 0,
-          1: 0
-        }
-
-        while (changeTotal > 0) {
-          let coinToRemove: number = 1
-          for (const coin of denominations) {
-            if (coin < changeTotal) {
-              coinToRemove = coin
-              break
-            }
-          }
-          changeTotal -= coinToRemove
-
-          if (changeCoins.get(coinToRemove)) {
-            changeCoins.set(coinToRemove, changeCoins.get(coinToRemove) + 1)
-          } else {
-            changeCoins.set(coinToRemove, 1)
-          }
-        }
-
-        receipts.push({
-          dispensed: session[1],
-          changeCoins: changeCoins,
-          changeTotal: changeTotal,
-          spent: spent,
-          errors: errors
-        })
-      }
-    } else if (session[0] === "cancel") {
-      let changeCoins: Map<number, number> = {}
-      let changeTotal: number = 0
-      for (const coin in inserted) {
-        if (inserted.get(coin) > 0) {
-          changeCoins.set(coin, inserted.get(coin))
-          changeTotal += coin * inserted.get(coin)
-        }
-      }
-      return {
-        inventory: input.inventory,
-        receipts: [{
-          dispensed: undefined,
-          changeCoins: changeCoins,
-          changeTotal: changeTotal,
-          spent: spent,
-          errors: errors
-        }]
-      }
-    } else if (session[0] === "noop") {
-      // nothing ever happens
-    }
-  }  
-  if (receipts.length === 0) {
+  if (!sessions || !inventory)
     return {
-      inventory: input.inventory,
-      receipts: {
-        dispensed: undefined,
-        changeCoins: {},
-        changeTotal: 0,
-        spent: spent,
-        errors: errors
-      }
-  }
-  } else {
-    return {
-      inventory: input.inventory,
-      receipts: receipts
+      inventory: {},
+      receipts: []
     }
+
+
+  for (const sku in inventory) {
+    inventory[sku].stock = inventory[sku].price >= 0 ? Math.floor(inventory[sku].stock) : 0
+    inventory[sku].price = inventory[sku].price >= 0 ? Math.floor(inventory[sku].price) : 0
   }
+  
+  const receipts: Receipt[] = sessions.map(session => processVendingSession(inventory, session))
+  
+  return {
+    inventory: inventory,
+    receipts: receipts
+  }
+
 }
