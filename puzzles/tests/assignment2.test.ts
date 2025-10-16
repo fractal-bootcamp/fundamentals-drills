@@ -1,431 +1,371 @@
 import { describe, it, expect } from "vitest";
-import { processVendingSessions } from "../problems/assignment2";
+import { organizeMessageThreads } from "../problems/assignment2";
 
-describe("processVendingSessions", () => {
-  // Basic functionality tests
-  it("should handle successful purchase from example A", () => {
+describe("organizeMessageThreads", () => {
+  // Example A - Simple linear thread
+  it("should handle simple linear thread from example A", () => {
     const input = {
-      inventory: { A: { price: 125, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["insert", 25], ["select", "A"]]
+      messages: [
+        { id: "1", author: "alice", text: "Hello", timestamp: 100 },
+        { id: "2", author: "bob", text: "Hi", timestamp: 200, replyTo: "1" }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ A: { price: 125, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "A",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 125,
-      errors: []
-    }]);
+    expect(result.threads).toHaveLength(1);
+    expect(result.threads[0].rootMessage.id).toBe("1");
+    expect(result.threads[0].depth).toBe(0);
+    expect(result.threads[0].messageCount).toBe(2);
+    expect(result.threads[0].replies).toHaveLength(1);
+    expect(result.threads[0].replies[0].rootMessage.id).toBe("2");
+    expect(result.threads[0].replies[0].depth).toBe(1);
+
+    expect(result.analytics.totalMessages).toBe(2);
+    expect(result.analytics.totalThreads).toBe(1);
+    expect(result.analytics.longestThread).toBe(1);
+    expect(result.analytics.orphanedMessages).toBe(0);
   });
 
-  it("should handle insufficient credit from example B", () => {
+  // Example B - Multiple threads with orphans
+  it("should handle multiple threads with orphaned messages from example B", () => {
     const input = {
-      inventory: { B: { price: 130, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["insert", 25], ["select", "B"]],
-        [["insert", 100], ["select", "B"]]
+      messages: [
+        { id: "1", author: "alice", text: "A", timestamp: 100 },
+        { id: "2", author: "bob", text: "B", timestamp: 150, replyTo: "999" },
+        { id: "3", author: "alice", text: "C", timestamp: 200, replyTo: "1" }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ B: { price: 130, stock: 1 } });
-    expect(result.receipts[0]).toEqual({
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["insufficient credit: have 125, need 130"]
-    });
-    expect(result.receipts[1]).toEqual({
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["insufficient credit: have 100, need 130"]
-    });
+    expect(result.threads).toHaveLength(2);
+    expect(result.threads[0].rootMessage.id).toBe("1");
+    expect(result.threads[1].rootMessage.id).toBe("2");
+    expect(result.analytics.totalMessages).toBe(3);
+    expect(result.analytics.totalThreads).toBe(2);
+    expect(result.analytics.mostActiveAuthor).toBe("alice");
+    expect(result.analytics.orphanedMessages).toBe(1);
   });
 
-  it("should handle purchase with change", () => {
+  // Example C - Branching conversation
+  it("should handle branching conversation from example C", () => {
     const input = {
-      inventory: { C: { price: 75, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "C"]]
+      messages: [
+        { id: "1", author: "alice", text: "Question?", timestamp: 100 },
+        { id: "2", author: "bob", text: "Answer A", timestamp: 200, replyTo: "1" },
+        { id: "3", author: "carol", text: "Answer B", timestamp: 250, replyTo: "1" }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ C: { price: 75, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "C",
-      changeCoins: { 25: 1 },
-      changeTotal: 25,
-      spent: 75,
-      errors: []
-    }]);
+    expect(result.threads).toHaveLength(1);
+    expect(result.threads[0].replies).toHaveLength(2);
+    expect(result.threads[0].messageCount).toBe(3);
+    expect(result.analytics.longestThread).toBe(1);
   });
 
-  it("should handle complex change breakdown", () => {
+  // Edge case - Empty input
+  it("should handle empty messages array", () => {
+    const input = { messages: [] };
+
+    const result = organizeMessageThreads(input);
+
+    expect(result.threads).toEqual([]);
+    expect(result.analytics.totalMessages).toBe(0);
+    expect(result.analytics.totalThreads).toBe(0);
+    expect(result.analytics.longestThread).toBe(0);
+    expect(result.analytics.mostActiveAuthor).toBe("");
+    expect(result.analytics.orphanedMessages).toBe(0);
+  });
+
+  // Edge case - Null or malformed input
+  it("should handle null input gracefully", () => {
+    const result = organizeMessageThreads(null);
+
+    expect(result.threads).toEqual([]);
+    expect(result.analytics.totalMessages).toBe(0);
+    expect(result.analytics.mostActiveAuthor).toBe("");
+  });
+
+  it("should handle missing messages array", () => {
+    const result = organizeMessageThreads({});
+
+    expect(result.threads).toEqual([]);
+    expect(result.analytics.totalMessages).toBe(0);
+  });
+
+  // Deep nesting
+  it("should handle deeply nested thread", () => {
     const input = {
-      inventory: { D: { price: 35, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "D"]]
+      messages: [
+        { id: "1", author: "alice", text: "Root", timestamp: 100 },
+        { id: "2", author: "bob", text: "Reply 1", timestamp: 200, replyTo: "1" },
+        { id: "3", author: "carol", text: "Reply 2", timestamp: 300, replyTo: "2" },
+        { id: "4", author: "dave", text: "Reply 3", timestamp: 400, replyTo: "3" },
+        { id: "5", author: "eve", text: "Reply 4", timestamp: 500, replyTo: "4" }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ D: { price: 35, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "D",
-      changeCoins: { 50: 1, 10: 1, 5: 1 },
-      changeTotal: 65,
-      spent: 35,
-      errors: []
-    }]);
+    expect(result.threads).toHaveLength(1);
+    expect(result.threads[0].messageCount).toBe(5);
+    expect(result.analytics.longestThread).toBe(4);
+    expect(result.analytics.totalMessages).toBe(5);
   });
 
-  it("should handle cancel operation", () => {
+  // Multiple root threads
+  it("should handle multiple independent root threads", () => {
     const input = {
-      inventory: { E: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 25], ["insert", 25], ["cancel"]]
+      messages: [
+        { id: "1", author: "alice", text: "Thread 1", timestamp: 100 },
+        { id: "2", author: "bob", text: "Thread 2", timestamp: 150 },
+        { id: "3", author: "carol", text: "Thread 3", timestamp: 200 }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ E: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: { 25: 2 },
-      changeTotal: 50,
-      spent: 0,
-      errors: []
-    }]);
+    expect(result.threads).toHaveLength(3);
+    expect(result.analytics.totalThreads).toBe(3);
+    expect(result.analytics.longestThread).toBe(0);
   });
 
-  it("should handle invalid coin denominations", () => {
+  // Thread ordering by timestamp
+  it("should order root threads by timestamp (oldest first)", () => {
     const input = {
-      inventory: { F: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 75], ["insert", 50], ["select", "F"]]
+      messages: [
+        { id: "3", author: "carol", text: "C", timestamp: 300 },
+        { id: "1", author: "alice", text: "A", timestamp: 100 },
+        { id: "2", author: "bob", text: "B", timestamp: 200 }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ F: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "F",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: ["unsupported coin: 75"]
-    }]);
+    expect(result.threads[0].rootMessage.id).toBe("1");
+    expect(result.threads[1].rootMessage.id).toBe("2");
+    expect(result.threads[2].rootMessage.id).toBe("3");
   });
 
-  it("should handle invalid SKU", () => {
+  // Reply ordering by timestamp
+  it("should order replies by timestamp (oldest first)", () => {
     const input = {
-      inventory: { G: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "INVALID"]]
+      messages: [
+        { id: "1", author: "alice", text: "Root", timestamp: 100 },
+        { id: "4", author: "dave", text: "Reply 3", timestamp: 400, replyTo: "1" },
+        { id: "2", author: "bob", text: "Reply 1", timestamp: 200, replyTo: "1" },
+        { id: "3", author: "carol", text: "Reply 2", timestamp: 300, replyTo: "1" }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ G: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["invalid sku: INVALID"]
-    }]);
+    expect(result.threads[0].replies[0].rootMessage.id).toBe("2");
+    expect(result.threads[0].replies[1].rootMessage.id).toBe("3");
+    expect(result.threads[0].replies[2].rootMessage.id).toBe("4");
   });
 
-  it("should handle out of stock", () => {
+  // Duplicate message IDs
+  it("should keep only first occurrence of duplicate message IDs", () => {
     const input = {
-      inventory: { H: { price: 50, stock: 0 } },
-      sessions: [
-        [["insert", 50], ["select", "H"]]
+      messages: [
+        { id: "1", author: "alice", text: "First", timestamp: 100 },
+        { id: "1", author: "bob", text: "Duplicate", timestamp: 200 },
+        { id: "2", author: "carol", text: "Unique", timestamp: 300 }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ H: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["out of stock: H"]
-    }]);
+    expect(result.analytics.totalMessages).toBe(2);
+    expect(result.threads[0].rootMessage.author).toBe("alice");
+    expect(result.threads[0].rootMessage.text).toBe("First");
   });
 
-  it("should handle multiple sessions with inventory depletion", () => {
+  // Most active author with tie (alphabetically first)
+  it("should resolve most active author ties alphabetically", () => {
     const input = {
-      inventory: { I: { price: 25, stock: 2 } },
-      sessions: [
-        [["insert", 25], ["select", "I"]],
-        [["insert", 25], ["select", "I"]],
-        [["insert", 25], ["select", "I"]]
+      messages: [
+        { id: "1", author: "zelda", text: "A", timestamp: 100 },
+        { id: "2", author: "alice", text: "B", timestamp: 200 },
+        { id: "3", author: "zelda", text: "C", timestamp: 300 },
+        { id: "4", author: "alice", text: "D", timestamp: 400 }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ I: { price: 25, stock: 0 } });
-    expect(result.receipts).toHaveLength(3);
-    expect(result.receipts[0].dispensed).toBe("I");
-    expect(result.receipts[1].dispensed).toBe("I");
-    expect(result.receipts[2].dispensed).toBeUndefined();
-    expect(result.receipts[2].errors).toEqual(["out of stock: I"]);
+    expect(result.analytics.mostActiveAuthor).toBe("alice");
   });
 
-  it("should handle noop operations", () => {
+  // Most active author with clear winner
+  it("should identify most active author correctly", () => {
     const input = {
-      inventory: { J: { price: 50, stock: 1 } },
-      sessions: [
-        [["noop"], ["insert", 50], ["noop"], ["select", "J"], ["noop"]]
+      messages: [
+        { id: "1", author: "alice", text: "A", timestamp: 100 },
+        { id: "2", author: "bob", text: "B", timestamp: 200 },
+        { id: "3", author: "alice", text: "C", timestamp: 300 },
+        { id: "4", author: "alice", text: "D", timestamp: 400 }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ J: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "J",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: []
-    }]);
+    expect(result.analytics.mostActiveAuthor).toBe("alice");
   });
 
-  it("should handle unknown actions", () => {
+  // Complex tree with multiple branches at different levels
+  it("should handle complex branching at multiple levels", () => {
     const input = {
-      inventory: { K: { price: 50, stock: 1 } },
-      sessions: [
-        [["unknown"], ["insert", 50], ["select", "K"]]
+      messages: [
+        { id: "1", author: "alice", text: "Root", timestamp: 100 },
+        { id: "2", author: "bob", text: "Reply 1", timestamp: 200, replyTo: "1" },
+        { id: "3", author: "carol", text: "Reply 2", timestamp: 250, replyTo: "1" },
+        { id: "4", author: "dave", text: "Reply to Reply 1", timestamp: 300, replyTo: "2" },
+        { id: "5", author: "eve", text: "Another reply to Reply 1", timestamp: 350, replyTo: "2" },
+        { id: "6", author: "frank", text: "Reply to Reply 2", timestamp: 400, replyTo: "3" }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ K: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "K",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: ["unknown action: unknown"]
-    }]);
+    expect(result.threads).toHaveLength(1);
+    expect(result.threads[0].messageCount).toBe(6);
+    expect(result.threads[0].replies).toHaveLength(2);
+    expect(result.threads[0].replies[0].replies).toHaveLength(2);
+    expect(result.threads[0].replies[1].replies).toHaveLength(1);
+    expect(result.analytics.longestThread).toBe(2);
   });
 
-  it("should ignore actions after session ends", () => {
+  // Single message (root only)
+  it("should handle single message with no replies", () => {
     const input = {
-      inventory: { L: { price: 50, stock: 2 } },
-      sessions: [
-        [["insert", 50], ["select", "L"], ["insert", 100], ["select", "L"]]
+      messages: [
+        { id: "1", author: "alice", text: "Lonely message", timestamp: 100 }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ L: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "L",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: []
-    }]);
+    expect(result.threads).toHaveLength(1);
+    expect(result.threads[0].messageCount).toBe(1);
+    expect(result.threads[0].replies).toEqual([]);
+    expect(result.analytics.longestThread).toBe(0);
+    expect(result.analytics.mostActiveAuthor).toBe("alice");
   });
 
-  it("should handle cancel after session ends", () => {
+  // All orphaned messages
+  it("should treat all orphaned messages as separate threads", () => {
     const input = {
-      inventory: { M: { price: 25, stock: 1 } },
-      sessions: [
-        [["insert", 25], ["cancel"], ["insert", 50]]
+      messages: [
+        { id: "1", author: "alice", text: "A", timestamp: 100, replyTo: "999" },
+        { id: "2", author: "bob", text: "B", timestamp: 200, replyTo: "998" },
+        { id: "3", author: "carol", text: "C", timestamp: 300, replyTo: "997" }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ M: { price: 25, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: { 25: 1 },
-      changeTotal: 25,
-      spent: 0,
-      errors: []
-    }]);
+    expect(result.threads).toHaveLength(3);
+    expect(result.analytics.orphanedMessages).toBe(3);
+    expect(result.analytics.longestThread).toBe(0);
   });
 
-  it("should handle empty sessions", () => {
+  // Mixed orphaned and valid threads
+  it("should handle mixture of valid threads and orphaned messages", () => {
     const input = {
-      inventory: { N: { price: 50, stock: 1 } },
-      sessions: [
-        []
+      messages: [
+        { id: "1", author: "alice", text: "Valid root", timestamp: 100 },
+        { id: "2", author: "bob", text: "Orphan", timestamp: 150, replyTo: "999" },
+        { id: "3", author: "carol", text: "Valid reply", timestamp: 200, replyTo: "1" },
+        { id: "4", author: "dave", text: "Another root", timestamp: 250 }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ N: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: []
-    }]);
+    expect(result.threads).toHaveLength(3);
+    expect(result.analytics.orphanedMessages).toBe(1);
+    expect(result.analytics.totalThreads).toBe(3);
   });
 
-  it("should handle session that just inserts coins", () => {
+  // Verify depth calculation at multiple levels
+  it("should calculate depth correctly at all levels", () => {
     const input = {
-      inventory: { O: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 25], ["insert", 10]]
+      messages: [
+        { id: "1", author: "alice", text: "Root", timestamp: 100 },
+        { id: "2", author: "bob", text: "Level 1", timestamp: 200, replyTo: "1" },
+        { id: "3", author: "carol", text: "Level 2", timestamp: 300, replyTo: "2" }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ O: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: []
-    }]);
+    expect(result.threads[0].depth).toBe(0);
+    expect(result.threads[0].replies[0].depth).toBe(1);
+    expect(result.threads[0].replies[0].replies[0].depth).toBe(2);
   });
 
-  it("should handle multiple errors in single session", () => {
+  // Verify messageCount with complex nesting
+  it("should calculate messageCount correctly with complex nesting", () => {
     const input = {
-      inventory: { P: { price: 100, stock: 1 } },
-      sessions: [
-        [["insert", 75], ["select", "INVALID"], ["insert", 50], ["select", "P"]]
+      messages: [
+        { id: "1", author: "alice", text: "Root", timestamp: 100 },
+        { id: "2", author: "bob", text: "Branch 1", timestamp: 200, replyTo: "1" },
+        { id: "3", author: "carol", text: "Branch 2", timestamp: 250, replyTo: "1" },
+        { id: "4", author: "dave", text: "Sub-branch", timestamp: 300, replyTo: "2" }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ P: { price: 100, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["unsupported coin: 75", "invalid sku: INVALID", "insufficient credit: have 50, need 100"]
-    }]);
+    expect(result.threads[0].messageCount).toBe(4); // 1 root + 2 direct + 1 nested
+    expect(result.threads[0].replies[0].messageCount).toBe(2); // branch 1 + sub-branch
+    expect(result.threads[0].replies[1].messageCount).toBe(1); // branch 2 only
   });
 
-  it("should handle zero price items", () => {
+  // Case sensitivity in author names
+  it("should treat author names as case-sensitive", () => {
     const input = {
-      inventory: { FREE: { price: 0, stock: 1 } },
-      sessions: [
-        [["select", "FREE"]]
+      messages: [
+        { id: "1", author: "Alice", text: "A", timestamp: 100 },
+        { id: "2", author: "alice", text: "B", timestamp: 200 },
+        { id: "3", author: "ALICE", text: "C", timestamp: 300 }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ FREE: { price: 0, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "FREE",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: []
-    }]);
+    expect(result.analytics.totalMessages).toBe(3);
+    // All three should be counted as different authors
+    expect(result.analytics.mostActiveAuthor).toBe("ALICE"); // First alphabetically with same count
   });
 
-  it("should handle large denomination breakdown", () => {
+  // Real-world scenario: typical conversation
+  it("should handle realistic conversation scenario", () => {
     const input = {
-      inventory: { Q: { price: 1, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "Q"]]
+      messages: [
+        { id: "msg1", author: "alice", text: "Anyone free for lunch?", timestamp: 1000 },
+        { id: "msg2", author: "bob", text: "I am!", timestamp: 1100, replyTo: "msg1" },
+        { id: "msg3", author: "carol", text: "Me too", timestamp: 1150, replyTo: "msg1" },
+        { id: "msg4", author: "alice", text: "Great! Where should we go?", timestamp: 1200, replyTo: "msg1" },
+        { id: "msg5", author: "bob", text: "How about pizza?", timestamp: 1250, replyTo: "msg4" },
+        { id: "msg6", author: "carol", text: "Sounds good", timestamp: 1300, replyTo: "msg5" },
+        { id: "msg7", author: "dave", text: "Hey, what's the meeting time tomorrow?", timestamp: 1400 },
+        { id: "msg8", author: "alice", text: "10 AM", timestamp: 1450, replyTo: "msg7" }
       ]
     };
 
-    const result = processVendingSessions(input);
+    const result = organizeMessageThreads(input);
 
-    expect(result.inventory).toEqual({ Q: { price: 1, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "Q",
-      changeCoins: { 50: 1, 25: 1, 10: 2, 1: 4 },
-      changeTotal: 99,
-      spent: 1,
-      errors: []
-    }]);
-  });
-
-  it("should handle empty inventory", () => {
-    const input = {
-      inventory: {},
-      sessions: [
-        [["insert", 50], ["select", "ANYTHING"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({});
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["invalid sku: ANYTHING"]
-    }]);
-  });
-
-  it("should handle malformed input gracefully", () => {
-    const input = {
-      inventory: null,
-      sessions: null
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({});
-    expect(result.receipts).toEqual([]);
-  });
-
-  it("should normalize inventory with negative values", () => {
-    const input = {
-      inventory: {
-        R: { price: -50, stock: -1 },
-        S: { price: 100.5, stock: 2.7 }
-      },
-      sessions: [
-        [["insert", 100], ["select", "S"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({
-      R: { price: 0, stock: 0 },
-      S: { price: 100, stock: 1 }
-    });
-    expect(result.receipts).toEqual([{
-      dispensed: "S",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 100,
-      errors: []
-    }]);
+    expect(result.threads).toHaveLength(2);
+    expect(result.analytics.totalMessages).toBe(8);
+    expect(result.analytics.totalThreads).toBe(2);
+    expect(result.analytics.mostActiveAuthor).toBe("alice");
+    expect(result.analytics.longestThread).toBe(3); // msg1 -> msg4 -> msg5 -> msg6
+    expect(result.analytics.orphanedMessages).toBe(0);
   });
 });
