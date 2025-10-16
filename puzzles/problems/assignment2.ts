@@ -122,18 +122,63 @@ export function organizeMessageThreads(input: Input): Output {
   // }
   // (1232) pre-processing with lookup maps,
   const idToMessage = new Map<string, Message>()
-  const rootToReplies = new Map<Thread, Array<Message>>() // (1256) oh deal with msgs first!
+  const rootIdToReplies = new Map<string, Array<Message>>() // (1256) oh deal with msgs first!
+  let maxDepth = 0 // (1600) imma be cheeky and just set maxDepth as threads are building
   for (let message of input.messages) {
     idToMessage.set(message.id, message)
     if (message.replyTo === undefined) {
-      rootToReplies.set(message.id, [])
+      rootIdToReplies.set(message.id, [])
     } else if (message.replyTo) {
-      rootToReplies.get(message.replyTo)?.push(message)
+      if (!rootIdToReplies.has(message.replyTo)) {
+        rootIdToReplies.set(message.replyTo, [message])
+      } else if (rootIdToReplies.has(message.replyTo)) {
+        rootIdToReplies.get(message.replyTo)?.push(message)
+      }
     }
   }
   console.log('idToMessage', idToMessage)
-  console.log('rootToReplies', rootToReplies)
-  // return output
+  console.log('rootToReplies', rootIdToReplies)
+
+  function buildThread(message: Message, depth: number): Thread {
+    if (rootIdToReplies.has(message.id)) {
+      const replies = rootIdToReplies
+        .get(message.id)
+        .map(reply => buildThread(reply, depth + 1))
+      const count = replies
+        .map(reply => reply.messageCount)
+        .reduce((a, c) => a + c, 0)
+      console.log(count)
+      return {
+        rootMessage: message,
+        replies: replies,
+        depth: depth,
+        messageCount: count
+      }
+    } else {
+      if (depth > maxDepth) { maxDepth = depth }
+      return {
+        rootMessage: message,
+        replies: [],
+        depth: depth,
+        messageCount: 1
+      }
+    }
+  }
+
+  const rootMessages = input.messages.filter(message => message.replyTo === undefined)
+  const threads = rootMessages.map(root => buildThread(root, 0))
+
+  threads.map(thread => console.log(thread))
+  return {
+    threads: threads,
+    analytics: {
+      totalMessages: input.messages.length(),
+      totalThreads: threads.length(),
+      longestThread: maxDepth,
+      mostActiveAuthor: '',
+      orphanedMessages: 0 // implement pls.
+    }
+  }
 }
 
 const input = {
