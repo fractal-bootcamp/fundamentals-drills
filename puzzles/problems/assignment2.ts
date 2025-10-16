@@ -54,6 +54,7 @@
  *       [ ["insert",100],["select","B"] ]                // success with change 70 = 50+10+10
  *     ]
  */
+
 type Input = {
   inventory: Inventory
   sessions: Session[]
@@ -104,14 +105,13 @@ export function processVendingSessions(input: Input) {
   // OUTER LOOP - iterates SESSION
   for (let sessionIndex = 0; sessionIndex < input.sessions.length; sessionIndex++) {
     let credit = 0;
-    let insertedCoins = []
+    const insertedCoins = []
     console.log(`Processing session ${sessionIndex}`)
 
     // INNER LOOP - iterates ACTION within current session
     for (let actionIndex = 0; actionIndex < input.sessions[sessionIndex].length; actionIndex++) {
       const currentAction = input.sessions[sessionIndex][actionIndex]
       const actionType = currentAction[0]
-
 
       console.log('Action:', currentAction, 'Action Type:', actionType)
 
@@ -124,45 +124,75 @@ export function processVendingSessions(input: Input) {
           insertedCoins.push(coinValue)
 
           console.log('Credit updated:', credit)
-
-          // SELECT
-          if (actionType === "select") {
-            console.log(`Action:`, currentAction)
-            const coinValue = currentAction[1]
-
-            if (credit >= inventoryPrice && inventoryStock > 0) {
-              console.log(`Item: ${inventoryStock} in stock! & wallet is green... Dispensing Item!`)
-              inventoryStock--
-
-              const spent = credit - inventoryPrice
-
-              let receipt: Output = {
-                dispensed,
-                spent,
-                changeCoins,
-                changeTotal,
-                spent,
-                errors: []
-              }
-              return receipt
-            }
-
-          }
         }
-      }
-
-      // CANCEL
-      if (actionType === "cancel") {
+      } else if (actionType === "select") {
         console.log(`Action:`, currentAction)
+        const sku = currentAction[1]
+        const product = input.inventory[sku]
+
+        // is sku valid, is credit equal or greater than price, is item in stock
+        if (product && credit >= product.price && product.stock > 0) {
+          console.log(`Item: ${product} in stock! & wallet is green... Dispensing Item!`)
+          product.stock--
+
+          const spent = product.price // what machine keeps
+          const change = credit - product.price // what to return
+
+          const receipt: Receipt = {
+            dispensed: sku,
+            changeCoins: calculateChange(change),
+            changeTotal: change,
+            spent: product.price,
+            errors: []
+          }
+
+          receipts.push(receipt)
+          break
+        }
+      } else if (actionType === "cancel") {
+        console.log(`Action:`, currentAction)
+        // refund exactly what was inserted during the INSERT phase
+        const receipt: Receipt = {
+          dispensed: sku,
+          changeCoins: calculateChange(change),
+          changeTotal: change,
+          spent: product.price,
+          errors: []
+        }
+
+        receipts.push(receipt)
         break
       }
     }
   }
 
-
-  if (input.inventory.sku === undefined) return
   return receipt;
 }
+
+function calculateChange(changeAmount: number): Record<number, number> {
+  const changeCoins: Record<number, number> = {}
+  let remaining = changeAmount
+
+  for (let i = 0; i < allowedDenominations.length; i++) {
+    const denomination = allowedDenominations[i]
+
+    while (remaining >= denomination) {
+      // add one of this coin to changeCoins
+      if (changeCoins[denomination]) {
+        changeCoins[denomination] += 1
+      } else {
+        // if it doesn't exist yet, start at 1
+        changeCoins[denomination] = 1
+      }
+
+      // subtract from remaining
+      remaining = remaining - denomination
+    }
+  }
+
+  return changeCoins
+}
+
 // type Receipt = {
 //   dispensed?: string
 //   changeCoins: Change
