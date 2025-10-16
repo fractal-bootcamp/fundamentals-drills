@@ -54,7 +54,119 @@
  *       [ ["insert",100],["select","B"] ]                // success with change 70 = 50+10+10
  *     ]
  */
-
-export function processVendingSessions(input) {
-  return {}
+type Input = {
+  inventory: Inventory
+  sessions: Session[]
 }
+
+// type Inventory = Record<string, InventoryItem>;
+type Inventory = { [sku: string]: InventoryItem };
+
+type InventoryItem = {
+  price: number;
+  stock: number;
+};
+
+type Session = Action[];
+type Action = InsertAction | SelectAction | CancelAction | NoopAction;
+
+type InsertAction = ["insert", number];
+type SelectAction = ["select", string];
+type CancelAction = ["cancel"];
+type NoopAction = ["noop"];
+
+type Output = {
+  inventory: Inventory
+  receipts: Receipt[]
+}
+
+type Receipt = {
+  dispensed?: string
+  changeCoins: Change
+  changeTotal: number
+  spent: number
+  errors: string[]
+}
+
+type Change = { [denom: number]: number }
+
+export function processVendingSessions(input: Input) {
+  // create an empty array for receipts
+  let receipts = []
+
+
+  const allowedDenominations = [100, 50, 25, 10, 5, 1];
+
+  // INVENTORY
+  const inventoryPrice = input.inventory.sku.price
+  const inventoryStock = input.inventory.sku.stock
+
+  // OUTER LOOP - iterates SESSION
+  for (let sessionIndex = 0; sessionIndex < input.sessions.length; sessionIndex++) {
+    let credit = 0;
+    let insertedCoins = []
+    console.log(`Processing session ${sessionIndex}`)
+
+    // INNER LOOP - iterates ACTION within current session
+    for (let actionIndex = 0; actionIndex < input.sessions[sessionIndex].length; actionIndex++) {
+      const currentAction = input.sessions[sessionIndex][actionIndex]
+      const actionType = currentAction[0]
+
+
+      console.log('Action:', currentAction, 'Action Type:', actionType)
+
+      // INSERT
+      if (actionType === "insert") {
+        const coinValue = currentAction[1]
+
+        if (allowedDenominations.includes(coinValue)) {
+          credit += coinValue
+          insertedCoins.push(coinValue)
+
+          console.log('Credit updated:', credit)
+
+          // SELECT
+          if (actionType === "select") {
+            console.log(`Action:`, currentAction)
+            const coinValue = currentAction[1]
+
+            if (credit >= inventoryPrice && inventoryStock > 0) {
+              console.log(`Item: ${inventoryStock} in stock! & wallet is green... Dispensing Item!`)
+              inventoryStock--
+
+              const spent = credit - inventoryPrice
+
+              let receipt: Output = {
+                dispensed,
+                spent,
+                changeCoins,
+                changeTotal,
+                spent,
+                errors: []
+              }
+              return receipt
+            }
+
+          }
+        }
+      }
+
+      // CANCEL
+      if (actionType === "cancel") {
+        console.log(`Action:`, currentAction)
+        break
+      }
+    }
+  }
+
+
+  if (input.inventory.sku === undefined) return
+  return receipt;
+}
+// type Receipt = {
+//   dispensed?: string
+//   changeCoins: Change
+//   changeTotal: number
+//   spent: number
+//   errors: string[]
+// }
