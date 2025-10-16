@@ -105,6 +105,7 @@ type Output = { threads: Array<Thread>; analytics: Analytics }
 // (0948) wow, kinda crazy that this was made from scratch. what's important to start here?
 // (0951) let's spend 10 minutes porting the types and logging to console. 
 // (1001) alright now let's structure our data. looks like threading is the key abstraction.
+// (1720) 40 minutes before vals emacs sesh, let's clean up and iron out the details.
 export function organizeMessageThreads(input: Input): Output {
   // console.log(input.messages)
   // array of 1d objects to tree structure: root and nodes, recursion...
@@ -137,7 +138,7 @@ export function organizeMessageThreads(input: Input): Output {
     }
   }
   console.log('idToMessage', idToMessage)
-  console.log('rootToReplies', rootIdToReplies)
+  console.log('rootIdToReplies', rootIdToReplies)
 
   function buildThread(message: Message, depth: number): Thread {
     if (rootIdToReplies.has(message.id)) {
@@ -147,12 +148,11 @@ export function organizeMessageThreads(input: Input): Output {
       const count = replies
         .map(reply => reply.messageCount)
         .reduce((a, c) => a + c, 0)
-      console.log(count)
       return {
         rootMessage: message,
         replies: replies,
         depth: depth,
-        messageCount: count
+        messageCount: count + 1 // (1625) remember to count yourself!
       }
     } else {
       if (depth > maxDepth) { maxDepth = depth }
@@ -165,26 +165,31 @@ export function organizeMessageThreads(input: Input): Output {
     }
   }
 
-  const rootMessages = input.messages.filter(message => message.replyTo === undefined)
+  // (1734) verifying orphaned reply with idToMessage lookup
+  const rootMessages = input.messages.filter(message => message.replyTo === undefined || !idToMessage.has(message.replyTo))
+  console.log(rootMessages)
   const threads = rootMessages.map(root => buildThread(root, 0))
+  const analytics = {
+    totalMessages: input.messages.length,
+    totalThreads: threads.length,
+    longestThread: maxDepth,
+    mostActiveAuthor: '',
+    orphanedMessages: threads.filter(thread => thread.rootMessage.replyTo).length // implement pls. (1741) DONE. SIMPLE
+  }
 
   threads.map(thread => console.log(thread))
+  console.log(analytics)
   return {
     threads: threads,
-    analytics: {
-      totalMessages: input.messages.length(),
-      totalThreads: threads.length(),
-      longestThread: maxDepth,
-      mostActiveAuthor: '',
-      orphanedMessages: 0 // implement pls.
-    }
+    analytics: analytics
   }
 }
 
 const input = {
   messages: [
-    { id: "1", author: "alice", text: "Hello", timestamp: 100 },
-    { id: "2", author: "bob", text: "Hi", timestamp: 200, replyTo: "1" }
+    { id: "1", author: "alice", text: "A", timestamp: 100 },
+    { id: "2", author: "bob", text: "B", timestamp: 150, replyTo: "999" },
+    { id: "3", author: "alice", text: "C", timestamp: 200, replyTo: "1" }
   ]
 };
 
