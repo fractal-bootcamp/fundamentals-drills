@@ -76,6 +76,34 @@
  *     => 1 thread with 2 direct replies, longestThread=1, messageCount=3
  */
 
-export function organizeMessageThreads(input) {
-  // TODO: Implement this function
+type Message = {
+  id: string;           // unique message identifier
+  author: string;       // who sent the message
+  text: string;         // message content
+  timestamp: number;    // unix timestamp in seconds
+  replyTo?: string;     // optional id of the message this is replying to
+}
+
+type Thread = {
+  rootMessage: Message;
+  replies: Array<Thread>;  // nested replies (recursive structure)
+  depth: number;           // 0 for root, 1 for direct reply, etc.
+  messageCount: number;    // total messages in this thread (including all nested replies)
+}
+
+type Analytics = {
+  totalMessages: number;
+  totalThreads: number;
+  longestThread: number;        // max depth of any thread
+  mostActiveAuthor: string;     // author with most messages (first alphabetically if tie)
+  orphanedMessages: number;     // messages that reply to non-existent messages
+}
+
+type Input = { messages: Array<Message> }
+type Output = { threads: Array<Thread>; analytics: Analytics }
+
+// (0948) wow, kinda crazy that this was made from scratch. what's important to start here?
+// (0951) let's spend 10 minutes porting the types and logging to console. 
+export function organizeMessageThreads(input: Input): Output {
+  console.log(input)
 }
