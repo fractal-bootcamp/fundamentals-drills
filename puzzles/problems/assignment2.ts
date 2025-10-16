@@ -91,21 +91,35 @@ type Receipt = {
 
 type Change = { [denom: number]: number }
 
-export function processVendingSessions(input: Input) {
-  // create an empty array for receipts
-  let receipts = []
+const allowedDenominations = [100, 50, 25, 10, 5, 1];
 
+export function processVendingSessions(input: Input): Output {
+  const inventory = { ...input.inventory }
+  const receipts: Receipt[] = []
 
-  const allowedDenominations = [100, 50, 25, 10, 5, 1];
+  for (const sku in inventory) {
+    const item = inventory[sku]
+    if (item.price < 0) {
+      item.price = 0
+    } else {
+      item.price = Math.floor(item.price)
+    }
 
-  // INVENTORY
-  const inventoryPrice = input.inventory.sku.price
-  const inventoryStock = input.inventory.sku.stock
+    if (item.stock < 0) {
+      item.stock = 0
+    } else {
+      item.stock = Math.floor(item.stock)
+    }
+  }
+
 
   // OUTER LOOP - iterates SESSION
   for (let sessionIndex = 0; sessionIndex < input.sessions.length; sessionIndex++) {
     let credit = 0;
-    const insertedCoins = []
+    let sessionEnded = false
+    const insertedCoins: number[] = []
+    const errors: string[] = []
+
     console.log(`Processing session ${sessionIndex}`)
 
     // INNER LOOP - iterates ACTION within current session
@@ -113,7 +127,19 @@ export function processVendingSessions(input: Input) {
       const currentAction = input.sessions[sessionIndex][actionIndex]
       const actionType = currentAction[0]
 
-      console.log('Action:', currentAction, 'Action Type:', actionType)
+      console.log('Action:', currentAction)
+
+      if (actionType === "unknown") {
+        // const receipt: Receipt = {
+        //   changeCoins: {},
+        //   changeTotal: 0,
+        //   spent: 0,
+        //   errors: errors,
+        // }
+        errors.push(`unknown action: ${actionType}`)
+        receipts.push(receipt)
+      }
+
 
       // INSERT
       if (actionType === "insert") {
@@ -124,15 +150,23 @@ export function processVendingSessions(input: Input) {
           insertedCoins.push(coinValue)
 
           console.log('Credit updated:', credit)
+        } else {
+          errors.push(`unsupported coin: ${coinValue}`)
         }
+        // SELECT
       } else if (actionType === "select") {
-        console.log(`Action:`, currentAction)
         const sku = currentAction[1]
-        const product = input.inventory[sku]
+        const product = inventory[sku]
 
-        // is sku valid, is credit equal or greater than price, is item in stock
-        if (product && credit >= product.price && product.stock > 0) {
-          console.log(`Item: ${product} in stock! & wallet is green... Dispensing Item!`)
+        console.log(`Action:`, currentAction)
+
+        if (!product) {
+          errors.push(`invalid sku: ${sku}`)
+        } else if (product.stock === 0) {
+          errors.push(`out of stock: ${sku}`)
+        } else if (credit < product.price) {
+          errors.push(`insufficient credit: have ${credit}, need ${product.price}`)
+        } else {
           product.stock--
 
           const spent = product.price // what machine keeps
@@ -143,30 +177,60 @@ export function processVendingSessions(input: Input) {
             changeCoins: calculateChange(change),
             changeTotal: change,
             spent: product.price,
-            errors: []
+            errors: errors
           }
-
           receipts.push(receipt)
+          sessionEnded = true
           break
         }
+        // CANCEL
       } else if (actionType === "cancel") {
         console.log(`Action:`, currentAction)
-        // refund exactly what was inserted during the INSERT phase
-        const receipt: Receipt = {
-          dispensed: sku,
-          changeCoins: calculateChange(change),
-          changeTotal: change,
-          spent: product.price,
-          errors: []
-        }
 
+        const receipt: Receipt = {
+          changeCoins: calculateCancelRefund(insertedCoins),
+          changeTotal: credit,
+          spent: 0,
+          errors: errors
+        }
         receipts.push(receipt)
+        sessionEnded = true
         break
       }
     }
+    if (!sessionEnded) {
+      const receipt: Receipt = {
+        changeCoins: {},
+        changeTotal: 0,
+        spent: 0,
+        errors: errors
+      }
+      receipts.push(receipt)
+    }
   }
 
-  return receipt;
+  const output = {
+    inventory,
+    receipts
+  }
+  console.log('Output is:', output)
+  return output
+}
+
+function calculateCancelRefund(insertedCoins: number[]): Record<number, number> {
+  const breakdown: Record<number, number> = {}
+
+  // loop through insertedCoins array
+  insertedCoins.forEach(coin => {
+    // count how many of each denomination
+    if (breakdown[coin]) {
+      breakdown[coin] += 1
+    } else {
+      breakdown[coin] = 1
+    }
+  })
+
+  return breakdown
 }
 
 function calculateChange(changeAmount: number): Record<number, number> {
@@ -184,7 +248,6 @@ function calculateChange(changeAmount: number): Record<number, number> {
         // if it doesn't exist yet, start at 1
         changeCoins[denomination] = 1
       }
-
       // subtract from remaining
       remaining = remaining - denomination
     }
@@ -192,11 +255,3 @@ function calculateChange(changeAmount: number): Record<number, number> {
 
   return changeCoins
 }
-
-// type Receipt = {
-//   dispensed?: string
-//   changeCoins: Change
-//   changeTotal: number
-//   spent: number
-//   errors: string[]
-// }
