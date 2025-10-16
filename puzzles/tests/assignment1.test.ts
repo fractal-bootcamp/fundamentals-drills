@@ -1,28 +1,28 @@
 // puzzles/tests/assignment1.test.ts
 
 import { describe, it, expect } from "vitest";
-import { frequentElement } from "../problems/assignment1";
+import { wordLadder } from "../problems/assignment1";
 
-describe("frequentElement", () => {
-	it("returns null for empty array", () => {
-		expect(frequentElement([])).toBeNull();
+describe("wordLadder", () => {
+	it("returns null when no path exists", () => {
+		expect(wordLadder("hit", "zzz", ["hot", "dot", "dog"])).toBeNull();
 	});
 
-	it("finds most frequent element", () => {
-		expect(frequentElement([1, 2, 2, 3, 3, 3, 2])).toBe(2);
-		expect(frequentElement([4, 4, 1, 1, 1, 4])).toBe(1);
+	it("returns minimum transformation count", () => {
+		expect(
+			wordLadder("hit", "cog", ["hot", "dot", "dog", "lot", "log", "cog"])
+		).toBe(5);
 	});
 
-	it("breaks ties by returning smallest element", () => {
-		expect(frequentElement([5, 5, 3, 3])).toBe(3);
-		expect(frequentElement([10, 20, 10, 20])).toBe(10);
+	it("returns 1 when words differ by one letter", () => {
+		expect(wordLadder("cat", "cot", ["cot"])).toBe(1);
 	});
 
-	it("works with single element", () => {
-		expect(frequentElement([42])).toBe(42);
+	it("returns null when dictionary is empty", () => {
+		expect(wordLadder("a", "b", [])).toBeNull();
 	});
 
-	it("handles negative numbers", () => {
-		expect(frequentElement([-1, -1, -2])).toBe(-1);
+	it("handles start equals end", () => {
+		expect(wordLadder("same", "same", ["same"])).toBe(0);
 	});
 });

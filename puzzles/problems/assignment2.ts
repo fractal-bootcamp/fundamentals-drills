@@ -1,55 +1,39 @@
 // puzzles/problems/assignment2.ts
 
 /**
- * Problem: Conveyor Belt Package Sorter
+ * Problem: Task Scheduler Simulation
  *
- * You are simulating a conveyor belt system in a warehouse.
- * Packages arrive in order with a type (string) and weight (number).
- * The belt operator can remove packages from the front and place them on separate sorting lanes.
- * Return the final contents of each lane by type.
+ * You are building a simple task scheduler.
+ * Each task has:
+ *   - id: string
+ *   - duration: number (positive integer)
+ *   - dependencies: string[] (list of other task ids that must complete first)
  *
- * Rules:
- *   - Packages of the same type go to the same lane.
- *   - Lanes are created lazily when the first package of that type arrives.
- *   - Maintain original arrival order within each lane.
+ * The scheduler runs tasks as soon as all their dependencies are finished.
+ * Tasks run *in parallel* whenever possible.
+ *
+ * Compute how many time units it takes to finish all tasks.
  *
  * Input:
- *   - Array of { type: string, weight: number } objects
+ *   - Array<{ id: string; duration: number; dependencies: string[] }>
+ *     - dependencies always refer to other ids in the list
+ *     - input may be empty
  * Output:
- *   - Record<string, { type: string, weight: number }[]> mapping lane type to packages
+ *   - number — total time to complete all tasks
  *
  * Examples:
- *   conveyorSort([{type:"A",weight:2},{type:"B",weight:1},{type:"A",weight:3}])
- *     => { A: [{type:"A",weight:2},{type:"A",weight:3}], B: [{type:"B",weight:1}] }
- *   conveyorSort([]) => {}
+ *   scheduleTime([
+ *     { id: "A", duration: 3, dependencies: [] },
+ *     { id: "B", duration: 2, dependencies: ["A"] },
+ *     { id: "C", duration: 4, dependencies: ["A"] },
+ *     { id: "D", duration: 1, dependencies: ["B","C"] },
+ *   ]) => 8
+ *   (A:0–3, B/C:3–5/3–7, D:7–8)
+ *
+ *   scheduleTime([]) => 0
  */
-type Package = { type: string; weight: number };
-
-type Record = {
-	[type: string]: Package[];
-};
-export function conveyorSort(
-	packages: { type: string; weight: number }[]
-): Record {
-	let output: Record = {};
-
-	for (const pack of packages) {
-		if (pack.type in output) {
-			output[pack.type].push(pack);
-		} else {
-			output = {
-				...output,
-				[pack.type]: [pack],
-			};
-		}
-	}
-
-	return output;
+export function scheduleTime(
+	tasks: { id: string; duration: number; dependencies: string[] }[]
+) {
+	throw new Error("Not implemented");
 }
-
-const input = [
-	{ type: "A", weight: 2 },
-	{ type: "B", weight: 1 },
-	{ type: "A", weight: 3 },
-];
-//console.log(conveyorSort(input));
