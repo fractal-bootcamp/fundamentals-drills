@@ -18,21 +18,22 @@ function longestCommonPrefix(strs: string[]): string {
     }
     // state for second loop
     let prefix = ""
-    let possiblyPrefix = []
 
     for (let i = 0; i < strs[0].length; i++) {
+        let possiblyPrefix = []
         for (let j = 0; j < strs.length; j++){
             const letter = strs[j][i]
             possiblyPrefix.push(letter)
+        }
             if (allSame(possiblyPrefix)) {
-                prefix = prefix + possiblyPrefix[0]
+                prefix += possiblyPrefix[0];
             }
             else break;
 
-        }
+        
     }
     return prefix
-}
+};
 // problem
 // Write a function to find the longest common prefix string amongst an array of strings.
 // If there is no common prefix, return an empty string "".
