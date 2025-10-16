@@ -110,43 +110,65 @@ export function organizeMessageThreads(input: Input): Output {
   // array of 1d objects to tree structure: root and nodes, recursion...
   // let's start with a base case, but let's structure out our initial output
   // (1022) calculate longestThread and mostActiveAuthor at the end, own fn's
-  const output: Output = {
-    threads: new Array(),
-    analytics: {
-      totalMessages: 0,
-      totalThreads: 0,
-      longestThread: 0,
-      mostActiveAuthor: '',
-      orphanedMessages: 0
-    }
-  }
-
-  // (1012) should we start our array with an initial thread object? yes. (actually no)
-  // what condition do we need to add a new thread? if it's not replying to something
+  // const output: Output = {
+  //   threads: new Array(),
+  //   analytics: {
+  //     totalMessages: 0,
+  //     totalThreads: 0,
+  //     longestThread: 0,
+  //     mostActiveAuthor: '',
+  //     orphanedMessages: 0
+  //   }
+  // }
+  // (1232) pre-processing with lookup maps,
+  const idToMessage = new Map<string, Message>()
+  const rootToReplies = new Map<Thread, Array<Message>>() // (1256) oh deal with msgs first!
   for (let message of input.messages) {
+    idToMessage.set(message.id, message)
     if (message.replyTo === undefined) {
-      const newThread: Thread = {
-        rootMessage: message,
-        replies: new Array(),
-        depth: 0,
-        messageCount: 1
-      }
-      output.threads.push(newThread)
-      output.analytics.totalMessages += 1
-      output.analytics.totalThreads += 1
-    } else {
-      const newReply: Thread = {
-        rootMessage: message,
-        replies: new Array(),
-        depth: 1,
-        messageCount: 1
-      }
-      const root = output.threads.find((thread) => thread.rootMessage.id == message.id)
-      root?.replies.push(newReply)
-      root?.messageCount += 1
-      console.log('new output:', output)
+      rootToReplies.set(message.id, [])
+    } else if (message.replyTo) {
+      rootToReplies.get(message.replyTo)?.push(message)
     }
   }
-
-  return output
+  console.log('idToMessage', idToMessage)
+  console.log('rootToReplies', rootToReplies)
+  // return output
 }
+
+const input = {
+  messages: [
+    { id: "1", author: "alice", text: "Hello", timestamp: 100 },
+    { id: "2", author: "bob", text: "Hi", timestamp: 200, replyTo: "1" }
+  ]
+};
+
+organizeMessageThreads(input);
+
+// function iterativeThreadApproach() {
+//   for (let message of input.messages) {
+//     idToMessage.set(message.id, message)
+//     if (message.replyTo === undefined) {
+//       const newThread: Thread = {
+//         rootMessage: message,
+//         replies: new Array(),
+//         depth: 0,
+//         messageCount: 1
+//       }
+//       output.threads.push(newThread)
+//       output.analytics.totalMessages += 1
+//       output.analytics.totalThreads += 1
+//     } else {
+//       const newReply: Thread = {
+//         rootMessage: message,
+//         replies: new Array(),
+//         depth: 1,
+//         messageCount: 1
+//       }
+//       const root = output.threads.find((thread) => thread.rootMessage.id == message.id)
+//       root?.replies.push(newReply)
+//       root?.messageCount += 1
+//       console.log('new output:', output)
+//     }
+//   }
+// }
