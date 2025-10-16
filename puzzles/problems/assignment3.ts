@@ -66,17 +66,17 @@ export function assignParcelsToLockers(input: Input): Output {
     }
 
     for (const request of input.parcels) {
-        result = processParcel(request, currentSites, result)
+        result = processParcel(request, result)
     }
 
     return result
 }
 
-function processParcel(parcel: Parcel, sites: Sites, res: Output): Output {
+function processParcel(parcel: Parcel, res: Output): Output {
     let processed = false
 
     for (const pref of parcel.prefs) {
-        for (const site in sites) {
+        for (const site in res.remaining) {
             if (site == pref && !processed) {
                 ({res,processed} = handleSize(site, parcel, res, processed))
             }
