@@ -104,6 +104,49 @@ type Output = { threads: Array<Thread>; analytics: Analytics }
 
 // (0948) wow, kinda crazy that this was made from scratch. what's important to start here?
 // (0951) let's spend 10 minutes porting the types and logging to console. 
+// (1001) alright now let's structure our data. looks like threading is the key abstraction.
 export function organizeMessageThreads(input: Input): Output {
-  console.log(input)
+  // console.log(input.messages)
+  // array of 1d objects to tree structure: root and nodes, recursion...
+  // let's start with a base case, but let's structure out our initial output
+  // (1022) calculate longestThread and mostActiveAuthor at the end, own fn's
+  const output: Output = {
+    threads: new Array(),
+    analytics: {
+      totalMessages: 0,
+      totalThreads: 0,
+      longestThread: 0,
+      mostActiveAuthor: '',
+      orphanedMessages: 0
+    }
+  }
+
+  // (1012) should we start our array with an initial thread object? yes. (actually no)
+  // what condition do we need to add a new thread? if it's not replying to something
+  for (let message of input.messages) {
+    if (message.replyTo === undefined) {
+      const newThread: Thread = {
+        rootMessage: message,
+        replies: new Array(),
+        depth: 0,
+        messageCount: 1
+      }
+      output.threads.push(newThread)
+      output.analytics.totalMessages += 1
+      output.analytics.totalThreads += 1
+    } else {
+      const newReply: Thread = {
+        rootMessage: message,
+        replies: new Array(),
+        depth: 1,
+        messageCount: 1
+      }
+      const root = output.threads.find((thread) => thread.rootMessage.id == message.id)
+      root?.replies.push(newReply)
+      root?.messageCount += 1
+      console.log('new output:', output)
+    }
+  }
+
+  return output
 }
