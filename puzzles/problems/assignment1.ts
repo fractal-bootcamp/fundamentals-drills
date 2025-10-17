@@ -65,7 +65,7 @@ export function wordLadder(
 		//console.log("QQQQQQQQQQQ:", queue);
 		const [search, depth] = queue.shift()!;
 		console.log("searching", search, depth);
-		if (search === end) {
+		if (search === end && depth != 1) {
 			//only when not start
 			return depth;
 		}
@@ -80,3 +80,5 @@ export function wordLadder(
 	console.log("no path");
 	return null;
 }
+
+console.log("up")
