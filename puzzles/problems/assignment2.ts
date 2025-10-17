@@ -58,6 +58,149 @@
  *    ]
  *    ⇒ active: { x:{enteredAt:"A"} }
  */
-export function processTurnstileTrips(events: Event[]) {
-  return {} // TODO
+
+type Action = "enter" | "exit"
+
+type EntryTrip = {
+  enteredAt: string;
+}
+
+type ExitTrip = {
+  exitedAt: string;
+}
+
+type RejectedTrip = {
+  id: string;
+  action: Action;
+  station: string;
+  reason: string;
+}
+
+type CompletedTrip = {
+  id: string;
+  from: string;
+  to: string;
+}
+
+type Event = {
+  id: string;
+  action: Action;
+  station: string;
+}
+
+type SubwayRecord = {
+  completed: CompletedTrip[];
+  active: EntryTrip;
+  rejected: RejectedTrip[];
+  stats: {
+    entries: EntryTrip;
+    exits: ExitTrip;
+  }
+}
+
+function isNotValidString(string) {
+  return !string || string.length === 0 || typeof string !== "string"
+}
+
+function isValidEvent(event: Event): boolean {
+  if (!event) {
+    return false
+  } else if (isNotValidString(event.id)) {
+    return false
+  } else if (isNotValidString(event.action)) {
+    return false
+  } else if (isNotValidString(event.station)) {
+    return false
+  } else {
+    return true
+  }
+}
+
+function processRejectedTrip(event: Event): RejectedTrip {
+  const rejectedTrip: RejectedTrip = {
+    id: event.id,
+    action: event.action,
+    station: event.station,
+    reason: event.action === "enter" ? "already in-system" : "not in-system"
+  }
+  return rejectedTrip
+}
+
+// function processEntryEvent(subwayRecord, event: Event) {
+//   if (subwayRecord.active[event.id]) {
+//     const rejectedTrip: RejectedTrip = processRejectedTrip(event)
+//     subwayRecord.rejected.push(rejectedTrip)
+//     return { ...subwayRecord }
+//   }
+
+//   const entryTrip: EntryTrip = { enteredAt: event.station }
+//   subwayRecord.active[event.id] = entryTrip
+//   if (subwayRecord.stats.entries[event.station]) {
+//     subwayRecord.stats.entries[event.station]++
+//   } else {
+//     subwayRecord.stats.entries[event.station] = 1
+//   }
+//   return { ...subwayRecord }
+// }
+
+function processExitEvent(subwayRecord, event: Event) {
+  return { ...subwayRecord }
+}
+
+export function processTurnstileTrips(events: Event[]): SubwayRecord {
+  const subwayRecord = {
+    completed: [],
+    active: {},
+    rejected: [],
+    stats: {
+      entries: {}, exits: {}
+    }
+  }
+  if (events.length === 0) return subwayRecord
+
+  for (let i = 0; i < events.length; i++) {
+    const event: Event = events[i]
+    if (!isValidEvent(event)) continue
+    switch (event.action) {
+      case "enter":
+        // Ok, how do I factor all this?
+        if (subwayRecord.active[event.id]) {
+          const rejectedTrip: RejectedTrip = processRejectedTrip(event)
+          subwayRecord.rejected.push(rejectedTrip)
+          break
+        }
+        const entryTrip: EntryTrip = { enteredAt: event.station }
+        subwayRecord.active[event.id] = entryTrip
+        if (subwayRecord.stats.entries[event.station]) {
+          subwayRecord.stats.entries[event.station]++
+        } else {
+          subwayRecord.stats.entries[event.station] = 1
+        }
+        break
+      case "exit":
+        // Ok, how do I factor all this?
+        if (!subwayRecord.active[event.id]) {
+          const rejectedTrip: RejectedTrip = processRejectedTrip(event)
+          subwayRecord.rejected.push(rejectedTrip)
+          break
+        }
+        const activeTrip = subwayRecord.active[event.id]
+        const exitTrip: ExitTrip = { exitedAt: event.station }
+        if (subwayRecord.stats.exits[event.station]) {
+          subwayRecord.stats.exits[event.station]++
+        } else {
+          subwayRecord.stats.exits[event.station] = 1
+        }
+        delete subwayRecord.active[event.id]
+        const completedTrip: CompletedTrip = {
+          id: event.id,
+          from: activeTrip.enteredAt,
+          to: exitTrip.exitedAt
+        }
+        subwayRecord.completed.push(completedTrip)
+        break
+    }
+  }
+
+  return subwayRecord
 }
