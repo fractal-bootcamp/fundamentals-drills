@@ -115,6 +115,10 @@ export function processTurnstileTrips(events: Event[]) {
     result = {active: {}, completed: [], rejected: [], stats: {entries: {}, exits: {}}}
    } 
 
+    
+    let targetId = events[i].id
+  
+   let matchingId = events.find(event => event.id === targetId)
 
 
    if (targetId === matchingId) {
