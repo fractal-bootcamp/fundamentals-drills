@@ -1,60 +1,264 @@
 // @ts-nocheck
 /**
- * Programming Puzzle — Vending Sessions
+ * Programming Puzzle — Text Message Thread Organizer
  *
- * You will implement a tiny vending machine that processes a list of user sessions.
- * Each session is a sequence of actions: inserting coins, selecting an item, or cancelling.
- * There is NO persistent coin bank: change is conceptual and unlimited; only inventory changes over time.
- * Sessions are independent except for inventory stock, which is shared and persists across sessions.
+ * You are building a text message conversation viewer that groups messages into threads.
+ * Messages can be replies to other messages, forming tree-like conversation threads.
+ * Your task is to organize a flat list of messages into structured conversation threads
+ * and provide useful analytics about the conversations.
  *
  * Input:
  *   {
- *     inventory: { [sku: string]: { price: number; stock: number } } // price in whole cents (>=0), stock>=0
- *     sessions: Array<Session>                                        // Session = Action[]
+ *     messages: Array<Message>
  *   }
- *   Action is one of:
- *     ["insert", number]     // coin must be one of the allowed denominations [100,50,25,10,5,1]
- *     ["select", string]     // attempt to buy sku
- *     ["cancel"]             // abort session & refund inserted coins
- *     ["noop"]               // does nothing
+ *   where Message = {
+ *     id: string;           // unique message identifier
+ *     author: string;       // who sent the message
+ *     text: string;         // message content
+ *     timestamp: number;    // unix timestamp in seconds
+ *     replyTo?: string;     // optional id of the message this is replying to
+ *   }
  *
  * Output:
  *   {
- *     inventory: { ...updated inventory... },
- *     receipts: Array<{
- *       dispensed?: string;                        // sku if an item was dispensed
- *       changeCoins: { [denom: number]: number };  // change returned as a greedy breakdown in the allowed denominations
- *       changeTotal: number;                        // total change (cents)
- *       spent: number;                              // cents the machine kept this session
- *       errors: string[];                           // rule violations or unsupported ops
- *     }>
+ *     threads: Array<Thread>;
+ *     analytics: {
+ *       totalMessages: number;
+ *       totalThreads: number;
+ *       longestThread: number;        // max depth of any thread
+ *       mostActiveAuthor: string;     // author with most messages (first alphabetically if tie)
+ *       orphanedMessages: number;     // messages that reply to non-existent messages
+ *     }
+ *   }
+ *   where Thread = {
+ *     rootMessage: Message;
+ *     replies: Array<Thread>;  // nested replies (recursive structure)
+ *     depth: number;           // 0 for root, 1 for direct reply, etc.
+ *     messageCount: number;    // total messages in this thread (including all nested replies)
  *   }
  *
- * Rules & Notes:
- *   - Start each session with credit=0 and an empty "inserted" coin pouch.
- *   - "insert" adds to the session credit if the coin is in the allowed denominations; otherwise record an error and ignore it.
- *   - "select":
- *       * Fails if sku is invalid, out of stock, or credit < price (record an error; session continues).
- *       * On success: dispense the item, decrement inventory, keep exactly the price as spent, return change = credit - price
- *         using greedy breakdown (unlimited coins; no bank constraints), then the session ENDS (ignore further actions).
- *   - "cancel" refunds exactly the coins the user inserted this session (returned as a breakdown; session ENDS).
- *   - If a session ends without "select" success or "cancel", nothing is dispensed or refunded; it's just an idle session end.
- *   - Deterministic; integers only; no randomness or timing.
+ * Rules & Edge Cases:
+ *   - A message with no replyTo is a root message (starts a new thread)
+ *   - A message with replyTo that doesn't exist in the input is an "orphaned message"
+ *     and should be treated as a root message for its own thread
+ *   - Messages within a thread should be sorted by timestamp (oldest first)
+ *   - Root threads should be sorted by their root message timestamp (oldest first)
+ *   - depth is calculated from the root: root=0, direct reply=1, reply to reply=2, etc.
+ *   - messageCount includes the current message plus all nested replies recursively
+ *   - If no messages exist, return empty arrays and zeros (except mostActiveAuthor should be "")
+ *   - Duplicate message IDs: keep only the first occurrence
+ *   - Messages can form arbitrarily deep nesting (limited only by input)
+ *   - All comparisons are case-sensitive
  *
  * Examples:
- *   Example A:
- *     inv={A:{price:125,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","A"] ]
+ *   Example A - Simple linear thread:
+ *     messages=[
+ *       {id:"1", author:"alice", text:"Hello", timestamp:100},
+ *       {id:"2", author:"bob", text:"Hi", timestamp:200, replyTo:"1"}
  *     ]
- *     => dispensed A, spent 125, change 0, inventory A.stock=0
+ *     => 1 thread with depth 1, messageCount 2
  *
- *   Example B:
- *     inv={B:{price:130,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","B"] ], // insufficient: error, session continues
- *       [ ["insert",100],["select","B"] ]                // success with change 70 = 50+10+10
+ *   Example B - Multiple threads with orphans:
+ *     messages=[
+ *       {id:"1", author:"alice", text:"A", timestamp:100},
+ *       {id:"2", author:"bob", text:"B", timestamp:150, replyTo:"999"},  // orphan
+ *       {id:"3", author:"alice", text:"C", timestamp:200, replyTo:"1"}
  *     ]
+ *     => 2 threads (one starting with id:1, one orphaned thread starting with id:2)
+ *     => mostActiveAuthor="alice" (2 messages vs bob's 1)
+ *
+ *   Example C - Branching conversation:
+ *     messages=[
+ *       {id:"1", author:"alice", text:"Question?", timestamp:100},
+ *       {id:"2", author:"bob", text:"Answer A", timestamp:200, replyTo:"1"},
+ *       {id:"3", author:"carol", text:"Answer B", timestamp:250, replyTo:"1"}
+ *     ]
+ *     => 1 thread with 2 direct replies, longestThread=1, messageCount=3
  */
 
-export function processVendingSessions(input) {
-  return {}
+type Message = {
+  id: string;           // unique message identifier
+  author: string;       // who sent the message
+  text: string;         // message content
+  timestamp: number;    // unix timestamp in seconds
+  replyTo?: string;     // optional id of the message this is replying to
 }
+
+type Thread = {
+  rootMessage: Message;
+  replies: Array<Thread>;  // nested replies (recursive structure)
+  depth: number;           // 0 for root, 1 for direct reply, etc.
+  messageCount: number;    // total messages in this thread (including all nested replies)
+}
+
+type Analytics = {
+  totalMessages: number;
+  totalThreads: number;
+  longestThread: number;        // max depth of any thread
+  mostActiveAuthor: string;     // author with most messages (first alphabetically if tie)
+  orphanedMessages: number;     // messages that reply to non-existent messages
+}
+
+type Input = { messages: Array<Message> }
+type Output = { threads: Array<Thread>; analytics: Analytics }
+
+// (0948) wow, kinda crazy that this was made from scratch. what's important to start here?
+// (0951) let's spend 10 minutes porting the types and logging to console. 
+// (1001) alright now let's structure our data. looks like threading is the key abstraction.
+// (1720) 40 minutes before vals emacs sesh, let's clean up and iron out the details.
+// (1951) 16 tests passed, including the realistic convo scenario. great fucken work hfs
+// (2018) three tests left: root thread ordering, replies ordering, duplicate ids
+// (2043) hOLY SHIT, WE MAED IT LES GO HOME
+export function organizeMessageThreads(input: Input): Output {
+  if (!input || !input.messages) {
+    return {
+      threads: [],
+      analytics: {
+        totalMessages: 0,
+        mostActiveAuthor: ''
+      }
+    }
+  }
+  // console.log(input.messages)
+  // array of 1d objects to tree structure: root and nodes, recursion...
+  // let's start with a base case, but let's structure out our initial output
+  // (1022) calculate longestThread and mostActiveAuthor at the end, own fn's
+  // const output: Output = {
+  //   threads: new Array(),
+  //   analytics: {
+  //     totalMessages: 0,
+  //     totalThreads: 0,
+  //     longestThread: 0,
+  //     mostActiveAuthor: '',
+  //     orphanedMessages: 0
+  //   }
+  // }
+  // (1232) pre-processing with lookup maps,
+  const idToMessage = new Map<string, Message>()
+  const rootIdToReplies = new Map<string, Array<Message>>() // (1256) oh deal with msgs first!
+  const authorCount = new Map<string, number>()
+  const seenIds = new Set<string>()
+  const uniqueIdMessages = input.messages.filter(message => {
+    if (seenIds.has(message.id)) return false
+    seenIds.add(message.id)
+    return true
+  })
+  console.log(uniqueIdMessages) // (2042) DONE!
+  let maxDepth = 0 // (1600) imma be cheeky and just set maxDepth as threads are building
+  for (let message of uniqueIdMessages) {
+    idToMessage.set(message.id, message)
+    if (message.replyTo === undefined) {
+      rootIdToReplies.set(message.id, [])
+    } else if (message.replyTo) {
+      if (!rootIdToReplies.has(message.replyTo)) {
+        rootIdToReplies.set(message.replyTo, [message])
+      } else if (rootIdToReplies.has(message.replyTo)) {
+        rootIdToReplies.get(message.replyTo)?.push(message)
+      }
+    }
+    authorCount.has(message.author)
+      ? authorCount.set(message.author, authorCount.get(message.author) + 1)
+      : authorCount.set(message.author, 1)
+  }
+
+  // console.log('idToMessage', idToMessage)
+  // console.log('rootIdToReplies', rootIdToReplies)
+  // console.log('authorCount', authorCount)
+  // (1830) reduce also does comparison...
+  const mostActiveAuthor = Array.from(authorCount.entries())
+    .reduce((best, [author, count]) => {
+      if (count > best[1]) {
+        return [author, count]
+      } else if (count == best[1]) {
+        return [author < best[0] ? author : best[0], count]
+      } else {
+        return best
+      }
+    }, ["", 0])[0];
+
+  function buildThread(message: Message, depth: number): Thread {
+    if (rootIdToReplies.has(message.id)) {
+      const replies = rootIdToReplies
+        .get(message.id)
+        .map(reply => buildThread(reply, depth + 1))
+        .sort((a, b) => a.rootMessage.timestamp - b.rootMessage.timestamp) // (2030) DONE.
+      const count = replies
+        .map(reply => reply.messageCount)
+        .reduce((a, c) => a + c, 0)
+      return {
+        rootMessage: message,
+        replies: replies,
+        depth: depth,
+        messageCount: count + 1 // (1625) remember to count yourself!
+      }
+    } else {
+      if (depth > maxDepth) { maxDepth = depth }
+      return {
+        rootMessage: message,
+        replies: [],
+        depth: depth,
+        messageCount: 1
+      }
+    }
+  }
+
+  // (1734) verifying orphaned reply with idToMessage lookup
+  const rootMessages = input.messages
+    .filter(message => message.replyTo === undefined || !idToMessage.has(message.replyTo))
+    .sort((a, b) => a.timestamp - b.timestamp) // (2028) DONE.
+  // console.log(rootMessages)
+
+  const threads = rootMessages.map(root => buildThread(root, 0))
+  const analytics = {
+    totalMessages: uniqueIdMessages.length,
+    totalThreads: threads.length,
+    longestThread: maxDepth,
+    mostActiveAuthor: mostActiveAuthor,
+    orphanedMessages: threads.filter(thread => thread.rootMessage.replyTo).length // implement pls. (1741) DONE. SIMPLE
+  }
+  // threads.map(thread => console.log(thread))
+  // console.log(analytics)
+
+  return {
+    threads: threads,
+    analytics: analytics
+  }
+}
+
+const input = {
+  messages: [
+    { id: "1", author: "alice", text: "A", timestamp: 100 },
+    { id: "2", author: "bob", text: "B", timestamp: 150, replyTo: "999" },
+    { id: "3", author: "alice", text: "C", timestamp: 200, replyTo: "1" }
+  ]
+};
+
+organizeMessageThreads(input);
+
+// function iterativeThreadApproach() {
+//   for (let message of input.messages) {
+//     idToMessage.set(message.id, message)
+//     if (message.replyTo === undefined) {
+//       const newThread: Thread = {
+//         rootMessage: message,
+//         replies: new Array(),
+//         depth: 0,
+//         messageCount: 1
+//       }
+//       output.threads.push(newThread)
+//       output.analytics.totalMessages += 1
+//       output.analytics.totalThreads += 1
+//     } else {
+//       const newReply: Thread = {
+//         rootMessage: message,
+//         replies: new Array(),
+//         depth: 1,
+//         messageCount: 1
+//       }
+//       const root = output.threads.find((thread) => thread.rootMessage.id == message.id)
+//       root?.replies.push(newReply)
+//       root?.messageCount += 1
+//       console.log('new output:', output)
+//     }
+//   }
+// }
