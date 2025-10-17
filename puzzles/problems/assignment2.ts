@@ -76,24 +76,29 @@ type Output = {
 }
 
 function handleEnter(output, event) {
-  console.log('BFENT', Object.keys(output.active).includes(event.id))
+  const station = event.station
+  console.log('BFENT', !Object.keys(output.active).includes(event.id))
   if (!Object.keys(output.active).includes(event.id)) {
     output.active[event.id] = { enteredAt: event.station }
-    output.stats.entries[event.id] ? output.stats.entries[event.id] += 1 : output.stats.entries[event.id]
+    Object.keys(output.stats.entries).includes(event.station) ? output.stats.entries[event.station] += 1 : output.stats.entries[station] = 1
+    console.log(Object.keys(output.stats.entries).includes(event.id))
   } else {
-    event.rejected = 'already in-system'
+    event.reason = 'already in-system'
     output.rejected.push(event)
     console.log('AFTENT', output.rejected)
   }
 }
 
 function handleExit(output, event) {
+  const station = event.station
+  console.log('BFEXT', Object.keys(output.active).includes(event.id))
   if (Object.keys(output.active).includes(event.id)) {
     output.completed.push({ id: event.id, from: output.active[event.id].enteredAt, to: event.station })
     delete output.active[event.id]
-    output.stats.exits[event.id] ? output.stats.exits[event.id] += 1 : output.stats.exits[event.id]
+    Object.keys(output.stats.exits).includes(event.station) ? output.stats.exits[event.station] += 1 : output.stats.exits[station] = 1
+    console.log(Object.keys(output.stats.exits).includes(event.id))
   } else {
-    event.rejected = 'not in-system'
+    event.reason = 'not in-system'
     output.rejected.push(event)
     console.log('AFTEXT', output.rejected)
   }
@@ -111,9 +116,10 @@ export function processTurnstileTrips(events: Event[]): Output {
   }
 
   events.forEach(event => {
-    if (event.action === 'enter') {
+    console.log(event)
+    if (event != null && event.action === 'enter' && event.id.length > 0 && event.station != undefined) {
       handleEnter(output, event)
-    } else {
+    } else if (event != null && event.action === 'exit' && event.id.length > 0 && event.station != undefined) {
       handleExit(output, event)
     }
   })
