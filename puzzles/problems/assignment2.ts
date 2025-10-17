@@ -58,6 +58,65 @@
  *    ]
  *    ⇒ active: { x:{enteredAt:"A"} }
  */
-export function processTurnstileTrips(events: Event[]) {
-  return {} // TODO
+
+type Event = {
+  id: string
+  action: "enter" | "exit"
+  station: string
+}
+
+type Output = {
+  active: Record<string, { enteredAt: string }>
+  completed: Array<{ id: string; from: string; to: string }>
+  rejected: Array<{ id: string; action: "enter" | "exit"; station: string; reason: string; }>
+  stats: {
+    entries: Record<string, number>
+    exits: Record<string, number>
+  }
+}
+
+function handleEnter(output, event) {
+  console.log('BFENT', Object.keys(output.active).includes(event.id))
+  if (!Object.keys(output.active).includes(event.id)) {
+    output.active[event.id] = { enteredAt: event.station }
+    output.stats.entries[event.id] ? output.stats.entries[event.id] += 1 : output.stats.entries[event.id]
+  } else {
+    event.rejected = 'already in-system'
+    output.rejected.push(event)
+    console.log('AFTENT', output.rejected)
+  }
+}
+
+function handleExit(output, event) {
+  if (Object.keys(output.active).includes(event.id)) {
+    output.completed.push({ id: event.id, from: output.active[event.id].enteredAt, to: event.station })
+    delete output.active[event.id]
+    output.stats.exits[event.id] ? output.stats.exits[event.id] += 1 : output.stats.exits[event.id]
+  } else {
+    event.rejected = 'not in-system'
+    output.rejected.push(event)
+    console.log('AFTEXT', output.rejected)
+  }
+}
+
+export function processTurnstileTrips(events: Event[]): Output {
+  let output: Output = {
+    active: {},
+    completed: [],
+    rejected: [],
+    stats: {
+      entries: {},
+      exits: {}
+    }
+  }
+
+  events.forEach(event => {
+    if (event.action === 'enter') {
+      handleEnter(output, event)
+    } else {
+      handleExit(output, event)
+    }
+  })
+
+  return output
 }
