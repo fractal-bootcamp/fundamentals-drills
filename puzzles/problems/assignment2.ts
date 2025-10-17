@@ -58,6 +58,83 @@
  *    ]
  *    ⇒ active: { x:{enteredAt:"A"} }
  */
-export function processTurnstileTrips(events: Event[]) {
-  return {} // TODO
+
+type Event = {
+  id: string;
+  action: "enter" | "exit";
+  station: string
+}
+
+type Output = {
+  active: Record<string, { enteredAt: string }>;
+  // completed trips in the order they finished
+  completed: Array<Completed>;
+  // rejected events in input order
+  // "reason" is "not in-system" or "already in-system"
+  rejected: Array<Rejected>;
+  // counts per station for accepted enters/exits only
+  stats: {
+    entries: Record<string, number>;
+    exits: Record<string, number>;
+  };
+}
+
+type Completed = {
+  id: string;
+  from: string;
+  to: string
+}
+
+type Rejected = { id: string; action: "enter" | "exit"; station: string; reason: string; }
+
+export function processTurnstileTrips(events: Event[]): Output {
+  // const active = new Map<string, Entering>()
+  // const completed = new Array<Completed>()
+  // const rejected = new Array<Rejected>()
+  if (!events || events.length == 0) {
+    return {
+      active: {},
+      completed: [],
+      rejected: [],
+      stats: { entries: {}, exits: {} }
+    }
+  }
+
+  const currentTrips = new Map<string, string>() // keep track of id to station! (1440)
+  const completedTrips = []
+  const rejected = []
+
+  for (let event of events) {
+    if (event.action == 'enter') {
+      if (currentTrips.has(event.id)) {
+        console.log('already insys reject')
+        rejected.push({ ...event, reason: "already in-system" })
+      } else {
+        currentTrips.set(event.id, event.station)
+      }
+    } else if (event.action == 'exit') {
+      if (!currentTrips.has(event.id)) {
+        console.log('not in system reject')
+        rejected.push({ ...event, reason: "not in-system" })
+      } else {
+        const completedTrip = {
+          id: event.id,
+          from: currentTrips.get(event.id),
+          to: event.station
+        }
+        completedTrips.push(completedTrip)
+        currentTrips.delete(event.id)
+        console.log(completedTrips)
+      }
+    }
+  }
+
+  const active = Array.from(currentTrips.keys).map()
+  const output: Output = {
+    active: {},
+    completed: completedTrips,
+    rejected: rejected,
+    stats: { entries: {}, exits: {} }
+  }
+
 }
