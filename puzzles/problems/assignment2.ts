@@ -55,6 +55,132 @@
  *     ]
  */
 
+const ALLOWED_DENOMINATIONS = [100, 50, 25, 10, 5, 1];
+
+type Receipt = {
+  dispensed?: string;
+  changeCoins: { [denom: number]: number };
+  changeTotal: number;
+  spent: number;
+  errors: string[];
+};
+
 export function processVendingSessions(input) {
-  return {}
+  const { inventory, sessions } = input;
+
+  // Deep clone and normalize inventory
+  const currentInventory = JSON.parse(JSON.stringify(inventory || {}));
+
+  // Normalize inventory: ensure price and stock are non-negative integers
+  for (const sku in currentInventory) {
+    const item = currentInventory[sku];
+    item.price = Math.max(0, Math.trunc(item.price));
+    item.stock = Math.max(0, Math.trunc(item.stock));
+  }
+
+  const receipts: Receipt[] = [];
+
+  // Process each session
+  for (const session of sessions || []) {
+    const receipt: any = {
+      changeCoins: {},
+      changeTotal: 0,
+      spent: 0,
+      errors: [],
+    };
+
+    let credit = 0;
+    const insertedCoins: { [denom: number]: number } = {};
+    let sessionEnded = false;
+
+    // Process each action in the session
+    for (const action of session || []) {
+      if (sessionEnded) {
+        // Session already ended, ignore remaining actions
+        break;
+      }
+
+      const [actionType, actionValue] = action;
+
+      if (actionType === "insert") {
+        const coin = actionValue as number;
+        if (ALLOWED_DENOMINATIONS.includes(coin)) {
+          credit += coin;
+          insertedCoins[coin] = (insertedCoins[coin] || 0) + 1;
+        } else {
+          receipt.errors.push(`unsupported coin: ${coin}`);
+        }
+      } else if (actionType === "select") {
+        const sku = actionValue as string;
+
+        // Check if SKU exists
+        if (!(sku in currentInventory)) {
+          receipt.errors.push(`invalid sku: ${sku}`);
+          continue;
+        }
+
+        const item = currentInventory[sku];
+
+        // Check if out of stock
+        if (item.stock <= 0) {
+          receipt.errors.push(`out of stock: ${sku}`);
+          continue;
+        }
+
+        // Check if sufficient credit
+        if (credit < item.price) {
+          receipt.errors.push(`insufficient credit: have ${credit}, need ${item.price}`);
+          continue;
+        }
+
+        // Success! Dispense item
+        receipt.dispensed = sku;
+        receipt.spent = item.price;
+        currentInventory[sku].stock -= 1;
+
+        // Calculate change
+        const changeAmount = credit - item.price;
+        receipt.changeTotal = changeAmount;
+        receipt.changeCoins = calculateGreedyChange(changeAmount);
+
+        // End session
+        sessionEnded = true;
+      } else if (actionType === "cancel") {
+        // Refund inserted coins
+        receipt.changeCoins = { ...insertedCoins };
+        receipt.changeTotal = credit;
+        receipt.spent = 0;
+
+        // End session
+        sessionEnded = true;
+      } else if (actionType === "noop") {
+        // Do nothing
+        continue;
+      } else {
+        receipt.errors.push(`unknown action: ${actionType}`);
+      }
+    }
+
+    receipts.push(receipt);
+  }
+
+  return {
+    inventory: currentInventory,
+    receipts,
+  };
+}
+
+function calculateGreedyChange(amount: number): { [denom: number]: number } {
+  const result: { [denom: number]: number } = {};
+  let remaining = amount;
+
+  for (const denom of ALLOWED_DENOMINATIONS) {
+    if (remaining >= denom) {
+      const count = Math.floor(remaining / denom);
+      result[denom] = count;
+      remaining -= count * denom;
+    }
+  }
+
+  return result;
 }
