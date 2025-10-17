@@ -57,7 +57,63 @@
  *      { id:"y", action:"exit",  station:"A" }  // rejected: not in-system
  *    ]
  *    ⇒ active: { x:{enteredAt:"A"} }
+ *
  */
+
+type Event = { id: string; action: "enter" | "exit"; station: string };
+//active: Record<string, { enteredAt: string }>;
+//completed: Array<{ id: string; from: string; to: string }>;
+//rejected: Array<{ id: string; action: "enter" | "exit"; station: string; reason: string; }>;
+//  *   stats: {
+//  *     entries: Record<string, number>;
+//  *     exits: Record<string, number>;
+//  *   };
+
 export function processTurnstileTrips(events: Event[]) {
-  return {} // TODO
+	let onSubway: string[] = [];
+	let arrivedAt: string[] = [];
+	// i hate this solution I wanted to use a set for this but I dont remember how to search/filter just one key
+	const completed: Array<{ id: string; from: string; to: string }> = [];
+	const rejected: Array<{
+		id: string;
+		action: "enter" | "exit";
+		station: string;
+		reason: string;
+	}> = [];
+	//const active: Record<string, { enteredAt: string }>; //WHY IS THIS NOT AN ARRAY??
+	// const stats: {
+	// 	entries: Record<string, number>;
+	//  	exits: Record<string, number>;
+	// };
+	for (const event of events) {
+		if ((event.action = "enter" && !onSubway.includes(event.id))) {
+			// handle rejections for already on
+			onSubway.push(event.id);
+			arrivedAt.push(event.station);
+			console.log(onSubway);
+		}
+		if ((event.action = "exit" && onSubway.includes(event.id))) {
+			// handle rejections for not on
+			const passengerIndex = onSubway.indexOf(event.id);
+			if (event.station === arrivedAt[passengerIndex]) {
+				//reject
+			} else {
+				completed.push({
+					id: event.id,
+					from: arrivedAt[passengerIndex],
+					to: event.station,
+				});
+				onSubway[passengerIndex] = ""; // so terrible
+			}
+		}
+	}
+	console.log(completed);
+	return { completed }; // TODO
 }
+
+const events = [
+	{ id: "a", action: "enter", station: "Alpha" },
+	{ id: "a", action: "exit", station: "Beta" },
+];
+
+processTurnstileTrips(events);
