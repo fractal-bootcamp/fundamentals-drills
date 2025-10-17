@@ -58,6 +58,110 @@
  *    ]
  *    ⇒ active: { x:{enteredAt:"A"} }
  */
+
+type Record = Array<{ id: string; action: "enter" | "exit"; station: string }>
+
+type Output = {
+  active: Record<string, { enteredAt: string }>;
+  completed: Array<{ id: string; from: string; to: string }>;
+  rejected: Array<{ id: string; action: "enter" | "exit"; station: string; reason: string; }>;
+  stats: {
+    entries: Record<string, number>;
+    exits: Record<string, number>;
+  };
+}
+
 export function processTurnstileTrips(events: Event[]) {
+
+  let active = []
+  let completed = []
+  let rejected = []
+
+  outer: for (let i = 0; i < events.length; i++) {
+    const record = events[i]
+    const action = events[i].action
+    const station = events[i].station
+    // ensure entry is valid
+    for (field of record) {
+      if (field == null) {
+        break outer;
+      }
+    }
+
+    // handle entry
+    if (action = "entry") {
+      for (let i = 0; i < active.length; i++) {
+        if (active[i].record.id == record.id) {
+          rejected.push({ ...record, reason: "already in-system" })
+          break outer;
+        }
+      }
+      record = { ...records[i], enteredAt: "${station}" }
+      active.push(record)
+    }
+    // handle exit
+    if (action = "exit") {
+      for (let i = 0; i < active.length; i++) {
+        if (active.find(record.id) == false) {
+          rejected.push({ ...record, reason: "not in-system" })
+          break outer;
+        }
+      }
+      record = { ...records[i], exitedAt: "${station}" }
+      completed.push(record)
+      active = active.filter((rider) => record.id != record.id[i])
+    }
+    else break;
+  }
   return {} // TODO
 }
+
+
+// riders still in-system after processing (their entry station)
+//  *   active: Record<string, { enteredAt: string }>;
+//  *   // completed trips in the order they finished
+//  *   completed: Array<{ id: string; from: string; to: string }>;
+//  *   // rejected events in input order
+//  *   // "reason" is "not in-system" or "already in-system"
+//  *   rejected: Array<{ id: string; action: "enter" | "exit"; station: string; reason: string; }>;
+//  *   // counts per station for accepted enters/exits only
+//  *   stats: {
+//  *     entries: Record<string, number>;
+//  *     exits: Record<string, number>;
+//  *   };
+// sketch
+// need to track active, completed, and rejected trips by rider id
+// loop over array and add record+station to active for every entry, remove record from active and add record+station to
+// completed for every subsequent exit. if enter follows enter, add record+reason to rejected. if exit with no preceding entry, 
+// add record+reason to rejected. station names are case-sensitive, so use the regex in the check: /^[a-z]+$/
+// if any field is null, break. if any field is the wrong type, ignore record(error handling?)
+
+// pseudo
+// type Output = {
+//     active: Record<string, { enteredAt: string }>;
+//     completed: Array<{ id: string; from: string; to: string }>;
+//     rejected: Array<{ id: string; action: "enter" | "exit"; station: string; reason: string; }>;
+//     stats: {
+//       entries: Record<string, number>;
+//       exits: Record<string, number>;
+//     };
+// 
+// active = []
+// for (i=0; i < events.length; i++){
+//  record = events[i]
+//  action = events[i].action
+//  station = events[i].station
+//  if (action = "entry"){ 
+//  for (i = 0; i < active.length; i++){
+//    active[i].record.id == record.id? break;
+//   }
+//    record = {...records[i], enteredAt: "${station}"}
+//    active.push(record)
+//  }
+//  if (action = "exit"){ 
+//    record = {...records[i], exitedAt: "${station}"}
+//    completed.push(record)
+//    active = active.filter((rider)=> record.id != record.id[i])
+//  }
+//  else break;
+// }
