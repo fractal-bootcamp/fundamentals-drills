@@ -46,23 +46,66 @@ type ParkingEvent = {
 type EventType = "entry" | "exit";
 
 export function vehiclesInLot(events: Input): string[] {
-  const inLot = new Map<string, number>();
+  // init parkingLot
+  let parkingLot: ParkingEvent[] = []
+  const eventsCopy = [...events]
 
-  const sortedEvents = events.sort((a, b) => a.order - b.order);
+  // sort by order of 'event' per session
+  const sortedEvents = eventsCopy.sort((a, b) => a.order - b.order)
 
-  sortedEvents.forEach((event) => {
-    if (event.type === "entry") {
-      inLot.set(event.plateNumber, event.order);
-    } else {
-      inLot.delete(event.plateNumber);
+  // take in an event 
+  sortedEvents.forEach(event => {
+    const carAlreadyParked = parkingLot.find(car => car.plateNumber === event.plateNumber)
+    const carParking = event.type === 'entry'
+    const carLeaving = event.type === 'exit'
+
+
+    // if vehicle has already been in the lot overwrite it's entry
+    if (carAlreadyParked && carParking) {
+      // remove old entry
+      parkingLot = parkingLot.filter(car => car.plateNumber !== carAlreadyParked.plateNumber)
+      parkingLot.push(event)
     }
-  });
 
-  // convert Map array to [plateNumber, order] pairs and sort by order
-  const sortedPlates = events.map((event) => ({
-    plateNumber: event.plateNumber,
-    order: event.order,
-  }));
+    // put in lot
+    if (carParking && !carAlreadyParked) parkingLot.push(event)
 
-  return [];
+    // take out of lot
+    if (carLeaving) {
+      const plateToRemove = event.plateNumber
+      parkingLot = parkingLot.filter(parkedCar => parkedCar.plateNumber !== plateToRemove)
+    }
+  })
+
+  // - string[] — plate numbers of vehicles still in the lot, sorted by their most recent entry order (ascending).
+  const sortedParkingLot: string[] = parkingLot.map((entry) => entry.plateNumber)
+
+
+  return sortedParkingLot;
 }
+
+
+
+
+
+
+
+
+
+// const inLot = new Map<string, number>();
+
+// const sortedEvents = events.sort((a, b) => a.order - b.order);
+
+// sortedEvents.forEach((event) => {
+//   if (event.type === "entry") {
+//     inLot.set(event.plateNumber, event.order);
+//   } else {
+//     inLot.delete(event.plateNumber);
+//   }
+// });
+
+// // convert Map array to [plateNumber, order] pairs and sort by order
+// const sortedPlates = events.map((event) => ({
+//   plateNumber: event.plateNumber,
+//   order: event.order,
+// }));
