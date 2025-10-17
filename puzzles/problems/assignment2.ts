@@ -45,156 +45,92 @@
  * - Mixed stations are allowed; station names are case-sensitive strings.
  *
  * Examples:
- *   Example A:
- *     inv={A:{price:125,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","A"] ]
- *     ]
- *     => dispensed A, spent 125, change 0, inventory A.stock=0
+ * 1) events = [
+ *      { id:"a", action:"enter", station:"Alpha" },
+ *      { id:"a", action:"exit",  station:"Beta"  }
+ *    ]
+ *    ⇒ completed: [{ id:"a", from:"Alpha", to:"Beta" }], active:{}, rejected:[]
  *
- *   Example B:
- *     inv={B:{price:130,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","B"] ], // insufficient: error, session continues
- *       [ ["insert",100],["select","B"] ]                // success with change 70 = 50+10+10
- *     ]
+ * 2) events = [
+ *      { id:"x", action:"enter", station:"A" },
+ *      { id:"x", action:"enter", station:"B" }, // rejected: already in-system
+ *      { id:"y", action:"exit",  station:"A" }  // rejected: not in-system
+ *    ]
+ *    ⇒ active: { x:{enteredAt:"A"} }
  */
 
-export function processVendingSessions(input) {
-  type Inventory = { [sku: string]: { price: number; stock: number } }
-  type Action = ["insert", number] | ["select", string] | ["cancel"] | ["noop"]
-  type Sessions = Session[]
-  type Session = Action[]
-  type Denomination = 1 | 5 | 10 | 25 | 50 | 100
-  type Receipt = {
-    dispensed?: string;                        // sku if an item was dispensed
-    changeCoins: { [denom: Denomination]: number };  // change returned as a greedy breakdown in the allowed denominations
-    changeTotal: number;                        // total change (cents)
-    spent: number;                              // cents the machine kept this session
-    errors: string[];                           // rule violations or unsupported ops
+type Event = { id: string; action: Action; station: string }
+type Action = 'enter' | 'exit'
+type Reason = "not in-system" | "already in-system"
+type Output = {
+  active: Record<string, { enteredAt: string }>;
+  completed: Array<{ id: string; from: string; to: string }>;
+  rejected: Array<{ id: string; action: "enter" | "exit"; station: string; reason: string; }>;
+  stats: {
+    entries: Record<string, number>;
+    exits: Record<string, number>;
   }
-  type Output = {
-    inventory: Inventory,
-    receipts: Receipt[]
-  }
-
-  let result: Output = {}
-  let allReceipts: Receipt[] = []
-  let curInventory: Inventory = input.inventory
-
-
-
-  if (!input.inventory) return {inventory:{},receipts:[]}
-  if (!input.sessions) return {inventory:{},receipts:[]}
-    for (const session of input.sessions) {
-      let sessionEnded: boolean = false
-      let credit: number = 0
-      let insert: { [key: Denomination]: number } = {}
-      let curSession: Session = session
-      let curReceipt: Receipt = {
-        dispensed:undefined,
-        changeCoins:{},
-        changeTotal:0,
-        spent:0,
-        errors:[]
-      }
-
-
-      for (const userAction of session) {
-        if (sessionEnded) break
-        switch (userAction[0]) {
-          case 'insert': ({credit,insert}=handleInsert(curReceipt, curInventory, userAction[1], credit, insert)); break;
-          case 'select': ({credit,sessionEnded}=handleSelect(curReceipt, curInventory, userAction[1], credit, sessionEnded)); break;
-          case 'cancel': ({sessionEnded}=handleCancel(curReceipt, curInventory, credit, insert, sessionEnded)); break;
-          case 'noop': break;
-          default: curReceipt.errors.push(`unknown action: ${userAction[0]}`)
-        }
-      }
-
-      allReceipts.push(curReceipt)
-      result.inventory = curInventory
-    }
-
-    result.receipts = allReceipts
-    return result
-
-
-  function handleInsert(receipt:Receipt, inventory:Inventory, denom:Denomination, credit:number, insert:Record<number,number>):{credit:number,insert:Record<number,number>} {
-    if (![1,5,10,25,50,100].includes(denom)) {
-      receipt.errors.push(`unsupported coin: ${denom}`)
-    } else {
-      credit += denom
-      insert[denom] = (insert[denom] || 0) + 1
-    }
-    return {credit,insert}
-  }
-
-  function handleCancel(receipt:Receipt, inventory:Inventory, credit:number, insert:Record<number,number>, sessionEnded:boolean):{sessionEnded:boolean} {
-    receipt.changeCoins = insert
-    receipt.changeTotal = credit
-    sessionEnded = true
-    return {sessionEnded}
-  }
-
-  function handleSelect(receipt:Receipt, inventory:Inventory, item:string, credit:numnber, sessionEnded:boolean):{credit:number,sessionended:boolean} {
-    inventory = normalizeIdontapproveofthisnonsensebutiguess(inventory)
-    if (validItem(receipt,item,inventory,credit)) {
-    inventory[item].stock --
-    credit -= inventory[item].price
-    receipt.dispensed = item
-    receipt.spent = inventory[item].price
-    sessionEnded = true
-    makeChange(receipt,credit)
-  }
-  return {credit,sessionEnded}
 }
+const activeRiders = new Map()
 
-  function validItem(receipt:Receipt,item:string,inventory:Inventory,credit):boolean {
-    if (!(item in inventory)) {
-      receipt.errors.push(`invalid sku: ${item}`)
-      return false
-    } else if (inventory[item].stock<=0) {
-      receipt.errors.push(`out of stock: ${item}`)
-      inventory[item].stock = 0
-      return false
-    } else if (inventory[item].price>credit) {
-      receipt.errors.push(`insufficient credit: have ${credit}, need ${inventory[item].price}`)
-      return false
+
+  export function processTurnstileTrips(events: Event[]):Output {
+    activeRiders.clear()
+    let result:Output = {
+      active:{},
+      completed:[],
+      rejected:[],
+      stats:{entries:{},exits:{}}
     }
-    return true
+
+    for (const event of events){
+      result = handleEvent(result, event)
+    }
+    return result
   }
 
-  function makeChange(receipt:Receipt,credit:number):void {
-    let acceptableDenom = [100,50,25,10,5,1]
-    let remaining = credit
-    let changeProvided = {}
+  function handleEvent(result:Output, event:Event):Output {
+    if (!event || !event.action || !event.id || !event.station) return result
+    if (event.action == "enter") result = handleEnter(result, event)
+    if (event.action == "exit") result = handleExit(result, event)
 
-    for (const denom of acceptableDenom) {
-      while (remaining>=denom && remaining > 0) {
-        changeProvided[denom] = (changeProvided[denom] || 0) + 1
-        remaining -= denom
-      }
-    }
-    receipt.changeCoins = changeProvided
-    receipt.changeTotal = credit
+
+    return result
   }
 
-  function normalizeIdontapproveofthisnonsensebutiguess(inventory:Inventory):Inventory {
-    for (const key of Object.keys(inventory)) {
-      if (inventory[key].price<0) inventory[key].price = 0
-      if (inventory[key].stock<0) inventory[key].stock = 0
-      inventory[key].price=inventory[key].price - (inventory[key].price%1)
-      inventory[key].stock=inventory[key].stock - (inventory[key].stock%1)
+  function handleEnter(result:Output, event:Event):Output {
+    let rider = event.id
+
+    if (activeRiders.get(rider)) {
+      let rejectedRider = {id:rider,action:event.action,station:event.station, reason:"already in-system"}
+      result.rejected.push(rejectedRider)  
+
+    } else {
+      result.active[rider] = {enteredAt:event.station}
+      
+      result.stats.entries[event.station]  = (result.stats.entries[event.station] ?? 0) + 1
+      activeRiders.set(rider,event.station)
     }
-    return inventory
-    }
+
+    return result
   }
-  
 
+  function handleExit(result:Output, event:Event):Output {
+    let exiter = event.id
 
+    if (activeRiders.get(exiter)) {
+      let exitRider = {id:exiter,from:activeRiders.get(exiter), to:event.station}
+      result.completed.push(exitRider)
 
+      delete result.active[exiter]
 
+      result.stats.exits[event.station] = (result.stats.exits[event.station] ?? 0) + 1
+      activeRiders.delete(exiter)
 
+    } else {
+      let rejectedRider = {id:exiter, action:event.action,station:event.station, reason:"not in-system"}
+      result.rejected.push(rejectedRider)  
+    }
 
-
-
-
-
+    return result
+  }
