@@ -46,37 +46,32 @@ type Book = string
 type Patron = string
 
 export function checkedOutBooks(transactions: Transaction): Record<string, string> {
-  const library = new Map()
-
-  transactions.map(transaction => ({
-    transaction.action
-  }))
+  const bookLedger = new Map()
+  console.log('bookLedger initialized', bookLedger)
 
   transactions.forEach(transaction => {
     const action = transaction.action
     const bookId = transaction.bookId
     const patron = transaction.patronName
 
-    // use map to take bookIds and add them to 
-    transactions.map((transaction) => {
-      const bookRecord = {
-        bookId,
-        patronName: patron
-      }
-      library.set(bookRecord)
-    })
-
+    // book gets assigned to patron
     if (action === 'borrow') {
-      // book gets assigned to patron
+      bookLedger.set(bookId, patron)
+      console.log('Ledger updated on BORROW:', bookLedger)
     }
 
     if (action === 'return') {
-      // book gets added to library
-      library.set(bookId)
+      // remove book from bookLedger
+      if (bookLedger.has(bookId)) {
+        console.log('Ledger has:', bookId)
+
+        bookLedger.delete(bookId)
+        console.log('Deleted:', bookId)
+      }
+      // if book not in bookLedger, ignore this transaction
     }
 
   })
 
-
-  return {}
+  return Object.fromEntries(bookLedger)
 }
