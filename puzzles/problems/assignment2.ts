@@ -107,8 +107,18 @@ type Output = { threads: Array<Thread>; analytics: Analytics }
 // (1001) alright now let's structure our data. looks like threading is the key abstraction.
 // (1720) 40 minutes before vals emacs sesh, let's clean up and iron out the details.
 // (1951) 16 tests passed, including the realistic convo scenario. great fucken work hfs
-
+// (2018) three tests left: root thread ordering, replies ordering, duplicate ids
+// (2043) hOLY SHIT, WE MAED IT LES GO HOME
 export function organizeMessageThreads(input: Input): Output {
+  if (!input || !input.messages) {
+    return {
+      threads: [],
+      analytics: {
+        totalMessages: 0,
+        mostActiveAuthor: ''
+      }
+    }
+  }
   // console.log(input.messages)
   // array of 1d objects to tree structure: root and nodes, recursion...
   // let's start with a base case, but let's structure out our initial output
@@ -127,8 +137,15 @@ export function organizeMessageThreads(input: Input): Output {
   const idToMessage = new Map<string, Message>()
   const rootIdToReplies = new Map<string, Array<Message>>() // (1256) oh deal with msgs first!
   const authorCount = new Map<string, number>()
+  const seenIds = new Set<string>()
+  const uniqueIdMessages = input.messages.filter(message => {
+    if (seenIds.has(message.id)) return false
+    seenIds.add(message.id)
+    return true
+  })
+  console.log(uniqueIdMessages) // (2042) DONE!
   let maxDepth = 0 // (1600) imma be cheeky and just set maxDepth as threads are building
-  for (let message of input.messages) {
+  for (let message of uniqueIdMessages) {
     idToMessage.set(message.id, message)
     if (message.replyTo === undefined) {
       rootIdToReplies.set(message.id, [])
@@ -164,6 +181,7 @@ export function organizeMessageThreads(input: Input): Output {
       const replies = rootIdToReplies
         .get(message.id)
         .map(reply => buildThread(reply, depth + 1))
+        .sort((a, b) => a.rootMessage.timestamp - b.rootMessage.timestamp) // (2030) DONE.
       const count = replies
         .map(reply => reply.messageCount)
         .reduce((a, c) => a + c, 0)
@@ -185,12 +203,14 @@ export function organizeMessageThreads(input: Input): Output {
   }
 
   // (1734) verifying orphaned reply with idToMessage lookup
-  const rootMessages = input.messages.filter(message => message.replyTo === undefined || !idToMessage.has(message.replyTo))
+  const rootMessages = input.messages
+    .filter(message => message.replyTo === undefined || !idToMessage.has(message.replyTo))
+    .sort((a, b) => a.timestamp - b.timestamp) // (2028) DONE.
   // console.log(rootMessages)
 
   const threads = rootMessages.map(root => buildThread(root, 0))
   const analytics = {
-    totalMessages: input.messages.length,
+    totalMessages: uniqueIdMessages.length,
     totalThreads: threads.length,
     longestThread: maxDepth,
     mostActiveAuthor: mostActiveAuthor,
