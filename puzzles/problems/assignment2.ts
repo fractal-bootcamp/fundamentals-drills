@@ -94,8 +94,14 @@ type Change = { [denom: number]: number }
 const allowedDenominations = [100, 50, 25, 10, 5, 1];
 
 export function processVendingSessions(input: Input): Output {
-  const inventory = { ...input.inventory }
+  const safeInput = {
+    inventory: input?.inventory || {},
+    sessions: input?.sessions || []
+  }
+
+  const inventory = { ...safeInput.inventory }
   const receipts: Receipt[] = []
+
 
   for (const sku in inventory) {
     const item = inventory[sku]
@@ -114,7 +120,7 @@ export function processVendingSessions(input: Input): Output {
 
 
   // OUTER LOOP - iterates SESSION
-  for (let sessionIndex = 0; sessionIndex < input.sessions.length; sessionIndex++) {
+  for (let sessionIndex = 0; sessionIndex < safeInput.sessions.length; sessionIndex++) {
     let credit = 0;
     let sessionEnded = false
     const insertedCoins: number[] = []
@@ -130,18 +136,11 @@ export function processVendingSessions(input: Input): Output {
       console.log('Action:', currentAction)
 
       if (actionType === "unknown") {
-        // const receipt: Receipt = {
-        //   changeCoins: {},
-        //   changeTotal: 0,
-        //   spent: 0,
-        //   errors: errors,
-        // }
         errors.push(`unknown action: ${actionType}`)
-        receipts.push(receipt)
       }
 
 
-      // INSERT
+      // INSERTSo you can see.
       if (actionType === "insert") {
         const coinValue = currentAction[1]
 
