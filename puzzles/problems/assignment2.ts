@@ -56,5 +56,5 @@
  */
 
 export function processVendingSessions(input) {
-  return {}
+  return {};
 }
