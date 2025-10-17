@@ -91,7 +91,7 @@ export function processTurnstileTrips(events: Event[]): Output {
   // const active = new Map<string, Entering>()
   // const completed = new Array<Completed>()
   // const rejected = new Array<Rejected>()
-  if (!events || events.length == 0) {
+  if (!events || events.length === 0) {
     return {
       active: {},
       completed: [],
@@ -103,38 +103,56 @@ export function processTurnstileTrips(events: Event[]): Output {
   const currentTrips = new Map<string, string>() // keep track of id to station! (1440)
   const completedTrips = []
   const rejected = []
+  const stats = { entries: {}, exits: {} }
 
   for (let event of events) {
-    if (event.action == 'enter') {
+    if (!event || !event.id || !event.station || (event.action !== 'enter' && event.action !== 'exit')) {
+      continue;
+    }
+    if (event.action === 'enter') {
       if (currentTrips.has(event.id)) {
-        console.log('already insys reject')
         rejected.push({ ...event, reason: "already in-system" })
       } else {
         currentTrips.set(event.id, event.station)
+        stats.entries[event.station] = (stats.entries[event.station] || 0) + 1
       }
     } else if (event.action == 'exit') {
       if (!currentTrips.has(event.id)) {
-        console.log('not in system reject')
         rejected.push({ ...event, reason: "not in-system" })
       } else {
         const completedTrip = {
           id: event.id,
-          from: currentTrips.get(event.id),
+          from: currentTrips.get(event.id)!,
           to: event.station
         }
         completedTrips.push(completedTrip)
         currentTrips.delete(event.id)
-        console.log(completedTrips)
+        stats.exits[event.station] = (stats.exits[event.station] || 0) + 1
       }
     }
   }
 
-  const active = Array.from(currentTrips.keys).map()
+  const active = Array.from(currentTrips.entries())
+    .reduce((acc, trip) => {
+      const [id, station] = trip
+      acc[id] = { enteredAt: station }
+      return acc
+    }, {} as Record<string, { enteredAt: string }>)
+  console.log(currentTrips)
+  console.log('active trips:', active)
   const output: Output = {
-    active: {},
+    active: active,
     completed: completedTrips,
     rejected: rejected,
-    stats: { entries: {}, exits: {} }
+    stats: stats
   }
 
+  return output
 }
+
+const events = [
+  { id: "x", action: "enter", station: "A" },
+  { id: "x", action: "enter", station: "B" }, // rejected: already in-system
+  { id: "y", action: "exit", station: "A" }   // rejected: not in-system
+];
+const result = processTurnstileTrips(events);
