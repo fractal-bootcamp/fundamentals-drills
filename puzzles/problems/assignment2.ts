@@ -57,7 +57,71 @@
  *      { id:"y", action:"exit",  station:"A" }  // rejected: not in-system
  *    ]
  *    ⇒ active: { x:{enteredAt:"A"} }
+ * 
  */
+
+export type Action = "enter" | "exit"
+
+export type Event = {
+  id: string,
+  action: Action,
+  station: string
+}
+
+
+export type Completed = {
+  id: string,
+  from: string,
+  to: string
+}
+
+export type Rejected = {
+  id: string,
+  action: string,
+  station: string,
+  reason: string
+}
+
+export type Entries = Record<string, number>
+
+export type Exits = Record<string, number>
+
+export type Stats = {
+  entries: Entries,
+  exits: Exits
+}
+export type EnteredAt = string
+
+  // @ts-expect-error
+export type Active = Record<Event.id, EnteredAt>
+
+export type Result = {
+  active: Active,
+  completed: Completed[],
+  rejected: Rejected[],
+  stats: Stats,
+}
+
+
 export function processTurnstileTrips(events: Event[]) {
-  return {} // TODO
+  let active = {}
+  let completed = []
+  let rejected = []
+  let stats = {entries: {}, exits: {}}
+   let result: Result = {active, completed, rejected, stats}
+
+   for (let i = 0; i < events.length; i++) {
+       if (events.length < 0) {
+    result = {active: {}, completed: [], rejected: [], stats: {entries: {}, exits: {}}}
+   } 
+
+
+
+   if (targetId === matchingId) {
+
+    // completed.push({id: events[i].id, from: , to: })
+   }
+   }
+   console.log(result)
+  return result
 }
