@@ -126,24 +126,43 @@ function processRejectedTrip(event: Event): RejectedTrip {
   return rejectedTrip
 }
 
-// function processEntryEvent(subwayRecord, event: Event) {
-//   if (subwayRecord.active[event.id]) {
-//     const rejectedTrip: RejectedTrip = processRejectedTrip(event)
-//     subwayRecord.rejected.push(rejectedTrip)
-//     return { ...subwayRecord }
-//   }
+function processEntryEvent(subwayRecord, event: Event) {
+  if (subwayRecord.active[event.id]) {
+    const rejectedTrip: RejectedTrip = processRejectedTrip(event)
+    subwayRecord.rejected.push(rejectedTrip)
+    return { ...subwayRecord }
+  }
 
-//   const entryTrip: EntryTrip = { enteredAt: event.station }
-//   subwayRecord.active[event.id] = entryTrip
-//   if (subwayRecord.stats.entries[event.station]) {
-//     subwayRecord.stats.entries[event.station]++
-//   } else {
-//     subwayRecord.stats.entries[event.station] = 1
-//   }
-//   return { ...subwayRecord }
-// }
+  const entryTrip: EntryTrip = { enteredAt: event.station }
+  subwayRecord.active[event.id] = entryTrip
+  if (subwayRecord.stats.entries[event.station]) {
+    subwayRecord.stats.entries[event.station]++
+  } else {
+    subwayRecord.stats.entries[event.station] = 1
+  }
+  return { ...subwayRecord }
+}
 
 function processExitEvent(subwayRecord, event: Event) {
+  if (!subwayRecord.active[event.id]) {
+    const rejectedTrip: RejectedTrip = processRejectedTrip(event)
+    subwayRecord.rejected.push(rejectedTrip)
+    return { ...subwayRecord }
+  }
+  const activeTrip = subwayRecord.active[event.id]
+  const exitTrip: ExitTrip = { exitedAt: event.station }
+  if (subwayRecord.stats.exits[event.station]) {
+    subwayRecord.stats.exits[event.station]++
+  } else {
+    subwayRecord.stats.exits[event.station] = 1
+  }
+  delete subwayRecord.active[event.id]
+  const completedTrip: CompletedTrip = {
+    id: event.id,
+    from: activeTrip.enteredAt,
+    to: exitTrip.exitedAt
+  }
+  subwayRecord.completed.push(completedTrip)
   return { ...subwayRecord }
 }
 
@@ -163,41 +182,13 @@ export function processTurnstileTrips(events: Event[]): SubwayRecord {
     if (!isValidEvent(event)) continue
     switch (event.action) {
       case "enter":
-        // Ok, how do I factor all this?
-        if (subwayRecord.active[event.id]) {
-          const rejectedTrip: RejectedTrip = processRejectedTrip(event)
-          subwayRecord.rejected.push(rejectedTrip)
-          break
-        }
-        const entryTrip: EntryTrip = { enteredAt: event.station }
-        subwayRecord.active[event.id] = entryTrip
-        if (subwayRecord.stats.entries[event.station]) {
-          subwayRecord.stats.entries[event.station]++
-        } else {
-          subwayRecord.stats.entries[event.station] = 1
-        }
+        const newSubwayRecord = processEntryEvent(subwayRecord, event)
+        Object.assign({ subwayRecord, newSubwayRecord })
         break
       case "exit":
         // Ok, how do I factor all this?
-        if (!subwayRecord.active[event.id]) {
-          const rejectedTrip: RejectedTrip = processRejectedTrip(event)
-          subwayRecord.rejected.push(rejectedTrip)
-          break
-        }
-        const activeTrip = subwayRecord.active[event.id]
-        const exitTrip: ExitTrip = { exitedAt: event.station }
-        if (subwayRecord.stats.exits[event.station]) {
-          subwayRecord.stats.exits[event.station]++
-        } else {
-          subwayRecord.stats.exits[event.station] = 1
-        }
-        delete subwayRecord.active[event.id]
-        const completedTrip: CompletedTrip = {
-          id: event.id,
-          from: activeTrip.enteredAt,
-          to: exitTrip.exitedAt
-        }
-        subwayRecord.completed.push(completedTrip)
+        const newExitSubwayRecord = processExitEvent(subwayRecord, event)
+        Object.assign({ subwayRecord, newExitSubwayRecord })
         break
     }
   }
