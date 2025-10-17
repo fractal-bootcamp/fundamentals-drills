@@ -16,6 +16,28 @@
  *   longestStreak([5,5,5]) -> 1
  *   longestStreak([]) -> 0
  */
+
+
+
 export function longestStreak(nums: number[]): number {
-  return 0
+  if (nums.length === 0) {
+    return 0
+  }
+
+  let streakLength = 1
+
+  let workingCopy = structuredClone(nums)
+
+  for (let i = 0; i < workingCopy.length; i++) {
+    if (workingCopy[i] + 1 === workingCopy[i + 1]) {
+      streakLength = streakLength + 1;
+    } else if (workingCopy[i + 1] === undefined) {
+      break
+    } else {
+      streakLength = 1
+    }
+    console.log(streakLength)
+  }
+
+  return streakLength
 }
