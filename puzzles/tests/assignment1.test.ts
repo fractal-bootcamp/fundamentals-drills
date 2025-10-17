@@ -1,46 +1,69 @@
 import { describe, it, expect } from 'vitest';
-import { countGreaterThan } from '../problems/assignment1';
+import { uniqueActiveNames } from '../problems/assignment1';
 
-describe('countGreaterThan', () => {
-  it('handles empty array', () => {
-    expect(countGreaterThan([], 0)).toBe(0);
+describe('uniqueActiveNames', () => {
+  it('returns empty for empty input or all inactive', () => {
+    expect(uniqueActiveNames([])).toEqual([]);
+    expect(
+      uniqueActiveNames([
+        { id: '1', name: 'Ana', active: false },
+        { id: '2', name: 'Bob', active: false },
+      ])
+    ).toEqual([]);
   });
 
-  it('counts strictly greater than threshold', () => {
-    expect(countGreaterThan([1, 5, 5, 7], 5)).toBe(1);
-    expect(countGreaterThan([6, 7, 8], 5)).toBe(3);
-    expect(countGreaterThan([5, 5, 5], 5)).toBe(0);
-  });
-
-  it('works with negatives and mixed values', () => {
-    expect(countGreaterThan([-3, -2, -1], -2)).toBe(1); // only -1
-    expect(countGreaterThan([-1, 0, 1], 0)).toBe(1); // only 1
-  });
-
-  it('handles duplicates and zeros', () => {
-    expect(countGreaterThan([0, 0, 1, 2, 2], 1)).toBe(2);
-    expect(countGreaterThan([0, 0, 0], -1)).toBe(3);
-  });
-
-  it('property-like: reversing input does not change the answer', () => {
-    const cases: Array<{ arr: number[]; t: number; expected: number }> = [
-      { arr: [1, 2, 3], t: 1, expected: 2 },
-      { arr: [5, 5, 5], t: 5, expected: 0 },
-      { arr: [-2, -1, 0], t: -2, expected: 2 },
-      { arr: [], t: 10, expected: 0 },
+  it('collects unique active names and sorts ascending', () => {
+    const input = [
+      { id: 'a', name: 'Charlie', active: true },
+      { id: 'b', name: 'Ana', active: true },
+      { id: 'c', name: 'Bob', active: true },
     ];
-    for (const { arr, t, expected } of cases) {
-      expect(countGreaterThan(arr, t)).toBe(expected);
-      expect(countGreaterThan([...arr].reverse(), t)).toBe(expected);
-    }
+    expect(uniqueActiveNames(input)).toEqual(['Ana', 'Bob', 'Charlie']);
   });
 
-  it('property-like: increasing threshold never increases the count', () => {
-    const arr = [1, 2, 2, 3, 5];
-    const low = countGreaterThan(arr, 1);
-    const mid = countGreaterThan(arr, 2);
-    const high = countGreaterThan(arr, 10);
-    expect(low).toBeGreaterThanOrEqual(mid);
-    expect(mid).toBeGreaterThanOrEqual(high);
+  it('deduplicates names when multiple active records exist', () => {
+    const input = [
+      { id: '1', name: 'Ana', active: true },
+      { id: '2', name: 'Ana', active: true },
+      { id: '3', name: 'Ana', active: true },
+    ];
+    expect(uniqueActiveNames(input)).toEqual(['Ana']);
+  });
+
+  it('ignores inactive entries and only considers active ones', () => {
+    const input = [
+      { id: '1', name: 'Dana', active: false },
+      { id: '2', name: 'Eli', active: true },
+      { id: '3', name: 'Dana', active: true },
+      { id: '4', name: 'Eli', active: false },
+    ];
+    expect(uniqueActiveNames(input)).toEqual(['Dana', 'Eli']);
+  });
+
+  it('is case-sensitive for uniqueness and sorting', () => {
+    const input = [
+      { id: '1', name: 'alice', active: true },
+      { id: '2', name: 'Alice', active: true },
+    ];
+    expect(uniqueActiveNames(input)).toEqual(['Alice', 'alice']);
+  });
+
+  it('property-like: order of input does not change result', () => {
+    const cases = [
+      [
+        { id: '1', name: 'Ana', active: true },
+        { id: '2', name: 'Bob', active: true },
+        { id: '3', name: 'Ana', active: true },
+      ],
+      [
+        { id: '3', name: 'Ana', active: true },
+        { id: '2', name: 'Bob', active: true },
+        { id: '1', name: 'Ana', active: true },
+      ],
+    ];
+    const expected = ['Ana', 'Bob'];
+    for (const arr of cases) {
+      expect(uniqueActiveNames(arr)).toEqual(expected);
+    }
   });
 });

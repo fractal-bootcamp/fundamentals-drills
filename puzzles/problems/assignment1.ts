@@ -1,31 +1,33 @@
 /**
- * Assignment 1 — Count Greater Than
+ * Assignment 1 — Unique Active Names
  *
  * Context:
- * A common primitive in analytics is counting how many values exceed a
- * threshold. Given a list of integers and a threshold, return how many items
- * are strictly greater than the threshold.
+ * You are given a list of user records and need to produce a clean list of
+ * unique names for users who are currently active. This is a common data
+ * cleaning step before reporting or further processing.
  *
  * Input:
- *  - nums: number[] — may be empty; may include negatives and duplicates.
- *  - threshold: number — an integer to compare against.
+ *  - users: Array<{ id: string; name: string; active: boolean }>
+ *    The array may be empty and can contain duplicate names and ids.
  * Output:
- *  - number — the count of elements x in nums where x > threshold.
+ *  - string[] — unique names of users where active === true, sorted ascending
+ *    (case-sensitive, standard lexicographic order).
  *
  * Examples:
- *  - countGreaterThan([1, 5, 5, 7], 5) -> 1
- *  - countGreaterThan([], 0) -> 0
+ *  - uniqueActiveNames([{id:'1',name:'Ana',active:true},{id:'2',name:'Ana',active:true}]) -> ['Ana']
+ *  - uniqueActiveNames([]) -> []
  */
-export function countGreaterThan(nums: number[], threshold: number): number {
-  let count = 0;
-  for (let number of nums) {
-    if (number > threshold) {
-      count++;
-    } else {
-      count;
-    }
-  }
+export function uniqueActiveNames(
+  users: Array<{ id: string; name: string; active: boolean }>): string[] {
+  let uniqueName: Array<string> = [];
 
-  return count;
+  if (users.length === 0) return [];
+  // filter only active members
+  let activeMember =
+    users
+      .filter(user => (user.active === true))
+      .map(n => n.name)
+
+  let dedupped = Array.from(new Set(activeMember))
+  return dedupped;
 }
-
