@@ -114,7 +114,7 @@ export function processTurnstileTrips(events: Event[]): Output {
         rejected.push({ ...event, reason: "already in-system" })
       } else {
         currentTrips.set(event.id, event.station)
-        stats.entries[event.station] = (stats.entries[event.station] || 0) + 1
+        stats.entries[event.station] = (stats.entries[event.station] ?? 0) + 1
       }
     } else if (event.action == 'exit') {
       if (!currentTrips.has(event.id)) {
@@ -127,17 +127,15 @@ export function processTurnstileTrips(events: Event[]): Output {
         }
         completedTrips.push(completedTrip)
         currentTrips.delete(event.id)
-        stats.exits[event.station] = (stats.exits[event.station] || 0) + 1
+        stats.exits[event.station] = (stats.exits[event.station] ?? 0) + 1
       }
     }
   }
 
-  const active = Array.from(currentTrips.entries())
-    .reduce((acc, trip) => {
-      const [id, station] = trip
-      acc[id] = { enteredAt: station }
-      return acc
-    }, {} as Record<string, { enteredAt: string }>)
+  const active = Object.fromEntries(
+    Array.from(currentTrips.entries())
+      .map(([id, station]) => [id, { enteredAt: station }])
+  )
   console.log(currentTrips)
   console.log('active trips:', active)
   const output: Output = {
