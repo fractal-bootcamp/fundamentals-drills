@@ -71,6 +71,8 @@ describe('processTurnstileTrips', () => {
     ];
     const result = processTurnstileTrips(events);
     expect(result.completed).toEqual([{ id: "valid", from: "Station1", to: "Station4" }]);
+    console.log("type:", typeof result.active)
+    console.log("result.active", result.active)
     expect(result.active).toEqual({});
     expect(result.rejected).toEqual([]);
     expect(result.stats.entries).toEqual({ "Station1": 1 });

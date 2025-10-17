@@ -1,3 +1,4 @@
+
 // @ts-nocheck
 /**
  * Programming Puzzle — Turnstile Trip Processor
@@ -58,6 +59,104 @@
  *    ]
  *    ⇒ active: { x:{enteredAt:"A"} }
  */
+
+
+type Action = "enter" | "exit";
+
+
+
+
+type Event = {
+  id: string;
+  action: Action;
+  station: string;
+
+
+}
+
+
 export function processTurnstileTrips(events: Event[]) {
-  return {} // TODO
+
+  let activeRiders: Record<string, { enteredAt: string }> = {}
+  let entries: Record<string, number> = {};
+  let exits: Record<string, number> = {};
+  let rejections: Array<{ id: string; action: Action; station: string; reason: string; }> = [];
+  let completedRides: Array<{ id: string; from: string; to: string }> = [];
+
+
+  if (events.length > 0) {
+
+    for (let event of events) {
+      if (event.action != null && event.id != null && event.station != null) {
+        if (event.action === "enter") {
+          if (!checkIfActive(event.id, activeRiders)) {
+            activeRiders = { ...activeRiders, [event.id]: { enteredAt: event.station } }
+            if (Object.keys(entries).includes(event.station)) {
+              entries = { ...entries, [event.station]: entries[event.station] + 1 }
+            } else {
+              entries = { ...entries, [event.station]: 1 }
+
+
+            }
+
+
+
+
+
+          } else {
+            rejections.push({ id: event.id, action: event.action, station: event.station, reason: "already in-system" })
+
+
+          }
+
+        }
+
+        else if (event.action === "exit") {
+          if (checkIfActive(event.id, activeRiders)) {
+            completedRides.push({ id: event.id, from: activeRiders[event.id].enteredAt, to: event.station })
+            delete activeRiders[event.id]
+            if (Object.keys(exits).includes(event.station)) {
+              exits = { ...entrexitsies, [event.station]: exits[event.station] + 1 }
+            } else {
+              exits = { ...exits, [event.station]: 1 }
+
+
+            }
+
+          } else {
+            rejections.push({ id: event.id, action: event.action, station: event.station, reason: "not in-system" })
+
+
+          }
+
+
+        }
+      }
+
+    }
+
+  }
+
+
+
+
+  return {
+    active: activeRiders,
+    completed: completedRides,
+    rejected: rejections,
+    stats: {
+      entries: entries,
+      exits: exits
+    }
+  }
+}
+
+function checkIfActive(id, activeRiders: Record<string, { enteredAt: string }>) {
+  if (Object.keys(activeRiders).includes(id)) {
+    return true
+  }
+
+  return false
+
+
 }
