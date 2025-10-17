@@ -1,431 +1,168 @@
-import { describe, it, expect } from "vitest";
-import { processVendingSessions } from "../problems/assignment2";
+import { describe, it, expect } from 'vitest';
+import { processTurnstileTrips } from '../problems/assignment2';
 
-describe("processVendingSessions", () => {
-  // Basic functionality tests
-  it("should handle successful purchase from example A", () => {
-    const input = {
-      inventory: { A: { price: 125, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["insert", 25], ["select", "A"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ A: { price: 125, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "A",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 125,
-      errors: []
-    }]);
-  });
-
-  it("should handle insufficient credit from example B", () => {
-    const input = {
-      inventory: { B: { price: 130, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["insert", 25], ["select", "B"]],
-        [["insert", 100], ["select", "B"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ B: { price: 130, stock: 1 } });
-    expect(result.receipts[0]).toEqual({
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["insufficient credit: have 125, need 130"]
-    });
-    expect(result.receipts[1]).toEqual({
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["insufficient credit: have 100, need 130"]
+describe('processTurnstileTrips', () => {
+  it('should handle empty event list', () => {
+    const result = processTurnstileTrips([]);
+    expect(result).toEqual({
+      active: {},
+      completed: [],
+      rejected: [],
+      stats: { entries: {}, exits: {} }
     });
   });
 
-  it("should handle purchase with change", () => {
-    const input = {
-      inventory: { C: { price: 75, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "C"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ C: { price: 75, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "C",
-      changeCoins: { 25: 1 },
-      changeTotal: 25,
-      spent: 75,
-      errors: []
-    }]);
+  it('should process simple enter and exit sequence', () => {
+    const events = [
+      { id: "a", action: "enter", station: "Alpha" },
+      { id: "a", action: "exit", station: "Beta" }
+    ];
+    const result = processTurnstileTrips(events);
+    expect(result.completed).toEqual([{ id: "a", from: "Alpha", to: "Beta" }]);
+    expect(result.active).toEqual({});
+    expect(result.rejected).toEqual([]);
+    expect(result.stats.entries).toEqual({ "Alpha": 1 });
+    expect(result.stats.exits).toEqual({ "Beta": 1 });
   });
 
-  it("should handle complex change breakdown", () => {
-    const input = {
-      inventory: { D: { price: 35, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "D"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ D: { price: 35, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "D",
-      changeCoins: { 50: 1, 10: 1, 5: 1 },
-      changeTotal: 65,
-      spent: 35,
-      errors: []
-    }]);
+  it('should reject duplicate enter and exit without prior enter', () => {
+    const events = [
+      { id: "x", action: "enter", station: "A" },
+      { id: "x", action: "enter", station: "B" }, // rejected: already in-system
+      { id: "y", action: "exit", station: "A" }   // rejected: not in-system
+    ];
+    const result = processTurnstileTrips(events);
+    expect(result.active).toEqual({ x: { enteredAt: "A" } });
+    expect(result.completed).toEqual([]);
+    expect(result.rejected).toHaveLength(2);
+    expect(result.rejected[0]).toEqual({ id: "x", action: "enter", station: "B", reason: "already in-system" });
+    expect(result.rejected[1]).toEqual({ id: "y", action: "exit", station: "A", reason: "not in-system" });
+    expect(result.stats.entries).toEqual({ "A": 1 });
+    expect(result.stats.exits).toEqual({});
   });
 
-  it("should handle cancel operation", () => {
-    const input = {
-      inventory: { E: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 25], ["insert", 25], ["cancel"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ E: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: { 25: 2 },
-      changeTotal: 50,
-      spent: 0,
-      errors: []
-    }]);
+  it('should handle multiple riders with interleaved events', () => {
+    const events = [
+      { id: "alice", action: "enter", station: "Central" },
+      { id: "bob", action: "enter", station: "North" },
+      { id: "alice", action: "exit", station: "South" },
+      { id: "charlie", action: "enter", station: "East" },
+      { id: "bob", action: "exit", station: "West" }
+    ];
+    const result = processTurnstileTrips(events);
+    expect(result.completed).toEqual([
+      { id: "alice", from: "Central", to: "South" },
+      { id: "bob", from: "North", to: "West" }
+    ]);
+    expect(result.active).toEqual({ charlie: { enteredAt: "East" } });
+    expect(result.rejected).toEqual([]);
+    expect(result.stats.entries).toEqual({ "Central": 1, "North": 1, "East": 1 });
+    expect(result.stats.exits).toEqual({ "South": 1, "West": 1 });
   });
 
-  it("should handle invalid coin denominations", () => {
-    const input = {
-      inventory: { F: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 75], ["insert", 50], ["select", "F"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ F: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "F",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: ["unsupported coin: 75"]
-    }]);
+  it('should ignore invalid events with missing fields', () => {
+    const events = [
+      { id: "valid", action: "enter", station: "Station1" },
+      { id: "", action: "enter", station: "Station2" }, // invalid: empty id
+      { id: "valid", action: "invalid", station: "Station3" }, // invalid: bad action
+      { id: "valid2", action: "enter" }, // invalid: missing station
+      null, // invalid: null event
+      { id: "valid", action: "exit", station: "Station4" }
+    ];
+    const result = processTurnstileTrips(events);
+    expect(result.completed).toEqual([{ id: "valid", from: "Station1", to: "Station4" }]);
+    console.log("type:", typeof result.active)
+    console.log("result.active", result.active)
+    expect(result.active).toEqual({});
+    expect(result.rejected).toEqual([]);
+    expect(result.stats.entries).toEqual({ "Station1": 1 });
+    expect(result.stats.exits).toEqual({ "Station4": 1 });
   });
 
-  it("should handle invalid SKU", () => {
-    const input = {
-      inventory: { G: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "INVALID"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ G: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["invalid sku: INVALID"]
-    }]);
+  it('should handle same rider multiple complete trips', () => {
+    const events = [
+      { id: "commuter", action: "enter", station: "Home" },
+      { id: "commuter", action: "exit", station: "Work" },
+      { id: "commuter", action: "enter", station: "Work" },
+      { id: "commuter", action: "exit", station: "Home" }
+    ];
+    const result = processTurnstileTrips(events);
+    expect(result.completed).toEqual([
+      { id: "commuter", from: "Home", to: "Work" },
+      { id: "commuter", from: "Work", to: "Home" }
+    ]);
+    expect(result.active).toEqual({});
+    expect(result.rejected).toEqual([]);
+    expect(result.stats.entries).toEqual({ "Home": 1, "Work": 1 });
+    expect(result.stats.exits).toEqual({ "Work": 1, "Home": 1 });
   });
 
-  it("should handle out of stock", () => {
-    const input = {
-      inventory: { H: { price: 50, stock: 0 } },
-      sessions: [
-        [["insert", 50], ["select", "H"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ H: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["out of stock: H"]
-    }]);
+  it('should handle case-sensitive station names', () => {
+    const events = [
+      { id: "user1", action: "enter", station: "MAIN" },
+      { id: "user2", action: "enter", station: "main" },
+      { id: "user1", action: "exit", station: "EXIT" },
+      { id: "user2", action: "exit", station: "exit" }
+    ];
+    const result = processTurnstileTrips(events);
+    expect(result.completed).toEqual([
+      { id: "user1", from: "MAIN", to: "EXIT" },
+      { id: "user2", from: "main", to: "exit" }
+    ]);
+    expect(result.stats.entries).toEqual({ "MAIN": 1, "main": 1 });
+    expect(result.stats.exits).toEqual({ "EXIT": 1, "exit": 1 });
   });
 
-  it("should handle multiple sessions with inventory depletion", () => {
-    const input = {
-      inventory: { I: { price: 25, stock: 2 } },
-      sessions: [
-        [["insert", 25], ["select", "I"]],
-        [["insert", 25], ["select", "I"]],
-        [["insert", 25], ["select", "I"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ I: { price: 25, stock: 0 } });
-    expect(result.receipts).toHaveLength(3);
-    expect(result.receipts[0].dispensed).toBe("I");
-    expect(result.receipts[1].dispensed).toBe("I");
-    expect(result.receipts[2].dispensed).toBeUndefined();
-    expect(result.receipts[2].errors).toEqual(["out of stock: I"]);
+  it('should handle events with rejected and valid actions mixed', () => {
+    const events = [
+      { id: "user", action: "exit", station: "A" }, // rejected: not in-system
+      { id: "user", action: "enter", station: "B" },
+      { id: "user", action: "enter", station: "C" }, // rejected: already in-system
+      { id: "user", action: "exit", station: "D" }
+    ];
+    const result = processTurnstileTrips(events);
+    expect(result.completed).toEqual([{ id: "user", from: "B", to: "D" }]);
+    expect(result.active).toEqual({});
+    expect(result.rejected).toHaveLength(2);
+    expect(result.rejected[0]).toEqual({ id: "user", action: "exit", station: "A", reason: "not in-system" });
+    expect(result.rejected[1]).toEqual({ id: "user", action: "enter", station: "C", reason: "already in-system" });
   });
 
-  it("should handle noop operations", () => {
-    const input = {
-      inventory: { J: { price: 50, stock: 1 } },
-      sessions: [
-        [["noop"], ["insert", 50], ["noop"], ["select", "J"], ["noop"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ J: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "J",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: []
-    }]);
+  it('should handle realistic full scenario with multiple users and stations', () => {
+    const events = [
+      { id: "alice", action: "enter", station: "Downtown" },
+      { id: "bob", action: "enter", station: "Airport" },
+      { id: "charlie", action: "enter", station: "Downtown" },
+      { id: "alice", action: "exit", station: "Mall" },
+      { id: "david", action: "exit", station: "Beach" }, // rejected: not in-system
+      { id: "bob", action: "enter", station: "Mall" }, // rejected: already in-system
+      { id: "bob", action: "exit", station: "Beach" },
+      { id: "eve", action: "enter", station: "University" },
+      { id: "charlie", action: "exit", station: "Airport" }
+    ];
+    const result = processTurnstileTrips(events);
+    expect(result.completed).toEqual([
+      { id: "alice", from: "Downtown", to: "Mall" },
+      { id: "bob", from: "Airport", to: "Beach" },
+      { id: "charlie", from: "Downtown", to: "Airport" }
+    ]);
+    expect(result.active).toEqual({ eve: { enteredAt: "University" } });
+    expect(result.rejected).toHaveLength(2);
+    expect(result.stats.entries).toEqual({ "Downtown": 2, "Airport": 1, "University": 1 });
+    expect(result.stats.exits).toEqual({ "Mall": 1, "Beach": 1, "Airport": 1 });
   });
 
-  it("should handle unknown actions", () => {
-    const input = {
-      inventory: { K: { price: 50, stock: 1 } },
-      sessions: [
-        [["unknown"], ["insert", 50], ["select", "K"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ K: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "K",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: ["unknown action: unknown"]
-    }]);
-  });
-
-  it("should ignore actions after session ends", () => {
-    const input = {
-      inventory: { L: { price: 50, stock: 2 } },
-      sessions: [
-        [["insert", 50], ["select", "L"], ["insert", 100], ["select", "L"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ L: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "L",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: []
-    }]);
-  });
-
-  it("should handle cancel after session ends", () => {
-    const input = {
-      inventory: { M: { price: 25, stock: 1 } },
-      sessions: [
-        [["insert", 25], ["cancel"], ["insert", 50]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ M: { price: 25, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: { 25: 1 },
-      changeTotal: 25,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle empty sessions", () => {
-    const input = {
-      inventory: { N: { price: 50, stock: 1 } },
-      sessions: [
-        []
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ N: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle session that just inserts coins", () => {
-    const input = {
-      inventory: { O: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 25], ["insert", 10]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ O: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle multiple errors in single session", () => {
-    const input = {
-      inventory: { P: { price: 100, stock: 1 } },
-      sessions: [
-        [["insert", 75], ["select", "INVALID"], ["insert", 50], ["select", "P"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ P: { price: 100, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["unsupported coin: 75", "invalid sku: INVALID", "insufficient credit: have 50, need 100"]
-    }]);
-  });
-
-  it("should handle zero price items", () => {
-    const input = {
-      inventory: { FREE: { price: 0, stock: 1 } },
-      sessions: [
-        [["select", "FREE"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ FREE: { price: 0, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "FREE",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle large denomination breakdown", () => {
-    const input = {
-      inventory: { Q: { price: 1, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "Q"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ Q: { price: 1, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "Q",
-      changeCoins: { 50: 1, 25: 1, 10: 2, 1: 4 },
-      changeTotal: 99,
-      spent: 1,
-      errors: []
-    }]);
-  });
-
-  it("should handle empty inventory", () => {
-    const input = {
-      inventory: {},
-      sessions: [
-        [["insert", 50], ["select", "ANYTHING"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({});
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["invalid sku: ANYTHING"]
-    }]);
-  });
-
-  it("should handle malformed input gracefully", () => {
-    const input = {
-      inventory: null,
-      sessions: null
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({});
-    expect(result.receipts).toEqual([]);
-  });
-
-  it("should normalize inventory with negative values", () => {
-    const input = {
-      inventory: {
-        R: { price: -50, stock: -1 },
-        S: { price: 100.5, stock: 2.7 }
-      },
-      sessions: [
-        [["insert", 100], ["select", "S"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({
-      R: { price: 0, stock: 0 },
-      S: { price: 100, stock: 1 }
-    });
-    expect(result.receipts).toEqual([{
-      dispensed: "S",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 100,
-      errors: []
-    }]);
+  it('should maintain rejection order as events are processed', () => {
+    const events = [
+      { id: "a", action: "exit", station: "X" },  // rejection 1
+      { id: "b", action: "enter", station: "Y" },
+      { id: "a", action: "exit", station: "Z" },  // rejection 2
+      { id: "b", action: "enter", station: "W" }, // rejection 3
+    ];
+    const result = processTurnstileTrips(events);
+    expect(result.rejected).toHaveLength(3);
+    expect(result.rejected[0]).toEqual({ id: "a", action: "exit", station: "X", reason: "not in-system" });
+    expect(result.rejected[1]).toEqual({ id: "a", action: "exit", station: "Z", reason: "not in-system" });
+    expect(result.rejected[2]).toEqual({ id: "b", action: "enter", station: "W", reason: "already in-system" });
   });
 });
