@@ -55,6 +55,214 @@
  *     ]
  */
 
-export function processVendingSessions(input) {
-  return {}
+let machineErrors: String[] = []
+const possibleInserts = [100, 50, 25, 10, 5, 1]
+
+
+type Item = {
+  price: number;
+  stock: number;
 }
+
+type Inventory = {
+  [key: string]: Item;
+}
+
+type Receipt = {
+  dispensed?: string;                        // sku if an item was dispensed
+  changeCoins: { [denom: number]: number };  // change returned as a greedy breakdown in the allowed denominations
+  changeTotal: number;                        // total change (cents)
+  spent: number;                              // cents the machine kept this session
+  errors: string[];                           // rule violations or unsupported ops
+}
+
+function getDenoms(change: number, receipt: Receipt) {
+  let remainder = change
+  while (remainder > 0) {
+    for (let coin of possibleInserts) {
+      if (remainder >= coin) {
+        let lastRemainder = remainder
+        remainder = remainder % coin
+        receipt.changeCoins = { ...receipt.changeCoins, [coin]: (lastRemainder - remainder) / coin }
+
+      }
+
+    }
+
+
+  }
+
+
+}
+
+
+function handleInventory(inventory: Inventory) {
+  if (inventory) {
+
+    for (const [key, value] of Object.entries(inventory) as [string, Item][]) {
+      if (value.price < 0) {
+        value.price = 0
+      }
+
+      if (value.stock < 0) {
+        value.stock = 0
+      }
+
+      value.price = Math.trunc(value.price)
+      value.stock = Math.trunc(value.stock)
+
+
+
+
+
+    }
+    console.log("MAAAAA", inventory)
+
+    return inventory
+
+
+  } else {
+    return {}
+  }
+
+
+
+}
+
+
+export function processVendingSessions(input) {
+
+  let currentInventory: Inventory = {}
+
+  let receipts: Receipt[] = []
+  currentInventory = handleInventory(input.inventory)
+  console.log("JJJJJJ", currentInventory)
+
+
+  if (input.sessions) {
+
+
+    for (let session of input.sessions) {
+      let currentBalance = 0
+      machineErrors = []
+
+
+
+
+
+      let receipt: Receipt = {
+        dispensed: undefined,
+        changeCoins: {},
+        changeTotal: 0,
+        spent: 0,
+        errors: []
+      }
+
+      let coinsInputed = {}
+
+      for (let step of session) {
+        const action = step[0]
+        const item = step[1]
+
+        if (action === "insert" && possibleInserts.includes(item)) {
+          if (Object.keys(coinsInputed).includes(item.toString())) {
+            coinsInputed = { ...coinsInputed, [item]: 1 + coinsInputed[item] }
+          } else {
+            coinsInputed = { ...coinsInputed, [item]: 1 }
+
+          }
+
+
+
+          currentBalance += item
+
+
+        } else if (action === "insert" && !possibleInserts.includes(item)) {
+          machineErrors.push(`unsupported coin: ${item}`)
+          console.log("AAAAAAA", currentInventory)
+        }
+
+
+        else if (action === "select") {
+          console.log("AAAAAAA", currentInventory)
+
+          if (item in currentInventory) {
+            console.log("CURR BAL", currentBalance, "PRICE", currentInventory[item].price)
+
+            if (currentInventory[item].stock <= 0) {
+              machineErrors.push(`out of stock: ${item}`)
+
+            } else if (currentInventory[item].price > currentBalance) {
+              console.log("UCHUCHUCH")
+              machineErrors.push(`insufficient credit: have ${currentBalance}, need ${currentInventory[item].price}`)
+            } else {
+              receipt.dispensed = item
+              currentInventory[item].stock -= 1
+              receipt.spent = currentInventory[item].price
+              receipt.changeTotal = currentBalance - currentInventory[item].price
+
+              getDenoms(receipt.changeTotal, receipt)
+            }
+          } else {
+            machineErrors.push(`invalid sku: ${item}`)
+          }
+
+          if (receipt.dispensed) {
+            break
+          }
+
+
+
+        } else if (action === "cancel") {
+          receipt.dispensed = undefined
+          receipt.changeTotal = currentBalance
+          receipt.changeCoins = coinsInputed
+          receipt.spent = 0
+
+
+
+        } else if (action != "noop") {
+          machineErrors.push(`unknown action: ${action}`)
+        }
+
+
+
+
+      }
+
+
+      receipt.errors = machineErrors
+
+      receipts.push(receipt)
+
+
+
+
+
+
+    }
+
+  }
+
+  return { inventory: currentInventory, receipts: receipts }
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
