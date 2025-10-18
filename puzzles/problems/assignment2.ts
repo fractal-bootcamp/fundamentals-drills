@@ -78,9 +78,9 @@ export function processTurnstileTrips(events: Event[]) {
   let rejected = []
 
   outer: for (let i = 0; i < events.length; i++) {
-    const record = events[i]
-    const action = events[i].action
-    const station = events[i].station
+    let record = events[i]
+    let action = events[i].action
+    let station = events[i].station
     // ensure entry is valid
     for (field of record) {
       if (field == null) {
