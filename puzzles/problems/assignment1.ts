@@ -1,21 +1,33 @@
 /**
- * Assignment 1 — Consecutive Sum Streak
+ * Assignment 1 — Unique Active Names
  *
  * Context:
- * In analytics or signal processing, we sometimes want to detect “streaks” of rising data. Given an array of integers,
- * return the length of the longest consecutive increasing run (where each next number is exactly 1 greater).
- * For example, [1,2,3,5,6,7,8,10] has a longest streak [5,6,7,8] of length 4.
+ * You are given a list of user records and need to produce a clean list of
+ * unique names for users who are currently active. This is a common data
+ * cleaning step before reporting or further processing.
  *
  * Input:
- *   - nums: number[] — may be empty or contain duplicates.
+ *  - users: Array<{ id: string; name: string; active: boolean }>
+ *    The array may be empty and can contain duplicate names and ids.
  * Output:
- *   - number — length of the longest strictly consecutive +1 run.
+ *  - string[] — unique names of users where active === true, sorted ascending
+ *    (case-sensitive, standard lexicographic order).
  *
  * Examples:
- *   longestStreak([1,2,3,5,6,7,8,10]) -> 4
- *   longestStreak([5,5,5]) -> 1
- *   longestStreak([]) -> 0
+ *  - uniqueActiveNames([{id:'1',name:'Ana',active:true},{id:'2',name:'Ana',active:true}]) -> ['Ana']
+ *  - uniqueActiveNames([]) -> []
  */
-export function longestStreak(nums: number[]): number {
-  return 0
+export function uniqueActiveNames(
+  users: Array<{ id: string; name: string; active: boolean }>): string[] {
+  let uniqueName: Array<string> = [];
+
+  if (users.length === 0) return [];
+  // filter only active members
+  let activeMember =
+    users
+      .filter(user => (user.active === true))
+      .map(n => n.name)
+
+  let dedupped = Array.from(new Set(activeMember))
+  return dedupped;
 }
