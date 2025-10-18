@@ -1,69 +1,45 @@
 import { describe, it, expect } from 'vitest';
-import { uniqueActiveNames } from '../problems/assignment1';
+import { mostFrequent } from '../problems/assignment1';
 
-describe('uniqueActiveNames', () => {
-  it('returns empty for empty input or all inactive', () => {
-    expect(uniqueActiveNames([])).toEqual([]);
-    expect(
-      uniqueActiveNames([
-        { id: '1', name: 'Ana', active: false },
-        { id: '2', name: 'Bob', active: false },
-      ])
-    ).toEqual([]);
+describe('mostFrequent', () => {
+  it('returns null for empty input', () => {
+    expect(mostFrequent([])).toBeNull();
   });
 
-  it('collects unique active names and sorts ascending', () => {
-    const input = [
-      { id: 'a', name: 'Charlie', active: true },
-      { id: 'b', name: 'Ana', active: true },
-      { id: 'c', name: 'Bob', active: true },
-    ];
-    expect(uniqueActiveNames(input)).toEqual(['Ana', 'Bob', 'Charlie']);
+  it('returns the only item for single-element input', () => {
+    expect(mostFrequent(['x'])).toBe('x');
   });
 
-  it('deduplicates names when multiple active records exist', () => {
-    const input = [
-      { id: '1', name: 'Ana', active: true },
-      { id: '2', name: 'Ana', active: true },
-      { id: '3', name: 'Ana', active: true },
-    ];
-    expect(uniqueActiveNames(input)).toEqual(['Ana']);
+  it('returns the correct most frequent item', () => {
+    expect(mostFrequent(['a', 'b', 'a', 'c', 'b', 'a'])).toBe('a');
   });
 
-  it('ignores inactive entries and only considers active ones', () => {
-    const input = [
-      { id: '1', name: 'Dana', active: false },
-      { id: '2', name: 'Eli', active: true },
-      { id: '3', name: 'Dana', active: true },
-      { id: '4', name: 'Eli', active: false },
-    ];
-    expect(uniqueActiveNames(input)).toEqual(['Dana', 'Eli']);
+  it('breaks ties by lexicographic order', () => {
+    expect(mostFrequent(['b', 'a'])).toBe('a');
+    expect(mostFrequent(['b', 'c', 'a', 'a', 'b', 'c'])).toBe('a');
   });
 
-  it('is case-sensitive for uniqueness and sorting', () => {
-    const input = [
-      { id: '1', name: 'alice', active: true },
-      { id: '2', name: 'Alice', active: true },
-    ];
-    expect(uniqueActiveNames(input)).toEqual(['Alice', 'alice']);
+  it('is case-sensitive and uses standard string order', () => {
+    // 'A' and 'a' with equal counts should return 'A' (since 'A' < 'a')
+    expect(mostFrequent(['A', 'a', 'a', 'A'])).toBe('A');
   });
 
-  it('property-like: order of input does not change result', () => {
-    const cases = [
-      [
-        { id: '1', name: 'Ana', active: true },
-        { id: '2', name: 'Bob', active: true },
-        { id: '3', name: 'Ana', active: true },
-      ],
-      [
-        { id: '3', name: 'Ana', active: true },
-        { id: '2', name: 'Bob', active: true },
-        { id: '1', name: 'Ana', active: true },
-      ],
+  it('property-like: order of input does not change the result', () => {
+    const cases: Array<{ arr: string[]; expected: string | null }> = [
+      { arr: ['x', 'y', 'x', 'z'], expected: 'x' },
+      { arr: ['z', 'x', 'y', 'x'], expected: 'x' },
+      { arr: [], expected: null },
     ];
-    const expected = ['Ana', 'Bob'];
-    for (const arr of cases) {
-      expect(uniqueActiveNames(arr)).toEqual(expected);
+    for (const { arr, expected } of cases) {
+      expect(mostFrequent(arr)).toBe(expected);
+      expect(mostFrequent([...arr].reverse())).toBe(expected);
     }
+  });
+
+  it('property-like: adding more of the winner keeps the same winner', () => {
+    const base = ['x', 'y', 'x', 'z'];
+    const withExtra = ['x', ...base];
+    expect(mostFrequent(base)).toBe('x');
+    expect(mostFrequent(withExtra)).toBe('x');
   });
 });

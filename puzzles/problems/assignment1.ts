@@ -1,33 +1,34 @@
 /**
- * Assignment 1 — Unique Active Names
+ * Assignment 1 — Most Frequent Item
  *
  * Context:
- * You are given a list of user records and need to produce a clean list of
- * unique names for users who are currently active. This is a common data
- * cleaning step before reporting or further processing.
+ * Counting and summarizing categorical data is a common analytics task. Given
+ * an array of strings, return the single most frequent item. To make the
+ * result deterministic, if multiple items share the highest frequency, return
+ * the lexicographically smallest string among the tied items.
  *
  * Input:
- *  - users: Array<{ id: string; name: string; active: boolean }>
- *    The array may be empty and can contain duplicate names and ids.
+ *  - items: string[] — may be empty; values are case-sensitive and may repeat.
  * Output:
- *  - string[] — unique names of users where active === true, sorted ascending
- *    (case-sensitive, standard lexicographic order).
+ *  - string | null — the most frequent item, or null if the input is empty.
  *
  * Examples:
- *  - uniqueActiveNames([{id:'1',name:'Ana',active:true},{id:'2',name:'Ana',active:true}]) -> ['Ana']
- *  - uniqueActiveNames([]) -> []
+ *  - mostFrequent(["a","b","a","c"]) -> "a"
+ *  - mostFrequent([]) -> null
  */
-export function uniqueActiveNames(
-  users: Array<{ id: string; name: string; active: boolean }>): string[] {
-  let uniqueName: Array<string> = [];
+export function mostFrequent() {
+  // ['a','b','a','b','c','a'] 
+  // {'a':3, 'b':2, 'c':1}
+  let items = ['a', 'b', 'a', 'b', 'c', 'a'];
+  let itemsLowerCase = items.map(i => i.toLowerCase())
+  const counts = itemsLowerCase.reduce((acc, num) => {
+    acc[num] = (acc[num] || 0) + 1;
+    return acc;
+  }, {})
 
-  if (users.length === 0) return [];
-  // filter only active members
-  let activeMember =
-    users
-      .filter(user => (user.active === true))
-      .map(n => n.name)
 
-  let dedupped = Array.from(new Set(activeMember))
-  return dedupped;
+
+  // find the biggest number
+  // return the key of highest value
+
 }
