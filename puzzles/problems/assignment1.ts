@@ -1,21 +1,31 @@
 /**
- * Assignment 1 — Consecutive Sum Streak
+ * Assignment 1 — Count Greater Than
  *
  * Context:
- * In analytics or signal processing, we sometimes want to detect “streaks” of rising data. Given an array of integers,
- * return the length of the longest consecutive increasing run (where each next number is exactly 1 greater).
- * For example, [1,2,3,5,6,7,8,10] has a longest streak [5,6,7,8] of length 4.
+ * A common primitive in analytics is counting how many values exceed a
+ * threshold. Given a list of integers and a threshold, return how many items
+ * are strictly greater than the threshold.
  *
  * Input:
- *   - nums: number[] — may be empty or contain duplicates.
+ *  - nums: number[] — may be empty; may include negatives and duplicates.
+ *  - threshold: number — an integer to compare against.
  * Output:
- *   - number — length of the longest strictly consecutive +1 run.
+ *  - number — the count of elements x in nums where x > threshold.
  *
  * Examples:
- *   longestStreak([1,2,3,5,6,7,8,10]) -> 4
- *   longestStreak([5,5,5]) -> 1
- *   longestStreak([]) -> 0
+ *  - countGreaterThan([1, 5, 5, 7], 5) -> 1
+ *  - countGreaterThan([], 0) -> 0
  */
-export function longestStreak(nums: number[]): number {
-  return 0
+export function countGreaterThan(nums: number[], threshold: number): number {
+  let count = 0;
+  for (let number of nums) {
+    if (number > threshold) {
+      count++;
+    } else {
+      count;
+    }
+  }
+
+  return count;
 }
+
