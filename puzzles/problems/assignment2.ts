@@ -58,6 +58,99 @@
  *    ]
  *    ⇒ active: { x:{enteredAt:"A"} }
  */
-export function processTurnstileTrips(events: Event[]) {
-  return {} // TODO
+
+type Event = {
+  id: string;
+  action: "enter" | "exit";
+  station: string
 }
+
+type Output = {
+  active: Record<string, { enteredAt: string }>;
+  // completed trips in the order they finished
+  completed: Array<Completed>;
+  // rejected events in input order
+  // "reason" is "not in-system" or "already in-system"
+  rejected: Array<Rejected>;
+  // counts per station for accepted enters/exits only
+  stats: {
+    entries: Record<string, number>;
+    exits: Record<string, number>;
+  };
+}
+
+type Completed = {
+  id: string;
+  from: string;
+  to: string
+}
+
+type Rejected = { id: string; action: "enter" | "exit"; station: string; reason: string; }
+
+export function processTurnstileTrips(events: Event[]): Output {
+  // const active = new Map<string, Entering>()
+  // const completed = new Array<Completed>()
+  // const rejected = new Array<Rejected>()
+  if (!events || events.length === 0) {
+    return {
+      active: {},
+      completed: [],
+      rejected: [],
+      stats: { entries: {}, exits: {} }
+    }
+  }
+
+  const currentTrips = new Map<string, string>() // keep track of id to station! (1440)
+  const completedTrips = []
+  const rejected = []
+  const stats = { entries: {}, exits: {} }
+
+  for (let event of events) {
+    if (!event || !event.id || !event.station || (event.action !== 'enter' && event.action !== 'exit')) {
+      continue;
+    }
+    if (event.action === 'enter') {
+      if (currentTrips.has(event.id)) {
+        rejected.push({ ...event, reason: "already in-system" })
+      } else {
+        currentTrips.set(event.id, event.station)
+        stats.entries[event.station] = (stats.entries[event.station] ?? 0) + 1
+      }
+    } else if (event.action == 'exit') {
+      if (!currentTrips.has(event.id)) {
+        rejected.push({ ...event, reason: "not in-system" })
+      } else {
+        const completedTrip = {
+          id: event.id,
+          from: currentTrips.get(event.id)!,
+          to: event.station
+        }
+        completedTrips.push(completedTrip)
+        currentTrips.delete(event.id)
+        stats.exits[event.station] = (stats.exits[event.station] ?? 0) + 1
+      }
+    }
+  }
+
+  const active = Object.fromEntries(
+    Array.from(currentTrips.entries())
+      .map(([id, station]) => [id, { enteredAt: station }])
+  )
+  console.log(currentTrips)
+  console.log('active trips:', active)
+  const output: Output = {
+    active: active,
+    completed: completedTrips,
+    rejected: rejected,
+    stats: stats
+  }
+
+  return output
+}
+
+const events = [
+  { id: "x", action: "enter", station: "A" },
+  { id: "x", action: "enter", station: "B" }, // rejected: already in-system
+  { id: "y", action: "exit", station: "A" }   // rejected: not in-system
+];
+const result = processTurnstileTrips(events);
