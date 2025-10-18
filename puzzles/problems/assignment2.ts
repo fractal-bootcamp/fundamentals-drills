@@ -1,60 +1,46 @@
-// @ts-nocheck
 /**
- * Programming Puzzle — Vending Sessions
+ * Assignment 2 — Text Editor Simulator
  *
- * You will implement a tiny vending machine that processes a list of user sessions.
- * Each session is a sequence of actions: inserting coins, selecting an item, or cancelling.
- * There is NO persistent coin bank: change is conceptual and unlimited; only inventory changes over time.
- * Sessions are independent except for inventory stock, which is shared and persists across sessions.
+ * Context:
+ * You are modeling the core text buffer of a very small text editor that
+ * maintains a cursor and supports a handful of editing operations. The editor
+ * applies a sequence of operations to an initially empty document and returns
+ * the final text content. This focuses on clean data modeling and a simple
+ * internal abstraction (e.g., two-stack cursor model).
  *
  * Input:
- *   {
- *     inventory: { [sku: string]: { price: number; stock: number } } // price in whole cents (>=0), stock>=0
- *     sessions: Array<Session>                                        // Session = Action[]
- *   }
- *   Action is one of:
- *     ["insert", number]     // coin must be one of the allowed denominations [100,50,25,10,5,1]
- *     ["select", string]     // attempt to buy sku
- *     ["cancel"]             // abort session & refund inserted coins
- *     ["noop"]               // does nothing
- *
+ *  - ops: an array of operation objects processed from left to right. Each op
+ *    has a shape:
+ *      { op: 'type', text: string }                  // insert text at cursor
+ *      { op: 'left', count?: number }                // move cursor left
+ *      { op: 'right', count?: number }               // move cursor right
+ *      { op: 'backspace', count?: number }           // delete left of cursor
+ *      { op: 'delete', count?: number }              // delete at cursor
+ *    Invariants: counts are positive integers; if omitted, treat as 1. Movement
+ *    and deletions that exceed boundaries simply stop at the boundary.
  * Output:
- *   {
- *     inventory: { ...updated inventory... },
- *     receipts: Array<{
- *       dispensed?: string;                        // sku if an item was dispensed
- *       changeCoins: { [denom: number]: number };  // change returned as a greedy breakdown in the allowed denominations
- *       changeTotal: number;                        // total change (cents)
- *       spent: number;                              // cents the machine kept this session
- *       errors: string[];                           // rule violations or unsupported ops
- *     }>
- *   }
- *
- * Rules & Notes:
- *   - Start each session with credit=0 and an empty "inserted" coin pouch.
- *   - "insert" adds to the session credit if the coin is in the allowed denominations; otherwise record an error and ignore it.
- *   - "select":
- *       * Fails if sku is invalid, out of stock, or credit < price (record an error; session continues).
- *       * On success: dispense the item, decrement inventory, keep exactly the price as spent, return change = credit - price
- *         using greedy breakdown (unlimited coins; no bank constraints), then the session ENDS (ignore further actions).
- *   - "cancel" refunds exactly the coins the user inserted this session (returned as a breakdown; session ENDS).
- *   - If a session ends without "select" success or "cancel", nothing is dispensed or refunded; it's just an idle session end.
- *   - Deterministic; integers only; no randomness or timing.
+ *  - string — the final text content after all operations are applied.
  *
  * Examples:
- *   Example A:
- *     inv={A:{price:125,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","A"] ]
- *     ]
- *     => dispensed A, spent 125, change 0, inventory A.stock=0
+ *  - simulateEditor([{ op: 'type', text: 'abc' }]) -> 'abc'
+ *  - simulateEditor([
+ *      { op: 'type', text: 'ab' },
+ *      { op: 'left', count: 1 },
+ *      { op: 'type', text: 'X' }
+ *    ]) -> 'aXb'
  *
- *   Example B:
- *     inv={B:{price:130,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","B"] ], // insufficient: error, session continues
- *       [ ["insert",100],["select","B"] ]                // success with change 70 = 50+10+10
- *     ]
+ * Notes:
+ *  - Avoid using regexes or I/O — this should be a pure function.
+ *  - A helpful abstraction is to maintain two arrays: the text to the left of
+ *    the cursor and the text to the right of the cursor. At the end, join the
+ *    left with the reversed right.
  */
-
-export function processVendingSessions(input) {
-  return {}
+export function simulateEditor(ops) {
+  // TODO: Implement using a two-stack (left/right) cursor model.
+  // Requirements:
+  //  - Process each operation in order.
+  //  - Treat missing counts as 1 and stop at document boundaries.
+  //  - Return the final string content.
+  void ops;
+  return '';
 }

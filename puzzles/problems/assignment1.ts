@@ -1,21 +1,34 @@
 /**
- * Assignment 1 — Consecutive Sum Streak
+ * Assignment 1 — Most Frequent Item
  *
  * Context:
- * In analytics or signal processing, we sometimes want to detect “streaks” of rising data. Given an array of integers,
- * return the length of the longest consecutive increasing run (where each next number is exactly 1 greater).
- * For example, [1,2,3,5,6,7,8,10] has a longest streak [5,6,7,8] of length 4.
+ * Counting and summarizing categorical data is a common analytics task. Given
+ * an array of strings, return the single most frequent item. To make the
+ * result deterministic, if multiple items share the highest frequency, return
+ * the lexicographically smallest string among the tied items.
  *
  * Input:
- *   - nums: number[] — may be empty or contain duplicates.
+ *  - items: string[] — may be empty; values are case-sensitive and may repeat.
  * Output:
- *   - number — length of the longest strictly consecutive +1 run.
+ *  - string | null — the most frequent item, or null if the input is empty.
  *
  * Examples:
- *   longestStreak([1,2,3,5,6,7,8,10]) -> 4
- *   longestStreak([5,5,5]) -> 1
- *   longestStreak([]) -> 0
+ *  - mostFrequent(["a","b","a","c"]) -> "a"
+ *  - mostFrequent([]) -> null
  */
-export function longestStreak(nums: number[]): number {
-  return 0
+export function mostFrequent() {
+  // ['a','b','a','b','c','a'] 
+  // {'a':3, 'b':2, 'c':1}
+  let items = ['a', 'b', 'a', 'b', 'c', 'a'];
+  let itemsLowerCase = items.map(i => i.toLowerCase())
+  const counts = itemsLowerCase.reduce((acc, num) => {
+    acc[num] = (acc[num] || 0) + 1;
+    return acc;
+  }, {})
+
+
+
+  // find the biggest number
+  // return the key of highest value
+
 }
