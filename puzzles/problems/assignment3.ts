@@ -114,7 +114,7 @@ export function processLibraryReturns(input: {
 			//console.log("overflow");
 			//console.log(leftoverBook);
 			// if not valid section discard
-			if (!(leftoverBook in bookSections)) {
+			if (!(bookSections[leftoverBook] in sections)) {
 				overflow.filter((b) => b !== leftoverBook);
 			}
 			// check capacity
@@ -134,8 +134,8 @@ export function processLibraryReturns(input: {
 			// canBeShelved?
 			// else add to overflow
 			// if not valid section skip book
-			
-			if (!(book in bookSections)) {
+
+			if (!(bookSections[book] in sections)) {
 				continue;
 			}
 			// check capacity
