@@ -1,56 +1,54 @@
 /**
- * Tournament Standings — Sum points and assign ranks
+ * Tag Popularity — Top N tags across posts
  *
- * You receive match results as a list of { player, points } entries (points may be
- * positive or negative). Aggregate total points per player, then return a standings list
- * sorted by: (1) higher total points first, (2) name ascending for ties. Assign standard
- * competition ranks (1, 1, 3, 4, 4, 4, ...): players with equal totals share the same rank,
- * and the next rank increments by the count of players strictly ahead.
+ * You maintain posts that each include a set of tags. Given a list of posts and an integer N,
+ * compute the top N tags by popularity. A tag counts at most once per post (duplicates within a
+ * single post are ignored), and popu(larity is the number of posts containing that tag. Sort the
+ * result by: (1) higher count first, then (2) tag name ascending for ties. Return at most N rows.
+ * Tags are case‑sensitive strings. If N is 0 or there are no posts, return an empty array.
  *
- * Input: `results: { player: string; points: number }[]`
- * Output: `{ player: string; points: number; rank: number }[]` — sorted standings with ranks.
- * Invariants: pure, deterministic, no I/O. Empty input yields `[]`.
+ * Input: `posts: { id: string; tags: string[] }[]`, `n: number` (>= 0)
+ * Output: `{ tag: string; count: number }[]` — top tags by the rules above.
  *
  * Examples:
- * - standings([
- *     { player: "Ada", points: 3 },
- *     { player: "Bob", points: 2 },
- *     { player: "Ada", points: 1 },
- *   ]) -> [
- *     { player: "Ada", points: 4}
+ * - topTags[
+ *     { id: "p1", tags: ["ts", "web", "ts", "dev"] },
+ *     { id: "p2", tags: ["web", "db"] },
+ *   ], 2) -> [
+ *     { tag: "web", count: 2 },
+ *     { tag: "ts", count: 1 },
  *   ]
- * - standings([]) -> []
+ * - topTags([], 3) -> []
  */
-
-type Player = { player: string, points: number }
-type Result = { player: string, points: number }
-
-export function standings(results: Player[]): Result {
-  // sum
-  let totalPointsbyPlayer = results.reduce((acc, result) => {
-    acc[result.player] = (acc[result.player] || 0) + result.points;
+type PostTag = { id: string, tags: string[] }
+type Result = { tag: string, count: number }
+export function topTags(posts: PostTag[], n: number): Result[] {
+  if (n === 0 || posts.length === 0) return [];
+  // 1. A tag counts at most once per post (duplicates within a single post are ignored)
+  const tagsByPost = posts.map(post => Array.from(new Set(post.tags)))
+  const flat = tagsByPost.flat()
+  // ['ts', 'web', 'dev', 'web', 'db']
+  const freq = flat.reduce((acc, tag) => {
+    acc[tag] = (acc[tag] || 0) + 1;
     return acc;
   }, {})
-  // acc = {"Ada":4, "Bob":2}
+  // {ts: 1, web: 2, dev: 1, db: 1}
+  // Convert freq to an array, sort, slice n, and return
+  const finalResult = Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    //  [['web', 2], ['ts', 1], ['dev', 1], ['db', 1]];
+    .slice(0, n)
+  // ['web', 2], ['ts', 1]
 
-  let highestPointsSoFar = 0;
-  let highestPointsPlayerSoFar = "";
-  let winnerPlayer = [];
-
-  for (let i in totalPointsbyPlayer) {
-    if (highestPointsSoFar < totalPointsbyPlayer[i]) {
-      highestPointsSoFar = totalPointsbyPlayer[i];
-      highestPointsPlayerSoFar = i
-    }
+  let empty = []
+  for (let i of finalResult) {
+    empty.push(`tag: ${i[0]}, count: ${i[1]}`)
   }
 
-  winnerPlayer.push({ player: highestPointsPlayerSoFar, points: highestPointsSoFar })
-
-  return winnerPlayer;
+  return empty;
 }
 
-console.log(standings([
-  { player: "Ada", points: 3 },
-  { player: "Bob", points: 2 },
-  { player: "Ada", points: 1 },
-]))
+console.log(topTags([
+  { id: "p1", tags: ["ts", "web", "ts", "dev"] },
+  { id: "p2", tags: ["web", "db"] },
+], 2))
