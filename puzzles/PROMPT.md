@@ -1,10 +1,8 @@
 # Generator Prompt — Programming Puzzles
 
-You are generating **two TypeScript programming assignments** plus their tests. This step measures core programming fundamentals without AI.
+You are generating **one TypeScript programming assignment** plus its tests. This step measures core programming fundamentals without AI.
 Replace the four files below **every time** this prompt is run:
 
-- `puzzles/problems/assignment1.ts`
-- `puzzles/tests/assignment1.test.ts`
 - `puzzles/problems/assignment2.ts`
 - `puzzles/tests/assignment2.test.ts`
 
