@@ -44,7 +44,7 @@ export function onlyEvens(nums: number[]): number[] {
 }
 
 // ------------------------------------------------------------
-// time: 
+// time: 1:52, including lookup for touppercase
 // 3. Uppercase Words
 // Convert every string in an array to uppercase.
 //
@@ -53,12 +53,12 @@ export function onlyEvens(nums: number[]): number[] {
 // Example:
 //   toUpper(["hi", "bye"]) -> ["HI", "BYE"]
 export function toUpper(words: string[]): string[] {
-    // TODO: implement using .map()
-    throw new Error("Not implemented");
+    const upperCase = words.map((word) => word.toUpperCase())
+    return upperCase
 }
 
 // ------------------------------------------------------------
-// time: 
+// time: forgot to start timer. had to look up reduce params and how to use ternary operator to assign my if statement to a returnable variable
 // 4. Sum of Positives
 // Return the total of all numbers greater than 0.
 //
@@ -67,12 +67,16 @@ export function toUpper(words: string[]): string[] {
 // Example:
 //   sumPositives([-1, 2, 3]) -> 5
 export function sumPositives(nums: number[]): number {
-    // TODO: implement using .filter() + .reduce()
-    throw new Error("Not implemented");
+    const poz = nums.filter((num) => num > 0)
+    console.log(poz)
+    const sumPoz = poz.length != 0
+        ? poz.reduce((acc, curr) => acc + curr)
+        : 0
+    return sumPoz
 }
 
 // ------------------------------------------------------------
-// time: 
+// time: 3:07, including getting briefly sniped by .normalize in MDN for some reason. passed all on first run though!
 // 5. Count Long Words
 // Count how many strings have length > 3.
 //
@@ -80,13 +84,16 @@ export function sumPositives(nums: number[]): number {
 // Output: number
 // Example:
 //   countLong(["hi", "code", "typescript", "yo"]) -> 2
+// sketch: filter to words > 3, count array length
 export function countLong(words: string[]): number {
-    // TODO: implement using .filter() and .length
-    throw new Error("Not implemented");
+    const longWords = words.filter((word) => word.length > 3)
+    const wordCount = longWords.length
+    return wordCount
 }
 
 // ------------------------------------------------------------
-// time: 
+// time: 52s. add ~2-3 mins to find out that .find is typed number | undefined and conflicting with the type in the 
+// function declaration gpt put in here smh
 // 6. First Negative
 // Return the first negative number in the array, or null if none.
 //
@@ -95,12 +102,12 @@ export function countLong(words: string[]): number {
 // Example:
 //   firstNegative([5, 2, -3, -1]) -> -3
 export function firstNegative(nums: number[]): number | null {
-    // TODO: implement using .find()
-    throw new Error("Not implemented");
+    const res = nums.find((num) => num < 0)
+    return res ?? null
 }
 
 // ------------------------------------------------------------
-// time: 
+// time: 1:37. oneshotted it
 // 7. All Non-Empty
 // Return true if all strings are non-empty, else false.
 //
@@ -109,12 +116,12 @@ export function firstNegative(nums: number[]): number | null {
 // Example:
 //   allNonEmpty(["a", "b", ""]) -> false
 export function allNonEmpty(words: string[]): boolean {
-    // TODO: implement using .every()
-    throw new Error("Not implemented");
+    const nonEmpty = words.every((str) => str.length > 0)
+    return nonEmpty
 }
 
 // ------------------------------------------------------------
-// time: 
+// time: 49s. oneshotted
 // 8. Has Any Zero
 // Return true if at least one element is 0.
 //
@@ -123,12 +130,12 @@ export function allNonEmpty(words: string[]): boolean {
 // Example:
 //   hasZero([3, 1, 0, 4]) -> true
 export function hasZero(nums: number[]): boolean {
-    // TODO: implement using .some()
-    throw new Error("Not implemented");
+    const check = nums.some((num) => num === 0)
+    return check
 }
 
 // ------------------------------------------------------------
-// time: 
+// time: 41s. oneshotted
 // 9. Word Lengths
 // Return an array of word lengths.
 //
@@ -137,12 +144,13 @@ export function hasZero(nums: number[]): boolean {
 // Example:
 //   wordLengths(["cat", "fish"]) -> [3, 4]
 export function wordLengths(words: string[]): number[] {
-    // TODO: implement using .map()
-    throw new Error("Not implemented");
+    const lengths = words.map((word) => word.length)
+    return lengths
 }
 
 // ------------------------------------------------------------
-// time: 
+// time: 1:37. add ~4-5 mins to discover the secret constraint in the test and make sure the function returns 0 
+//  if array is empty
 // 10. Total Character Count
 // Return total number of characters across all words.
 //
@@ -150,7 +158,10 @@ export function wordLengths(words: string[]): number[] {
 // Output: number
 // Example:
 //   totalChars(["hi", "bye"]) -> 5
+// sketch: count string length, then sum
 export function totalChars(words: string[]): number {
-    // TODO: implement using .map() + .reduce() or just .reduce()
-    throw new Error("Not implemented");
+    if (words.length == 0) return 0
+    const stringLengths = words.map((word) => word.length)
+    const stringSum = stringLengths.reduce((acc, curr) => acc + curr)
+    return stringSum
 }
