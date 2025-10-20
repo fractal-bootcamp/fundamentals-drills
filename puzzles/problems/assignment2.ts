@@ -1,60 +1,129 @@
-// @ts-nocheck
-/**
- * Programming Puzzle — Vending Sessions
+/*
+ * Package Delivery Route Simulator
  *
- * You will implement a tiny vending machine that processes a list of user sessions.
- * Each session is a sequence of actions: inserting coins, selecting an item, or cancelling.
- * There is NO persistent coin bank: change is conceptual and unlimited; only inventory changes over time.
- * Sessions are independent except for inventory stock, which is shared and persists across sessions.
+ * You are building a package delivery route simulator. A delivery driver starts at a warehouse
+ * at position (0, 0) on a grid, facing North. The driver receives a series of instructions
+ * to pick up and deliver packages at various locations.
  *
- * Input:
- *   {
- *     inventory: { [sku: string]: { price: number; stock: number } } // price in whole cents (>=0), stock>=0
- *     sessions: Array<Session>                                        // Session = Action[]
- *   }
- *   Action is one of:
- *     ["insert", number]     // coin must be one of the allowed denominations [100,50,25,10,5,1]
- *     ["select", string]     // attempt to buy sku
- *     ["cancel"]             // abort session & refund inserted coins
- *     ["noop"]               // does nothing
+ * Instructions can be:
+ * - "forward X" - move X units in the current direction
+ * - "left" - turn 90 degrees left
+ * - "right" - turn 90 degrees right
+ * - "pickup P" - pick up a package with ID P at current location
+ * - "deliver P" - deliver package P at current location (remove from inventory)
  *
- * Output:
- *   {
- *     inventory: { ...updated inventory... },
- *     receipts: Array<{
- *       dispensed?: string;                        // sku if an item was dispensed
- *       changeCoins: { [denom: number]: number };  // change returned as a greedy breakdown in the allowed denominations
- *       changeTotal: number;                        // total change (cents)
- *       spent: number;                              // cents the machine kept this session
- *       errors: string[];                           // rule violations or unsupported ops
- *     }>
- *   }
+ * Return an object containing:
+ * - finalPosition: [x, y] coordinates where the driver ends
+ * - finalDirection: "North" | "East" | "South" | "West"
+ * - undeliveredPackages: array of package IDs still in the truck (sorted alphabetically)
+ * - deliveryLocations: object mapping package IDs to [x, y] where they were delivered
  *
- * Rules & Notes:
- *   - Start each session with credit=0 and an empty "inserted" coin pouch.
- *   - "insert" adds to the session credit if the coin is in the allowed denominations; otherwise record an error and ignore it.
- *   - "select":
- *       * Fails if sku is invalid, out of stock, or credit < price (record an error; session continues).
- *       * On success: dispense the item, decrement inventory, keep exactly the price as spent, return change = credit - price
- *         using greedy breakdown (unlimited coins; no bank constraints), then the session ENDS (ignore further actions).
- *   - "cancel" refunds exactly the coins the user inserted this session (returned as a breakdown; session ENDS).
- *   - If a session ends without "select" success or "cancel", nothing is dispensed or refunded; it's just an idle session end.
- *   - Deterministic; integers only; no randomness or timing.
+ * Rules:
+ * - Driver starts at (0, 0) facing North
+ * - North is +Y, East is +X, South is -Y, West is -X
+ * - Can only deliver packages that have been picked up - test
+ * - Attempting to deliver a package not in inventory is ignored - test
+ * - Multiple packages can be picked up or delivered at the same location - test
+ * - Package IDs are case-sensitive strings
  *
- * Examples:
- *   Example A:
- *     inv={A:{price:125,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","A"] ]
- *     ]
- *     => dispensed A, spent 125, change 0, inventory A.stock=0
+ * Example 1:
+ * Input: ["forward 5", "pickup A", "right", "forward 3", "deliver A"]
+ * Output: {
+ *   finalPosition: [3, 5],
+ *   finalDirection: "East",
+ *   undeliveredPackages: [],
+ *   deliveryLocations: { A: [3, 5] }
+ * }
  *
- *   Example B:
- *     inv={B:{price:130,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","B"] ], // insufficient: error, session continues
- *       [ ["insert",100],["select","B"] ]                // success with change 70 = 50+10+10
- *     ]
+ * Example 2:
+ * Input: ["pickup X", "forward 2", "pickup Y", "left", "forward 1", "deliver X"]
+ * Output: {
+ *   finalPosition: [-1, 2],
+ *   finalDirection: "West",
+ *   undeliveredPackages: ["Y"],
+ *   deliveryLocations: { X: [-1, 2] }
+ * }
  */
 
-export function processVendingSessions(input) {
-  return {}
+type Direction = "North" | "East" | "South" | "West"
+
+// (1458) start
+// (1554) DONE.
+export function simulateDeliveryRoute(instructions: Array<string>) {
+  let finalPosition: [number, number] = [0, 0]
+  let finalDirection: Direction = 'North'
+  let undeliveredPackages: Array<string> = []
+  let deliveryLocations: Record<string, [number, number]> = {}
+
+  for (let instruction of instructions) {
+    if (!instruction || instruction.length === 0) {
+      continue
+    }
+
+    const command = instruction.split(' ')
+    if (command[0] !== 'left' && command[0] !== 'right' && command[0] !== 'pickup' && command[0] !== 'forward' && command[0] !== 'deliver') {
+      continue;
+    }
+
+    // (1528) DONE
+    if (command.length === 1 && (command[0] === 'left' || command[0] === 'right')) {
+      finalDirection = turnDriver(command[0], finalDirection)
+      console.log('turning to:', finalDirection)
+    }
+
+    // (1541) DONE, 5 passing
+    if (command.length === 2) {
+      if (command[0] === 'forward') {
+        const unitsForward = Number(command[1])
+        finalPosition = moveDriver(finalPosition, finalDirection, unitsForward)
+        console.log('moving to:', finalPosition)
+      } else if (command[0] === 'pickup') {
+        const packageId = command[1]
+        undeliveredPackages.push(packageId)
+        undeliveredPackages = undeliveredPackages.sort() // (1554) sorting alphabet edge. DONE.
+        console.log('package picked up! now carrying:', undeliveredPackages)
+        // (1552) DONE, 13 passing
+      } else if (command[0] === 'deliver') {
+        const delivering = command[1]
+        if (undeliveredPackages.includes(delivering)) {
+          undeliveredPackages = undeliveredPackages.filter(id => id !== delivering)
+          deliveryLocations[delivering] = finalPosition
+          console.log('package delivered! updating locations to:', deliveryLocations)
+        }
+      }
+    }
+  }
+  return {
+    finalPosition, finalDirection, undeliveredPackages, deliveryLocations
+  };
+}
+
+function moveDriver(position: [number, number], direction: Direction, unitsForward: number): [number, number] {
+  const DIRECTION_VECTORS: Record<Direction, [number, number]> = {
+    'North': [0, 1],
+    'East': [1, 0],
+    'South': [0, -1],
+    'West': [-1, 0]
+  }
+
+  const units = DIRECTION_VECTORS[direction].map(v => v * unitsForward)
+  console.log('moving truck in units:', units)
+  return [position[0] + units[0], position[1] + units[1]]
+}
+
+function turnDriver(command: string, direction: Direction): Direction {
+  if (command === 'left') {
+    switch (direction) {
+      case "North": return 'West'
+      case "East": return 'North'
+      case "South": return 'East'
+      case "West": return 'South'
+    }
+  }
+  switch (direction) {
+    case "North": return 'East'
+    case "East": return 'South'
+    case "South": return 'West'
+    case "West": return 'North'
+  }
 }
