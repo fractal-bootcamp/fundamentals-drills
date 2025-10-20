@@ -60,12 +60,12 @@
  */
 
 //test data 
-let tempEvents: Event[] = [{
-    user: "aarti", action: "zero", hotspot: "cleveland"
-}, { user: "Naarti", action: "connect", hotspot: "cleveland" }, { user: "Naarti", action: "connect", hotspot: "cleveland" }
+let tempEvents: Event[] = [{ user: "d", action: "connect", hotspot: "Cafe" },
+{ user: "", action: "connect", hotspot: "X" },         // invalid: empty user
+{ user: "d", action: "bogus", hotspot: "Y" } as any,    // invalid: wrong action
+{ user: "d", action: "connect", hotspot: "" },          // invalid: empty hotspot
+{ user: "d", action: "disconnect", hotspot: "Gate" }
 ]
-
-
 
 //end of test data
 
@@ -99,8 +99,8 @@ type Stats = {
 
 //helper function to determine whether the event is valid
 function eventIsValid(event: Event) {
-    return event.action == "connect" || event.action == "disconnect" && event.user.length > 0 && typeof user == "string" &&
-        event.hotspot.length > 0 && typeof event.hotspot == "string"
+    return (event.action === "connect" || event.action === "disconnect") && typeof event.user === "string" && event.user.trim().length > 0 &&
+        typeof event.hotspot == "string" && event.hotspot.trim().length > 0
 }
 
 //helper function to check if a user is currently connected
@@ -145,8 +145,8 @@ export function processWifiEvents(
     };
 
     // Your logic goes here.
-    for (let e of tempEvents) {
-        if (eventIsValid) {
+    for (let e of events) {
+        if (eventIsValid(e)) {
             switch (e.action) {
                 case ("connect"):
                     //check if the user is connected or not
@@ -155,36 +155,46 @@ export function processWifiEvents(
                         rejected.push(addReject(e.user, "connect", e.hotspot, "already connected"))
                     }
                     else { //user isnt connected, 1- add to active list, 2- add to stats
+
                         active[e.user] = { connectedAt: e.hotspot };
-                        if (typeof stats.connects[e.hotspot] == undefined) {
+                        if (typeof stats.connects[e.hotspot] == "undefined") {
                             stats.connects[e.hotspot] = 0;
                             stats.connects[e.hotspot]++;
                         }
                         else {
                             stats.connects[e.hotspot]++;
                         }
-                        //(stats.connects[e.hotspot] ?? 0) + 1;
+
                     }
                     break;
                 case ("disconnect"):
                     if (userIsConnected(e.user, active)) { //user is connected, can complete the session
                         //add to sessions 
-                        sessions.push(addSession(e.user, active[e.user], e.hotspot))
+                        sessions.push(addSession(e.user, active[e.user].connectedAt, e.hotspot))
                         //update stats
+                        if (typeof stats.disconnects[e.hotspot] == "undefined") {
+                            stats.disconnects[e.hotspot] = 0;
+                            stats.disconnects[e.hotspot]++;
+                        }
+                        else {
+                            stats.disconnects[e.hotspot]++;
+                        }
                         //remove from active list
                         delete active[e.user]
+                    }
+                    else { //user didnt connect initially 
+                        //add to rejected list
+                        rejected.push(addReject(e.user, "disconnect", e.hotspot, "not connected"))
                     }
                     break;
 
             }
         }
     }
-
-    console.log(rejected);
-    console.log(active);
-    console.log(stats)
+    console.log(rejected)
+    console.log(sessions)
 
     return { active, sessions, rejected, stats };
 }
 
-processWifiEvents(tempEvents);
+//processWifiEvents(tempEvents);
