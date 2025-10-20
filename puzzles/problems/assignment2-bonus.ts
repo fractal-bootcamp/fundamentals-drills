@@ -108,61 +108,83 @@ export function processLibraryCheckouts(events: Event[]): Output {
     const patronId = event.patronId
     if (event.action === 'borrow') {
       if (checkedOut[bookId]) {
-        rejected.push({ ...event, reason: "book unavailable" })
+        console.log('event checking out unavailable book', event)
+        const { timestamp, ...eventWithoutTimestamp } = event
+        rejected.push({ ...eventWithoutTimestamp, reason: "book unavailable" })
+      } else {
+        checkedOut[bookId] = { patronId, borrowedAt: event.timestamp }
+        if (!activePatrons[patronId]) {
+          activePatrons[patronId] = new Set();
+        }
+        activePatrons[patronId].add(bookId)
+        counts.totalBorrows += 1
       }
-      checkedOut[bookId] = { patronId, borrowedAt: event.timestamp }
-      activePatrons[patronId] = (activePatrons[patronId]?.add(bookId) || new Set())
-      counts.totalBorrows += 1
     } else if (event.action === 'return') {
-      if (!checkedOut[bookId]) {
-        rejected.push({ ...event, reason: "patron does not have book" })
+      if (!activePatrons[patronId] || !activePatrons[patronId].has(event.bookId)) {
+        const { timestamp, ...eventWithoutTimestamp } = event
+        rejected.push({ ...eventWithoutTimestamp, reason: "patron does not have book" })
       } else {
         const borrowedAt = checkedOut[bookId]!.borrowedAt
         const returnedAt = event.timestamp
         const duration = returnedAt - borrowedAt
         completed.push({ patronId, bookId, borrowedAt, returnedAt, duration })
         activePatrons[patronId].delete(bookId)
+        if (activePatrons[patronId].size === 0) { delete activePatrons[patronId] }
         delete checkedOut[bookId]
         counts.totalReturns += 1
       }
     }
   }
 
-  const mostActivePatron = completed
-    .map((book) => book.patronId)
-    .filter((acc, patron) => {
-      return ''
-    }, '')
+  // const mostActivePatron = completed
+  //   .map((book) => book.patronId)
+  //   .reduce((acc, patron) => {
+  //     return ''
+  //   }, '')[0] ?? null
+  const completedCountMap = new Map<string, number>();
+  for (let rental of completed) {
+    const patronId = rental.patronId
+    completedCountMap.set(patronId, (completedCountMap.get(patronId) ?? 0) + 1)
+  }
 
-  const statistics = {
+  const mostActivePatron = Array.from(completedCountMap.entries())
+    .reduce((acc, patron) => {
+      const [name, completed] = patron
+      if (completed > acc[1]) {
+        return [name, completed]
+      }
+      return [name < acc[0] ? name : acc[0], acc[1]]
+    }, [null, 0])[0]
+
+  const stats = {
     ...counts, mostActivePatron
   }
 
   return {
-    checkedOut, activePatrons, completed, rejected, statistics
+    checkedOut, activePatrons, completed, rejected, stats
   }
 }
 
 // Test cases
-const events1 = [
-  { patronId: "alice", action: "borrow", bookId: "book1", timestamp: 100 },
-  { patronId: "alice", action: "return", bookId: "book1", timestamp: 200 }
-];
-console.log("Test 1:", processLibraryCheckouts(events1));
+// const events1 = [
+//   { patronId: "alice", action: "borrow", bookId: "book1", timestamp: 100 },
+//   { patronId: "alice", action: "return", bookId: "book1", timestamp: 200 }
+// ];
+// console.log("Test 1:", processLibraryCheckouts(events1));
 
-const events2 = [
-  { patronId: "bob", action: "borrow", bookId: "book2", timestamp: 50 },
-  { patronId: "alice", action: "borrow", bookId: "book2", timestamp: 60 }, // rejected
-  { patronId: "alice", action: "return", bookId: "book3", timestamp: 70 }  // rejected
-];
-console.log("Test 2:", processLibraryCheckouts(events2));
+// const events2 = [
+//   { patronId: "bob", action: "borrow", bookId: "book2", timestamp: 50 },
+//   { patronId: "alice", action: "borrow", bookId: "book2", timestamp: 60 }, // rejected
+//   { patronId: "alice", action: "return", bookId: "book3", timestamp: 70 }  // rejected
+// ];
+// console.log("Test 2:", processLibraryCheckouts(events2));
 
-const events3 = [
-  { patronId: "alice", action: "borrow", bookId: "book1", timestamp: 10 },
-  { patronId: "bob", action: "borrow", bookId: "book2", timestamp: 20 },
-  { patronId: "alice", action: "borrow", bookId: "book3", timestamp: 30 },
-  { patronId: "alice", action: "return", bookId: "book1", timestamp: 40 },
-  { patronId: "bob", action: "return", bookId: "book2", timestamp: 50 },
-  { patronId: "alice", action: "return", bookId: "book3", timestamp: 60 }
-];
-console.log("Test 3:", processLibraryCheckouts(events3));
+// const events3 = [
+//   { patronId: "alice", action: "borrow", bookId: "book1", timestamp: 10 },
+//   { patronId: "bob", action: "borrow", bookId: "book2", timestamp: 20 },
+//   { patronId: "alice", action: "borrow", bookId: "book3", timestamp: 30 },
+//   { patronId: "alice", action: "return", bookId: "book1", timestamp: 40 },
+//   { patronId: "bob", action: "return", bookId: "book2", timestamp: 50 },
+//   { patronId: "alice", action: "return", bookId: "book3", timestamp: 60 }
+// ];
+// console.log("Test 3:", processLibraryCheckouts(events3));
