@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { processParkingSessions } from "../problems/parkingLot";
+import { processParkingSessions } from "../problems/assignment1";
 
 describe("processParkingSessions", () => {
 	it("handles basic valid flow", () => {
@@ -23,7 +23,12 @@ describe("processParkingSessions", () => {
 		];
 		const result = processParkingSessions(3, events);
 		expect(result.rejected).toEqual([
-			{ plate: "A1", action: "enter", gate: "East", reason: "already inside" },
+			{
+				plate: "A1",
+				action: "enter",
+				gate: "East",
+				reason: "already inside",
+			},
 			{ plate: "B2", action: "exit", gate: "West", reason: "not inside" },
 		]);
 		expect(result.active).toHaveProperty("A1");

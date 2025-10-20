@@ -1,63 +1,60 @@
+// puzzles/problems/assignment2.ts
 // @ts-nocheck
 /**
- * Programming Puzzle — Turnstile Trip Processor
+ * Programming Puzzle — Drone Delivery Route Evaluator
  *
  * Context:
- * You operate a subway system with tap-in (ENTER) and tap-out (EXIT) events for riders.
- * Each rider is identified by a card id string and taps at a named station. Your task
- * is to process a sequence of events, building completed trips, tracking currently
- * "in-system" riders, and rejecting invalid actions deterministically.
+ * You are managing autonomous delivery drones that must complete delivery routes.
+ * Each drone has limited battery capacity (represented by integer units).
+ * Routes consist of segments, each with a distance cost.
+ * Drones consume 1 battery unit per distance point traveled.
+ *
+ * Your task is to process all drones’ routes and determine:
+ *   - which drones successfully completed their routes,
+ *   - where the failed ones stopped,
+ *   - and the total battery used by each successful drone.
  *
  * Input:
- * - events: Array<{ id: string; action: "enter" | "exit"; station: string }>
- *   Invariants on a valid event:
- *     - id is a non-empty string
- *     - action is exactly "enter" or "exit"
- *     - station is a non-empty string
- *   Rules:
- *     1) "enter": allowed only if the rider is not already in-system.
- *     2) "exit": allowed only if the rider is currently in-system; the trip completes from
- *        the entry station to the exit station.
- *     3) Invalid events (missing fields / wrong types) are ignored (not rejected).
- *     4) Rejections are recorded only for rule violations (2) and (1) above, in event order.
+ * - capacity: number (maximum battery units each drone starts with)
+ * - routes: Record<string, number[]> where keys are drone IDs, and values are arrays of segment distances
+ *
+ * Rules:
+ * 1) Each drone starts with `capacity` battery units.
+ * 2) For each segment distance `d`:
+ *      - If remaining battery >= d, subtract it and continue.
+ *      - If remaining battery < d, the drone fails *before* starting that segment.
+ * 3) A drone that finishes all segments is “successful”.
+ * 4) If a drone fails, record the index of the segment it failed on (0-based).
+ * 5) Distances and capacities are positive integers; invalid routes are ignored.
  *
  * Output:
  * Return an object:
  * {
- *   // riders still in-system after processing (their entry station)
- *   active: Record<string, { enteredAt: string }>;
- *   // completed trips in the order they finished
- *   completed: Array<{ id: string; from: string; to: string }>;
- *   // rejected events in input order
- *   // "reason" is "not in-system" or "already in-system"
- *   rejected: Array<{ id: string; action: "enter" | "exit"; station: string; reason: string; }>;
- *   // counts per station for accepted enters/exits only
- *   stats: {
- *     entries: Record<string, number>;
- *     exits: Record<string, number>;
- *   };
+ *   successful: Record<string, { used: number }>;
+ *   failed: Record<string, { failedAt: number; remaining: number }>;
  * }
  *
  * Edge cases:
- * - Empty event list → all outputs empty.
- * - Duplicate enter without an exit → second enter is rejected; rider remains at original entry.
- * - Exit without a prior enter → rejected; no state change.
- * - Mixed stations are allowed; station names are case-sensitive strings.
+ * - Empty routes object → both maps empty.
+ * - Empty route array for a drone → success with used = 0.
+ * - Segment of 0 or negative distance → ignored (skipped, not failure).
+ * - Drones share the same capacity independently.
  *
- * Examples:
- * 1) events = [
- *      { id:"a", action:"enter", station:"Alpha" },
- *      { id:"a", action:"exit",  station:"Beta"  }
- *    ]
- *    ⇒ completed: [{ id:"a", from:"Alpha", to:"Beta" }], active:{}, rejected:[]
- *
- * 2) events = [
- *      { id:"x", action:"enter", station:"A" },
- *      { id:"x", action:"enter", station:"B" }, // rejected: already in-system
- *      { id:"y", action:"exit",  station:"A" }  // rejected: not in-system
- *    ]
- *    ⇒ active: { x:{enteredAt:"A"} }
+ * Example:
+ * capacity = 10
+ * routes = {
+ *   A: [3, 4, 2],       // uses 9 total → success
+ *   B: [5, 7, 1],       // fails at segment index 1 (7 too far)
+ *   C: [],              // succeeds with used=0
+ * }
+ * ⇒
+ * successful = { A: { used: 9 }, C: { used: 0 } }
+ * failed = { B: { failedAt: 1, remaining: 5 } }
  */
-export function processTurnstileTrips(events: Event[]) {
-  return {} // TODO
+
+export function evaluateDroneRoutes(
+	capacity: number,
+	routes: Record<string, number[]>
+) {
+	// TODO: Implement me
 }
