@@ -76,6 +76,10 @@
  * }
  */
 
+type Sections = {
+	[sectionName: string]: string[];
+};
+
 export function processLibraryReturns(input: {
 	sections: {
 		[sectionName: string]: {
@@ -90,11 +94,83 @@ export function processLibraryReturns(input: {
 		[bookTitle: string]: string;
 	};
 }): {
-	sections: {
-		[sectionName: string]: string[];
-	};
+	sections: Sections;
 	overflow: string[];
 } {
-	// Your code here
-	throw new Error("Not implemented");
+	let overflow: string[] = [];
+
+	let sections: Sections = {};
+	//initialize sections from input
+	for (const section in input.sections) {
+		sections = { ...sections, [section]: input.sections[section].books };
+	}
+
+	const days = input.days;
+	const bookSections = input.bookSections;
+
+	for (const day in days) {
+		//console.log(day);
+		for (const leftoverBook of overflow) {
+			//console.log("overflow");
+			//console.log(leftoverBook);
+			// if not valid section discard
+			if (!(leftoverBook in bookSections)) {
+				overflow.filter((b) => b !== leftoverBook);
+			}
+			// check capacity
+			const thisBookSection = bookSections[leftoverBook];
+			if (
+				input.sections[thisBookSection].capacity <
+				sections[thisBookSection].length
+			) {
+				sections[thisBookSection].push(leftoverBook);
+				overflow.filter((b) => b !== leftoverBook);
+			}
+		}
+		for (const book of days[day]) {
+			//console.log("Regular");
+			//console.log(book);
+
+			// canBeShelved?
+			// else add to overflow
+			// if not valid section skip book
+			
+			if (!(book in bookSections)) {
+				continue;
+			}
+			// check capacity
+			const thisBookSection = bookSections[book];
+			//console.log(input.sections[thisBookSection].capacity);
+			//console.log(sections[thisBookSection].length);
+			if (
+				input.sections[thisBookSection].capacity >
+				sections[thisBookSection].length
+			) {
+				sections[thisBookSection].push(book);
+			} else {
+				overflow.push(book);
+			}
+		}
+	}
+	return { sections, overflow };
 }
+
+const input = {
+	sections: {
+		fiction: { capacity: 2, books: ["A"] },
+		science: { capacity: 1, books: [] },
+	},
+	days: {
+		Monday: ["B", "C", "D"],
+		Tuesday: ["E"],
+	},
+	bookSections: {
+		A: "fiction",
+		B: "fiction",
+		C: "science",
+		D: "fiction",
+		E: "science",
+	},
+};
+
+console.log(processLibraryReturns(input));
