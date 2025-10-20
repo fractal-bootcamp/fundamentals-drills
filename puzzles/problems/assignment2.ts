@@ -52,9 +52,51 @@
  * failed = { B: { failedAt: 1, remaining: 5 } }
  */
 
+type Successful = Record<string, { used: number }>;
+type Failed = Record<string, { failedAt: number; remaining: number }>;
+
 export function evaluateDroneRoutes(
 	capacity: number,
 	routes: Record<string, number[]>
 ) {
-	// TODO: Implement me
+	let failed: Failed = {};
+	let successful: Successful = {};
+
+	for (const drone in routes) {
+		let battery = capacity;
+		const route = routes[drone];
+		if (!route) continue;
+		if (route.length === 0) {
+			successful = { ...successful, [drone]: { used: 0 } };
+		}
+		for (let i = 0; i < route.length; i++) {
+			if (route[i] < 0) continue;
+			if (battery - route[i] < 0) {
+				failed = {
+					...failed,
+					[drone]: { failedAt: i, remaining: battery },
+				};
+				break;
+			} else {
+				battery -= route[i];
+				if (i === route.length - 1)
+					successful = {
+						...successful,
+						[drone]: { used: capacity - battery },
+					};
+			}
+		}
+	}
+
+	return { successful, failed };
 }
+
+const capacity = 10;
+const routes = {
+	A: [3, 4, 2], // uses 9 total → success
+	B: [5, 7, 1], // fails at segment index 1 (7 too far)
+	C: [], // succeeds with used=0
+};
+
+const result = evaluateDroneRoutes(capacity, routes);
+//console.log(result);
