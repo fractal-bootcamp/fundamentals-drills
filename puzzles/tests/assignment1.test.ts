@@ -65,6 +65,7 @@ describe("teamScoreSummary", () => {
       ])
     ).toBe(47);
   });
+});
 
 describe("premiumProductNames", () => {
   it("should return premium in-stock products", () => {
