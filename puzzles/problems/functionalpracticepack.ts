@@ -143,9 +143,20 @@ export function hasZero(nums: number[]): boolean {
 // Output: number[]
 // Example:
 //   wordLengths(["cat", "fish"]) -> [3, 4]
+// sketch: loop over array and transform each element
+// practice David asked for in 1:1
+// function mauriaMap(words: string[]): number[] {
+//     let wordsTransformed = []
+//     for (let i = 0; i < words.length; i++) {
+//         let word = words[i].length;
+//         wordsTransformed.push(word)
+//     }
+//     return wordsTransformed
+// }
 export function wordLengths(words: string[]): number[] {
     const lengths = words.map((word) => word.length)
     return lengths
+
 }
 
 // ------------------------------------------------------------
