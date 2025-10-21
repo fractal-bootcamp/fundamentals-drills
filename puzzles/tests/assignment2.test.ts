@@ -1,431 +1,102 @@
 import { describe, it, expect } from "vitest";
-import { processVendingSessions } from "../problems/assignment2";
+import { packParcels } from "../problems/assignment2";
 
-describe("processVendingSessions", () => {
-  // Basic functionality tests
-  it("should handle successful purchase from example A", () => {
-    const input = {
-      inventory: { A: { price: 125, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["insert", 25], ["select", "A"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ A: { price: 125, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "A",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 125,
-      errors: []
-    }]);
+describe("packParcels", () => {
+  it("returns empty packing for empty items", () => {
+    const input = { boxTypes: [{ type: "S", capacity: 5 }], items: [] };
+    const r = packParcels(input);
+    expect(r.boxes).toEqual([]);
+    expect(r.leftovers).toEqual([]);
+    expect(r.errors).toEqual([]);
   });
 
-  it("should handle insufficient credit from example B", () => {
-    const input = {
-      inventory: { B: { price: 130, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["insert", 25], ["select", "B"]],
-        [["insert", 100], ["select", "B"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ B: { price: 130, stock: 1 } });
-    expect(result.receipts[0]).toEqual({
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["insufficient credit: have 125, need 130"]
-    });
-    expect(result.receipts[1]).toEqual({
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["insufficient credit: have 100, need 130"]
-    });
+  it("handles completely invalid top-level input", () => {
+    const r = packParcels(null);
+    expect(r.boxes).toEqual([]);
+    expect(r.leftovers).toEqual([]);
+    expect(r.errors.length).toBeGreaterThanOrEqual(1);
+    expect(r.errors[0].error).toMatch(/invalid input/);
   });
 
-  it("should handle purchase with change", () => {
+  it("chooses lexicographically smallest type when capacities tie (deterministic tie-breaker)", () => {
     const input = {
-      inventory: { C: { price: 75, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "C"]]
-      ]
+      boxTypes: [
+        { type: "Z", capacity: 5 },
+        { type: "A", capacity: 5 }, // should win by lexicographic order
+      ],
+      items: [{ id: "i1", volume: 5 }],
     };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ C: { price: 75, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "C",
-      changeCoins: { 25: 1 },
-      changeTotal: 25,
-      spent: 75,
-      errors: []
-    }]);
+    const r = packParcels(input);
+    expect(r.boxes).toHaveLength(1);
+    expect(r.boxes[0].type).toBe("A");
+    expect(r.boxes[0].items).toEqual(["i1"]);
+    expect(r.leftovers).toEqual([]);
+    expect(r.errors).toEqual([]);
   });
 
-  it("should handle complex change breakdown", () => {
+  it("respects fragile limits and opens new boxes when an open box's fragile quota is full", () => {
     const input = {
-      inventory: { D: { price: 35, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "D"]]
-      ]
+      boxTypes: [{ type: "F1", capacity: 5, fragileLimit: 1 }],
+      items: [
+        { id: "f1", volume: 1, fragile: true },
+        { id: "f2", volume: 1, fragile: true }, // should open a new F1 box because fragileLimit is 1
+      ],
     };
 
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ D: { price: 35, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "D",
-      changeCoins: { 50: 1, 10: 1, 5: 1 },
-      changeTotal: 65,
-      spent: 35,
-      errors: []
-    }]);
+    const r = packParcels(input);
+    expect(r.boxes.length).toBe(2);
+    expect(r.boxes[0].type).toBe("F1");
+    expect(r.boxes[1].type).toBe("F1");
+    expect(r.boxes[0].items).toEqual(["f1"]);
+    expect(r.boxes[1].items).toEqual(["f2"]);
+    expect(r.leftovers).toEqual([]);
+    expect(r.errors).toEqual([]);
   });
 
-  it("should handle cancel operation", () => {
+  it("realistic scenario: mixes zero-volume, fragile counts, oversized and invalid items", () => {
     const input = {
-      inventory: { E: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 25], ["insert", 25], ["cancel"]]
-      ]
+      boxTypes: [
+        { type: "S", capacity: 5, fragileLimit: 1 },
+        { type: "M", capacity: 10, fragileLimit: 2 },
+        { type: "L", capacity: 20 }, // unlimited fragile
+      ],
+      items: [
+        { id: "a", volume: 3, fragile: false }, // goes to S
+        { id: "b", volume: 2, fragile: true },  // fits S (fragile 1)
+        { id: "c", volume: 1, fragile: true },  // S full, opens M
+        { id: "d", volume: 0, fragile: true },  // zero volume but counts fragile, goes to M
+        { id: "e", volume: 25, fragile: false }, // too big -> leftover
+        { id: "f", volume: -1 },                 // invalid -> leftover + error
+        { id: "g", volume: 5, fragile: false },  // should fit into existing M if space
+      ],
     };
 
-    const result = processVendingSessions(input);
+    const r = packParcels(input);
 
-    expect(result.inventory).toEqual({ E: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: { 25: 2 },
-      changeTotal: 50,
-      spent: 0,
-      errors: []
-    }]);
-  });
+    // Boxes: expect S then M created
+    expect(r.boxes.length).toBeGreaterThanOrEqual(2);
 
-  it("should handle invalid coin denominations", () => {
-    const input = {
-      inventory: { F: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 75], ["insert", 50], ["select", "F"]]
-      ]
-    };
+    const boxS = r.boxes.find(b => b.type === "S");
+    const boxM = r.boxes.find(b => b.type === "M");
 
-    const result = processVendingSessions(input);
+    expect(boxS).toBeDefined();
+    expect(boxM).toBeDefined();
 
-    expect(result.inventory).toEqual({ F: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "F",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: ["unsupported coin: 75"]
-    }]);
-  });
+    expect(boxS!.items).toEqual(["a", "b"]);
+    expect(boxS!.usedVolume).toBe(5);
+    expect(boxS!.fragileCount).toBe(1);
 
-  it("should handle invalid SKU", () => {
-    const input = {
-      inventory: { G: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "INVALID"]]
-      ]
-    };
+    // M should contain c, d, g in that order (d has zero volume)
+    expect(boxM!.items).toEqual(["c", "d", "g"]);
+    expect(boxM!.usedVolume).toBe(1 + 0 + 5);
+    expect(boxM!.fragileCount).toBe(2); // c and d are fragile
 
-    const result = processVendingSessions(input);
+    // leftovers should include the too-big and invalid items
+    expect(r.leftovers).toContain("e");
+    expect(r.leftovers).toContain("f");
 
-    expect(result.inventory).toEqual({ G: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["invalid sku: INVALID"]
-    }]);
-  });
-
-  it("should handle out of stock", () => {
-    const input = {
-      inventory: { H: { price: 50, stock: 0 } },
-      sessions: [
-        [["insert", 50], ["select", "H"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ H: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["out of stock: H"]
-    }]);
-  });
-
-  it("should handle multiple sessions with inventory depletion", () => {
-    const input = {
-      inventory: { I: { price: 25, stock: 2 } },
-      sessions: [
-        [["insert", 25], ["select", "I"]],
-        [["insert", 25], ["select", "I"]],
-        [["insert", 25], ["select", "I"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ I: { price: 25, stock: 0 } });
-    expect(result.receipts).toHaveLength(3);
-    expect(result.receipts[0].dispensed).toBe("I");
-    expect(result.receipts[1].dispensed).toBe("I");
-    expect(result.receipts[2].dispensed).toBeUndefined();
-    expect(result.receipts[2].errors).toEqual(["out of stock: I"]);
-  });
-
-  it("should handle noop operations", () => {
-    const input = {
-      inventory: { J: { price: 50, stock: 1 } },
-      sessions: [
-        [["noop"], ["insert", 50], ["noop"], ["select", "J"], ["noop"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ J: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "J",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: []
-    }]);
-  });
-
-  it("should handle unknown actions", () => {
-    const input = {
-      inventory: { K: { price: 50, stock: 1 } },
-      sessions: [
-        [["unknown"], ["insert", 50], ["select", "K"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ K: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "K",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: ["unknown action: unknown"]
-    }]);
-  });
-
-  it("should ignore actions after session ends", () => {
-    const input = {
-      inventory: { L: { price: 50, stock: 2 } },
-      sessions: [
-        [["insert", 50], ["select", "L"], ["insert", 100], ["select", "L"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ L: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "L",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: []
-    }]);
-  });
-
-  it("should handle cancel after session ends", () => {
-    const input = {
-      inventory: { M: { price: 25, stock: 1 } },
-      sessions: [
-        [["insert", 25], ["cancel"], ["insert", 50]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ M: { price: 25, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: { 25: 1 },
-      changeTotal: 25,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle empty sessions", () => {
-    const input = {
-      inventory: { N: { price: 50, stock: 1 } },
-      sessions: [
-        []
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ N: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle session that just inserts coins", () => {
-    const input = {
-      inventory: { O: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 25], ["insert", 10]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ O: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle multiple errors in single session", () => {
-    const input = {
-      inventory: { P: { price: 100, stock: 1 } },
-      sessions: [
-        [["insert", 75], ["select", "INVALID"], ["insert", 50], ["select", "P"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ P: { price: 100, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["unsupported coin: 75", "invalid sku: INVALID", "insufficient credit: have 50, need 100"]
-    }]);
-  });
-
-  it("should handle zero price items", () => {
-    const input = {
-      inventory: { FREE: { price: 0, stock: 1 } },
-      sessions: [
-        [["select", "FREE"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ FREE: { price: 0, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "FREE",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle large denomination breakdown", () => {
-    const input = {
-      inventory: { Q: { price: 1, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "Q"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ Q: { price: 1, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "Q",
-      changeCoins: { 50: 1, 25: 1, 10: 2, 1: 4 },
-      changeTotal: 99,
-      spent: 1,
-      errors: []
-    }]);
-  });
-
-  it("should handle empty inventory", () => {
-    const input = {
-      inventory: {},
-      sessions: [
-        [["insert", 50], ["select", "ANYTHING"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({});
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["invalid sku: ANYTHING"]
-    }]);
-  });
-
-  it("should handle malformed input gracefully", () => {
-    const input = {
-      inventory: null,
-      sessions: null
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({});
-    expect(result.receipts).toEqual([]);
-  });
-
-  it("should normalize inventory with negative values", () => {
-    const input = {
-      inventory: {
-        R: { price: -50, stock: -1 },
-        S: { price: 100.5, stock: 2.7 }
-      },
-      sessions: [
-        [["insert", 100], ["select", "S"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({
-      R: { price: 0, stock: 0 },
-      S: { price: 100, stock: 1 }
-    });
-    expect(result.receipts).toEqual([{
-      dispensed: "S",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 100,
-      errors: []
-    }]);
+    // errors should mention invalid or cannot accommodate where appropriate
+    expect(r.errors.some(er => er.id === "f" && /invalid/i.test(er.error))).toBe(true);
+    expect(r.errors.some(er => er.id === "e" && /no box type/i.test(er.error))).toBe(true);
   });
 });
