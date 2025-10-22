@@ -83,12 +83,19 @@ type Output = {
 
 export function processVendingSessions(input: Input): Output {
   const validCoins = [100, 50, 25, 10, 5, 1];
-  const [sku, item] = Object.entries(input.inventory)[0];
-  let credit = 0;
-  let receipts = []
+  let receipts = [];
 
   // 1. if the insert coin is not [100,50,25,10,5,1] record an error and ignore it
   for (let session of input.sessions) {
+    let credit = 0;
+    const inserted = {};
+    const errors = [];
+    let dispensed = undefined;
+    let spent = 0;
+    let changeTotal = 0;
+    let changeCoins = {};
+    let ended = false;
+
     for (let [action, n] of session) { // ["insert, 100] or ["select", "A"]
       if (action === "insert") {
         if (!validCoins.includes(n)) {
