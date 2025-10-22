@@ -104,7 +104,7 @@ type BoxTypes = {
 type OpenBox = {
   boxId: number
   type: string
-  items: Item[]
+  items: string[]
   usedVolume: number
   fragileCount: number
   capacity: number
@@ -124,16 +124,21 @@ type Error = {
 
 type ReturnValue = {
   boxes: OpenBox[]
-  leftOvers: string[]
+  leftovers: string[]
   errors: Error[]
 }
 
+type CreateBoxResult =
+  | { success: true, box: OpenBox }
+  | { success: false }
+
+// testing input - printing all the logs when test suite won't print b/c of a syntax error 
 const input = {
   boxTypes: [
     { type: "Z", capacity: 5 },
     { type: "A", capacity: 5 }, // should win by lexicographic order
   ],
-  items: [{ id: "i1", volume: 0 }],
+  items: [{ id: "i1", volume: 5 }],
 };
 
 function isInputValid(item: Item): boolean {
@@ -143,69 +148,111 @@ function isInputValid(item: Item): boolean {
 
 export function packParcels(input): ReturnValue {
   const boxes: OpenBox[] = []
-  const leftOvers: string[] = []
+  const leftovers: string[] = []
   const errors: Error[] = []
 
+  // if (input.items.length === 0) {
+  //   errors.push([])
+  //   // errors.push({ error: 'Items array is empty!' })
+  // }
+
+  if (!input || typeof input !== 'object' || !Array.isArray(input.items) || !Array.isArray(input.boxTypes)) {
+    errors.push({ error: 'invalid input: missing items or boxTypes' })
+    return { boxes, leftovers, errors }
+  }
+
   for (const item of input.items) {  // outer loop to get items
+    console.log(`--- Processing Item ${item.id} (volume: ${item.volume}) ---`)
     const isValid = isInputValid(item)
 
     if (isValid) {
       let itemPlaced = false
+      console.log(`Item: ${item.id} is VALID`)
 
       for (const box of boxes) {  // check existing boxes against the current item
         const boxHasCapacity = box.usedVolume + item.volume <= box.capacity
+        const fragileOk = box.fragileCount + (item.fragile ? 1 : 0) <= box.fragileLimit
 
-        if (boxHasCapacity && box.fragileCount + (item.fragile ? 1 : 0) <= box.fragileLimit) {
-          box.items.push(item)
+        console.log(`Box ${box.boxId}: capacity:${boxHasCapacity}, fragile: ${fragileOk}`)
+
+        if (boxHasCapacity && fragileOk) {
+          box.items.push(item.id)
+          box.usedVolume += item.volume
+          box.fragileCount += (item.fragile ? 1 : 0)
+
+          console.log(` -> Item placed in existing box ${box.boxId}`)
           itemPlaced = true
         }
       }
 
       if (!itemPlaced) {
-        createNewBox(item, input.boxTypes, boxes)
+        console.log('No existing box worked - Creating new box...')
+        const result = createNewBox(item, input.boxTypes, boxes)
+
+        if (result.success) {
+          const newBox = result.box
+          newBox.items.push(item)
+          newBox.usedVolume += item.volume
+          newBox.fragileCount += (item.fragile ? 1 : 0)
+
+          console.log(`Created new box ${newBox.boxId} (type: ${newBox.type})`)
+          itemPlaced = true
+        } else {
+          leftovers.push(item.id)
+        }
       }
 
     } else {
-      errors.push(item.id)
+      console.log(`Item ${item.id} is INVALID - added to errors`)
+      errors.push({ id: item.id, error: 'Invalid Item' })
+      continue
     }
 
-    const returnObj = {
-      boxes,
-      leftOvers,
-      errors,
-    }
-
-    return returnObj
   }
+
+  const returnObj = {
+    boxes,
+    leftovers,
+    errors,
+  }
+
+  console.log(`Final state: ${boxes.length} - total boxes`)
+  return returnObj
 }
 
-// console.log(packParcels(input))
+function createNewBox(item: Item, boxTypes, boxes: OpenBox[]): CreateBoxResult {
+  const filteredBoxTypeArr = boxTypes.filter(box => box.capacity >= item.volume && (box.fragileLimit ?? Infinity) >= (item.fragile ? 1 : 0))
+  console.log('filteredBoxTypeArr:', filteredBoxTypeArr.map(b => `${b.type}(${b.capacity})`))
+  console.log('Initial value:', filteredBoxTypeArr[0]?.type)
 
+  if (filteredBoxTypeArr.length === 0) {  // if no BoxTypes fit send to leftOvers
+    return { success: false }
+  }
 
-function createNewBox(item: Item, boxTypes, boxes: OpenBox[]): OpenBox {
-  const filteredBoxTypeArr = boxTypes.filter(box => box.capacity >= item.volume && box.fragileLimit >= (item.fragile ? 1 : 0))
-  const smallestALphaBox = filteredBoxTypeArr.reduce((smallestBox, currentBox) => {
+  const smallestBoxToFitItem = filteredBoxTypeArr.reduce((smallestBox, currentBox) => {
     if (currentBox.capacity < smallestBox.capacity) {
       return currentBox
     } else if (currentBox.capacity === smallestBox.capacity) {
       return currentBox.type < smallestBox.type ? currentBox : smallestBox
     } else {
-      return currentBox
+      return smallestBox
     }
-  },[])
+  }, filteredBoxTypeArr[0])
 
   const newBox: OpenBox = {
-    ...smallestALphaBox,
-    boxId: randomUUID,
+    ...smallestBoxToFitItem,
+    boxId: randomUUID(),
     items: [],
     usedVolume: 0,
     fragileCount: 0,
-    fragileLimit: smallestALphaBox.fragileLimit ?? Infinity
+    fragileLimit: smallestBoxToFitItem.fragileLimit ?? Infinity
   }
-
   boxes.push(newBox)
-  return newBox
+
+  return { success: true, box: newBox }
 }
+
+// console.log(packParcels(input))
 
 //  Return Object:
 //  {
