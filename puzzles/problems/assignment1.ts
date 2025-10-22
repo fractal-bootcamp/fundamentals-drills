@@ -1,21 +1,37 @@
 /**
- * Assignment 1 — Consecutive Sum Streak
+ * File Extension Counter — Tally filenames by their extensions
  *
- * Context:
- * In analytics or signal processing, we sometimes want to detect “streaks” of rising data. Given an array of integers,
- * return the length of the longest consecutive increasing run (where each next number is exactly 1 greater).
- * For example, [1,2,3,5,6,7,8,10] has a longest streak [5,6,7,8] of length 4.
+ * You are given a list of filenames and must count how many files have each extension.
+ * The extension is defined as the substring after the last dot if there is at least one
+ * character before that dot; otherwise, the file is considered to have no extension.
+ * The empty extension is represented by the empty string "". Extensions are compared
+ * case-insensitively (normalized to lowercase in the output).
  *
- * Input:
- *   - nums: number[] — may be empty or contain duplicates.
- * Output:
- *   - number — length of the longest strictly consecutive +1 run.
+ * Input: `filenames: string[]` — any strings; leading/trailing spaces are ignored per name
+ * Output: `Record<string, number>` — map of normalized extension => count (0 omitted)
  *
  * Examples:
- *   longestStreak([1,2,3,5,6,7,8,10]) -> 4
- *   longestStreak([5,5,5]) -> 1
- *   longestStreak([]) -> 0
+ * - countByExtension(["a.txt", "b.TXT", "README"]) -> { txt: 2, "": 1 }
+ * - countByExtension([".env", "archive.tar.gz", "name."]) -> { "": 2, gz: 1 }
  */
-export function longestStreak(nums: number[]): number {
-  return 0
+export function countByExtension(filenames: string[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+
+  for (const raw of filenames) {
+    const name = raw.trim();
+    // Determine extension by the last dot if there is at least one char before it
+    const lastDot = name.lastIndexOf(".");
+    let ext = "";
+
+    if (lastDot > 0 && lastDot < name.length - 1) {
+      ext = name.slice(lastDot + 1).toLowerCase();
+    } else {
+      // cases: no dot, dot is first character, or trailing dot => no extension
+      ext = "";
+    }
+
+    counts[ext] = (counts[ext] ?? 0) + 1;
+  }
+
+  return counts;
 }
