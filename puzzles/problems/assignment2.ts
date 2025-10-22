@@ -1,60 +1,68 @@
-// @ts-nocheck
 /**
- * Programming Puzzle — Vending Sessions
- *
- * You will implement a tiny vending machine that processes a list of user sessions.
- * Each session is a sequence of actions: inserting coins, selecting an item, or cancelling.
- * There is NO persistent coin bank: change is conceptual and unlimited; only inventory changes over time.
- * Sessions are independent except for inventory stock, which is shared and persists across sessions.
- *
+ * Single SKU — Stock Tracker Lite
+ * - You start with "stock" units on hand.
+ * - Each event is either {type:'order', qty} or {type:'restock', qty}.
+ * - Orders first consume on-hand stock; any shortfall increases "backordered".
+ * - Restocks increase on-hand stock; they do NOT auto-fulfill "backordered" here.
+ * 
  * Input:
- *   {
- *     inventory: { [sku: string]: { price: number; stock: number } } // price in whole cents (>=0), stock>=0
- *     sessions: Array<Session>                                        // Session = Action[]
- *   }
- *   Action is one of:
- *     ["insert", number]     // coin must be one of the allowed denominations [100,50,25,10,5,1]
- *     ["select", string]     // attempt to buy sku
- *     ["cancel"]             // abort session & refund inserted coins
- *     ["noop"]               // does nothing
- *
+ *   stock: number (>= 0)
+ *   events: Array<{type:'order'|'restock', qty:number}> (qty >= 1)
  * Output:
- *   {
- *     inventory: { ...updated inventory... },
- *     receipts: Array<{
- *       dispensed?: string;                        // sku if an item was dispensed
- *       changeCoins: { [denom: number]: number };  // change returned as a greedy breakdown in the allowed denominations
- *       changeTotal: number;                        // total change (cents)
- *       spent: number;                              // cents the machine kept this session
- *       errors: string[];                           // rule violations or unsupported ops
- *     }>
- *   }
- *
- * Rules & Notes:
- *   - Start each session with credit=0 and an empty "inserted" coin pouch.
- *   - "insert" adds to the session credit if the coin is in the allowed denominations; otherwise record an error and ignore it.
- *   - "select":
- *       * Fails if sku is invalid, out of stock, or credit < price (record an error; session continues).
- *       * On success: dispense the item, decrement inventory, keep exactly the price as spent, return change = credit - price
- *         using greedy breakdown (unlimited coins; no bank constraints), then the session ENDS (ignore further actions).
- *   - "cancel" refunds exactly the coins the user inserted this session (returned as a breakdown; session ENDS).
- *   - If a session ends without "select" success or "cancel", nothing is dispensed or refunded; it's just an idle session end.
- *   - Deterministic; integers only; no randomness or timing.
- *
- * Examples:
- *   Example A:
- *     inv={A:{price:125,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","A"] ]
- *     ]
- *     => dispensed A, spent 125, change 0, inventory A.stock=0
- *
- *   Example B:
- *     inv={B:{price:130,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","B"] ], // insufficient: error, session continues
- *       [ ["insert",100],["select","B"] ]                // success with change 70 = 50+10+10
- *     ]
+ *   { finalStock: number, totalBackordered: number }
+ * 
+ * Example:
+ *   stock=2, events=[{type:'order',qty:5},{type:'restock',qty:3}]
+ *   -> finalStock=0 (2-5 -> 0; then +3 -> 3), totalBackordered=3
+ *      Explanation: the order was short by 3 at the moment it happened.
  */
 
-export function processVendingSessions(input) {
-  return {}
+type OneEvent = { type: 'order' | 'restock', qty: number }
+type OneResult = { finalStock: number, totalBackordered: number }
+
+export function trackSingleSKU(stock: number, events: OneEvent[]): OneResult {
+  let onHand = stock
+  let backordered = 0
+
+  events.forEach(event => {
+    if (event.type === "order") {
+      if (onHand - event.qty < 0) {
+        const short = event.qty - onHand
+        onHand = 0
+        backordered += short
+      } else {
+        onHand = onHand - event.qty
+      }
+    }
+
+    if (event.type === "restock") {
+      onHand += event.qty
+    }
+  })
+
+  return { finalStock: onHand, totalBackordered: backordered }
 }
+
+console.log(trackSingleSKU(2, [{ type: 'order', qty: 5 }, { type: 'restock', qty: 3 }]))
+
+console.log(trackSingleSKU(0, [{ type: 'order', qty: 1 }, { type: 'order', qty: 2 }]))
+
+console.log(trackSingleSKU(5, [{ type: 'order', qty: 2 }, { type: 'order', qty: 2 }]))
+
+// // Quick checks
+// console.assert(
+//   JSON.stringify(trackSingleSKU(2, [{ type: 'order', qty: 5 }, { type: 'restock', qty: 3 }])) ===
+//   JSON.stringify({ finalStock: 3, totalBackordered: 3 }),
+//   'A1'
+// )
+// console.assert(
+//   JSON.stringify(trackSingleSKU(0, [{ type: 'order', qty: 1 }, { type: 'order', qty: 2 }])) ===
+//   JSON.stringify({ finalStock: 0, totalBackordered: 3 }),
+//   'A2'
+// )
+// console.assert(
+//   JSON.stringify(trackSingleSKU(5, [{ type: 'order', qty: 2 }, { type: 'order', qty: 2 }])) ===
+//   JSON.stringify({ finalStock: 1, totalBackordered: 0 }),
+//   'A3'
+// )
+
