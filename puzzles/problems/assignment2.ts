@@ -1,103 +1,107 @@
-// @ts-nocheck
-/**
- * Programming Puzzle — Vending Sessions
- *
- * You will implement a tiny vending machine that processes a list of user sessions.
- * Each session is a sequence of actions: inserting coins, selecting an item, or cancelling.
- * There is NO persistent coin bank: change is conceptual and unlimited; only inventory changes over time.
- * Sessions are independent except for inventory stock, which is shared and persists across sessions.
- *
- * Input:
- *   {
- *     inventory: { [sku: string]: { price: number; stock: number } } // price in whole cents (>=0), stock>=0
- *     sessions: Array<Session>                                        // Session = Action[]
- *   }
- *   Action is one of:
- *     ["insert", number]     // coin must be one of the allowed denominations [100,50,25,10,5,1]
- *     ["select", string]     // attempt to buy sku
- *     ["cancel"]             // abort session & refund inserted coins
- *     ["noop"]               // does nothing
- *
- * Output:
- *   {
- *     inventory: { ...updated inventory... },
- *     receipts: Array<{
- *       dispensed?: string;                        // sku if an item was dispensed
- *       changeCoins: { [denom: number]: number };  // change returned as a greedy breakdown in the allowed denominations
- *       changeTotal: number;                        // total change (cents)
- *       spent: number;                              // cents the machine kept this session
- *       errors: string[];                           // rule violations or unsupported ops
- *     }>
- *   }
- *
- * Rules & Notes:
- *   - Start each session with credit=0 and an empty "inserted" coin pouch.
- *   - "insert" adds to the session credit if the coin is in the allowed denominations; otherwise record an error and ignore it.
- *   - "select":
- *       * Fails if sku is invalid, out of stock, or credit < price (record an error; session continues).
- *       * On success: dispense the item, decrement inventory, keep exactly the price as spent, return change = credit - price
- *         using greedy breakdown (unlimited coins; no bank constraints), then the session ENDS (ignore further actions).
- *   - "cancel" refunds exactly the coins the user inserted this session (returned as a breakdown; session ENDS).
- *   - If a session ends without "select" success or "cancel", nothing is dispensed or refunded; it's just an idle session end.
- *   - Deterministic; integers only; no randomness or timing.
- *
- * Examples:
- *   Example A:
- *     inv={A:{price:125,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","A"] ]
- *     ]
- *     => dispensed A, spent 125, change 0, inventory A.stock=0
- *
- *   Example B:
- *     inv={B:{price:130,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","B"] ], // insufficient: error, session continues
- *       [ ["insert",100],["select","B"] ]                // success with change 70 = 50+10+10
- *     ]
- */
-type Input = {
-  inventory: Inventory
-  sessions: Session[]
+/*
+Assignment 3 — Meeting Room Scheduler
+
+Context:
+You manage a meeting room booking system. Meeting requests come in and need to be
+assigned to available rooms. Each meeting has an id, duration (in hours), participant
+count, and an optional equipment requirement. Rooms have a capacity, hourly availability,
+and an optional list of available equipment.
+
+Input (informal, not typed):
+{
+  rooms: Array<{ name: string; capacity: number; hoursAvailable: number; equipment?: string[] }>,
+  meetings: Array<{ id: string; duration: number; participants: number; equipmentNeeded?: string }>
 }
 
-type Inventory = {
-  [sku: string]: InventoryItem
-};
+Rules / Behavior:
+- Process `meetings` in the given order.
+- Validate each meeting:
+  - `id` must be a non-empty string.
+  - `duration` must be a finite number > 0 (can be decimal like 0.5 for 30 min).
+  - `participants` must be a finite integer > 0.
+  - Invalid meetings are not scheduled and placed into `unscheduled` with an error entry.
+  
+- For a valid meeting:
+  1. Try to book it into an already-scheduled room that:
+     - Has enough remaining hours: (hoursUsed + duration <= hoursAvailable)
+     - Has enough capacity: (capacity >= participants)
+     - Has required equipment if specified: (equipmentNeeded is in room.equipment array, or equipmentNeeded is undefined)
+     
+  2. If no currently-used room works, try to book a new room:
+     - Consider rooms whose capacity >= participants AND hoursAvailable >= duration
+     - If equipment is needed, room must have that equipment in its equipment array
+     - If multiple rooms qualify, choose the one with the SMALLEST capacity
+     - If capacities tie, choose by lexicographic name (ascending) for determinism
+     - Track the room as "in use" and initialize hoursUsed = 0
+     
+  3. If no room can accommodate the meeting, place into `unscheduled`
+  
+- After booking, update the room's `hoursUsed` and add meeting id to room's `meetings` array
 
-type InventoryItem = {
-  price: number;
-  stock: number;
-};
-
-type Session = Action[];
-type Action = InsertAction | SelectAction | CancelAction | NoopAction;
-
-type InsertAction = ["insert", number];
-type SelectAction = ["select", string];
-type CancelAction = ["cancel"];
-type NoopAction = ["noop"];
-
-
-// type Inventory = Record<string, InventoryItem>;
-
-export function processVendingSessions(input: Input) {
-  let credit = 0;
-  // create an empty array for receipts
-  let receipts = []
-  let insertedCoins = []
-
-  const allowedDenominations = [100, 50, 25, 10, 5, 1];
-
-  // start with initial inventory
-  // loop through each session in the sessions array
-  for (let i = 0; i < input.sessions.length; i++) {
-
+- Return object:
+  {
+    scheduled: Array<{ 
+      roomName: string, 
+      capacity: number, 
+      meetings: string[], 
+      hoursUsed: number, 
+      hoursAvailable: number 
+    }>,
+    unscheduled: string[], // meeting ids that couldn't be scheduled or were invalid
+    errors: Array<{ id?: string, error: string }>
   }
 
-  // process that session's actions
-  // generate a receipt
-  // update inventory if needed
+Edge cases:
+- Empty `meetings` -> return empty scheduled array, empty unscheduled and errors
+- Empty `rooms` -> all meetings go to unscheduled (no errors, just can't be placed)
+- Meetings with 0 or negative duration/participants are invalid
+- Rooms with 0 capacity or 0 hoursAvailable can never be used
+- Equipment arrays are case-sensitive (Projector ≠ projector)
+- If no equipment specified on meeting, any room works (equipment-wise)
+- If no equipment array on room, room has no equipment
 
-  // return final inventory + all receipts
+Examples:
+- rooms=[{name:'A',capacity:5,hoursAvailable:8},{name:'B',capacity:10,hoursAvailable:4}], 
+  meetings=[{id:'m1',duration:2,participants:3},{id:'m2',duration:3,participants:3}]
+  -> m1 goes in room A (2 hours used), m2 also fits in room A (5 hours used total)
+  
+- If m1 needs 'Projector' but room A has no equipment array -> m1 goes to unscheduled
 
-  return {};
+Implementational note:
+- No type annotations on the exported function parameters
+- You must model and validate shapes inside the function
+*/
+
+// TODO: Add your types here
+type Room = {
+  name: string
+  capacity: number
+  hoursAvailable: number
 }
+
+type Meeting = {
+  id: string
+  duration: number
+  participants: number
+}
+
+
+// TODO: Implement validation helper
+function isValidMeeting(meeting): boolean {
+  return (
+    meeting &&
+    typeof meeting.id === 'string' &&
+    typeof meeting.duration === 'number' &&
+    typeof meeting.participants === 'number' &&
+    meeting.length > 0 &&
+    meeting.duration > 0 &&
+    meeting.participants > 0
+  )
+}
+
+// TODO: Implement the main scheduler function
+export function scheduleMeetings(input) {
+  // Your code here
+}
+
+// TODO: Implement helper to find or create a room booking
