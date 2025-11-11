@@ -55,6 +55,62 @@
  *     ]
  */
 
-export function processVendingSessions(input) {
+type Inventory = {
+  [sku: string]:
+  {
+    price: number;
+    stock: number
+  }
+}
+
+type Action = ["insert", number] | ["select", string] | ["cancel"] | ["noop"]
+type InputType = {
+  inventory: Inventory
+  session: Array<Action>
+}
+
+type OutputType = {
+  inventory: Inventory,
+  receipts: Array<Receipt>
+}
+
+type Receipt = {
+  dispensed?: string;                         // sku if an item was dispensed
+  changeCoins: { [denom: number]: number };   // change returned as a greedy breakdown in the allowed denominations
+  changeTotal: number;                        // total change (cents)
+  spent: number;                              // cents the machine kept this session
+  errors: string[];                           // rule violations or unsupported ops
+}
+
+// (1451) naming how your objects deconstruct matter. liberally log to console for sanity checks.
+// (1456) we spent enough time type checking. lots to learn for time management here.
+export function processVendingSessions(input: InputType): OutputType {
+  console.log(input)
+  let credit = 0;
+  let { inventory, sessions } = input
+  const errors = []
+  const valid_denominations = [100, 50, 25, 10, 5, 1]
+  console.log(inventory)
+  console.log(sessions)
+
+  for (let action of sessions[0]) {
+    console.log('now handling action: ', action)
+    switch (action[0]) {
+      case "insert":
+        const denomination = action[1]
+        if (!valid_denominations.includes(denomination)) {
+          errors.push('unsupported coin: ', denomination)
+          break;
+        }
+        credit += denomination
+        console.log('credit updated to: ', credit)
+        break
+      case "select":
+        const sku = action[1]
+        console.log('selecting sku', sku)
+        console.log('has stats', inventory[sku])
+    }
+  }
+
   return {}
 }
