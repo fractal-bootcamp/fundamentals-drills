@@ -64,7 +64,7 @@ export function summarizeCart(
     )
   );
 
-  const working = items;
+  const working = [...items];
   working.sort((a, b) => a.name.localeCompare(b.name));
 
   // 
@@ -73,12 +73,14 @@ export function summarizeCart(
     const it = working[i];
     const base = it.price * it.qty;
     const d = it.discount ?? 0;
-    const after = base * (1 - d / 100);
+    const after = base * (1 - d);
     const s = `${it.name} x${it.qty} @ ${it.price.toFixed(2)} = ${String(
       parseInt(String(after * 100)) / 100
     )}`;
     lines.push(s);
   }
+
+  console.log(lines)
 
   const total = subtotal - discountTotal + tax + shipping;
 

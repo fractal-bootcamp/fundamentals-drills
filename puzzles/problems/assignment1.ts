@@ -14,6 +14,32 @@
  * - [{ name: "Charlie", scores: [80] }, { name: "Dana", scores: [80, 80] }] → "Charlie"
  */
 
-export function findTopStudent(students): string {
-  return "TODO"
+type Student = {
+  name: string;
+  scores: number[];
+}
+
+export function findTopStudent(students: Student[]): string {
+  // reduce over the array of students, calculate the average of each student and compare to the current highest and replace otherwise
+  const getAverage = (array) => {
+    return array.reduce((acc, score) => {
+      return acc + score
+    }, 0) / array.length
+  }
+  const studentsWithAverages = students.map((student) => {
+    const average = getAverage(student.scores)
+    return { ...student, average }
+  })
+
+  const highestAverage = studentsWithAverages.reduce((topStudent, currentStudent) => {
+    if (currentStudent.average > topStudent.average) {
+      return currentStudent;
+    } else {
+      return topStudent;
+    }
+  }, studentsWithAverages[0])
+
+  console.log(highestAverage)
+
+  return highestAverage.name
 }
