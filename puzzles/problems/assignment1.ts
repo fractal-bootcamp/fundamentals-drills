@@ -17,5 +17,45 @@
  *   longestStreak([]) -> 0
  */
 export function longestStreak(nums: number[]): number {
-  return 0
+
+  let numsLen = nums.length
+
+  if (numsLen == 0) { return 0 }
+  if (numsLen == 1) { return 1 }
+
+  let currentStreak = 1
+  let highestStreak = 1
+  let isStreak = false
+
+  let previous = nums[0]
+
+  for (let i = 1; i < numsLen; i++) { //Go through each index i 
+
+    let current = nums[i]
+
+    if (current == previous + 1) {
+      isStreak = true
+      currentStreak += 1
+    } else {
+      // if current is not one greater: if it is a streak, break streak. if not, nothing.
+      if (isStreak) {
+        isStreak = false
+        if (currentStreak > highestStreak) {
+          highestStreak = currentStreak
+        }
+        currentStreak = 1
+      }
+    }
+    console.log(currentStreak, current, previous)
+
+    previous = nums[i]
+
+  }
+
+  if (currentStreak > highestStreak) {
+    highestStreak = currentStreak
+  }
+
+  return highestStreak
+
 }
