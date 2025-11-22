@@ -32,6 +32,7 @@ Rules / Behavior:
        If capacities tie, choose by lexicographic `type` ascending to be deterministic.
      - If no box type can accommodate the item, place the item into `leftovers`.
 - After placing, update the box's `usedVolume` and `fragileCount` and record the item id.
+
 - Return object:
   {
     boxes: Array<{ boxId: number, type: string, items: string[], usedVolume: number, fragileCount: number }>,
@@ -57,208 +58,236 @@ Implementational note:
   student must model and validate shapes inside the function.
 */
 
-import { randomUUID } from "crypto"
-
-/*
-what do i need to answer?
-
-helper function validateItem()
-validate item - every() via helper func
-  - `id` must be a non-empty string.
-  - `volume` must be a finite integer >= 0.
-
-main for loop
-try existing boxes that **has remaining capacity** & hasn't exceeded it's
-**fragile item limit** (see below:)
-  - place in first 'already open box' that has remaining capacity
-    (usedVolume + volume <= capacity)
-    **AND** whose fragile count + (fragile?1:0) <= fragileLimit
-
-  - boxTypes=[
-  {type:'S',capacity:5},{type:'L',capacity:10}],
-  items=[{id:'a',volume:3},{id:'b',volume:4}]
-  -> 'a' placed in S (used 3), 'b' does not fit S (3+4>5) so open L and place b.
-
-helper function createNewBox()
-if that fails create a new box that can hold item's volume, respect fragile limits
-
-  filter() boxTypes array to find boxTypes capacity can accept an item
-  - use tie-breaking rules capacity >= volume & fragileLimit >= required
-                                      if (item.fragile = true) fragileLimit = 1
-  - create new box object {boxId, type, items: [], usedVolume: 0, fragileCount: 0}
-  - add box object to boxes array
-    boxes: Array<{ boxId: number, type: string, items: string[], usedVolume: number,
-    fragileCount: number }>
-
-  - place item into that box (tracking boxId) update box's items array, usedVolume & fragileCount
-
-item with volume > capacity -> goes to leftovers[].
-*/
-
-type BoxTypes = {
-  type: string
-  capacity: number
-  fragileLimit?: number
-}
-
-type OpenBox = {
-  boxId: number
-  type: string
-  items: string[]
-  usedVolume: number
-  fragileCount: number
-  capacity: number
-  fragileLimit?: number
-}
-
 type Item = {
-  id: string
-  volume: number
-  fragile?: boolean
-}
-
-type Error = {
-  id?: string
-  error: string
-}
-
-type ReturnValue = {
-  boxes: OpenBox[]
-  leftovers: string[]
-  errors: Error[]
-}
-
-type CreateBoxResult =
-  | { success: true, box: OpenBox }
-  | { success: false }
-
-// testing input - printing all the logs when test suite won't print b/c of a syntax error 
-const input = {
-  boxTypes: [
-    { type: "Z", capacity: 5 },
-    { type: "A", capacity: 5 }, // should win by lexicographic order
-  ],
-  items: [{ id: "i1", volume: 5 }],
+  id: string;
+  volume: number;
+  fragile: boolean;
 };
 
-function isInputValid(item: Item): boolean {
-  // console.log(input)
-  return item.id !== '' && item.volume >= 0
+type Box = {
+  boxId: number;
+  type: BoxBlueprint;
+  items: Array<string>;
+  usedVolume: number;
+  fragileCount: number;
+};
+
+type BoxBlueprint = {
+  type: string;
+  capacity: number;
+  fragileLimit?: number;
+};
+
+type ErrorMessage = {
+  id?: string;
+  error: string;
+};
+
+type InputData = {
+  items: Array<Item>;
+  boxTypes: Array<BoxBlueprint>;
+};
+
+function validate(item: Item): boolean {
+  if (item.id === "" && item.volume <= 0) {
+    return false;
+  } else return true;
 }
 
-export function packParcels(input): ReturnValue {
-  const boxes: OpenBox[] = []
-  const leftovers: string[] = []
-  const errors: Error[] = []
+function willItemFitInBoxType(item: Item, boxTypes: Array<BoxBlueprint>): boolean {
+  for (const box of boxTypes) {
+    if (box.capacity >= item.volume) {
+      return true;
+    }
+  }
+  return false;
+}
 
-  // if (input.items.length === 0) {
-  //   errors.push([])
-  //   // errors.push({ error: 'Items array is empty!' })
-  // }
+function isBoxFull(item: Item, box: Box): boolean {
+  if (box.usedVolume + item.volume > box.type.capacity) {
+    return true;
+  } else {
+    return false;
+  }
+}
 
-  if (!input || typeof input !== 'object' || !Array.isArray(input.items) || !Array.isArray(input.boxTypes)) {
-    errors.push({ error: 'invalid input: missing items or boxTypes' })
-    return { boxes, leftovers, errors }
+function isBoxFragileLimitFull(item: Item, box: Box): boolean {
+  if (!item.fragile) {
+    return false;
   }
 
-  for (const item of input.items) {  // outer loop to get items
-    console.log(`--- Processing Item ${item.id} (volume: ${item.volume}) ---`)
-    const isValid = isInputValid(item)
+  // get the limit defaulting to Infinity if undefined
+  const limit = box.type.fragileLimit ?? Infinity;
 
-    if (isValid) {
-      let itemPlaced = false
-      console.log(`Item: ${item.id} is VALID`)
+  if (box.type.fragileLimit === Infinity) {
+    return false;
+  } else if (box.fragileCount + 1 > limit) {
+    return true;
+  }
+  return false;
+}
 
-      for (const box of boxes) {  // check existing boxes against the current item
-        const boxHasCapacity = box.usedVolume + item.volume <= box.capacity
-        const fragileOk = box.fragileCount + (item.fragile ? 1 : 0) <= box.fragileLimit
+function canFragileItemFitInBox(item: Item, boxTypes: Array<BoxBlueprint>): boolean {
+  if (!item.fragile) {
+    return false;
+  }
 
-        console.log(`Box ${box.boxId}: capacity:${boxHasCapacity}, fragile: ${fragileOk}`)
+  for (const boxType of boxTypes) {
+    const limit = boxType.fragileLimit ?? Infinity;
 
-        if (boxHasCapacity && fragileOk) {
-          box.items.push(item.id)
-          box.usedVolume += item.volume
-          box.fragileCount += (item.fragile ? 1 : 0)
+    if (limit > 0) {
+      return true;
+    }
+  }
+  return false;
+}
 
-          console.log(` -> Item placed in existing box ${box.boxId}`)
-          itemPlaced = true
+function isItemALeftover(item: Item, boxTypes: Array<BoxBlueprint>): boolean {
+  const canItemFitIntoBoxType = willItemFitInBoxType(item, boxTypes);
+  const canFragileItemFitIntoBoxType = item.fragile
+    ? canFragileItemFitInBox(item, boxTypes)
+    : true;
+
+  if (!canItemFitIntoBoxType || !canFragileItemFitIntoBoxType) {
+    return true;
+  }
+  return false;
+}
+
+function chooseBoxType(item: Item, boxTypes: Array<BoxBlueprint>): BoxBlueprint {
+  const possibleBoxTypes: Array<BoxBlueprint> = [];
+
+  boxTypes.forEach((boxType) => {
+    if (boxType.capacity >= item.volume) {
+      const limit = boxType.fragileLimit ?? Infinity;
+
+      // if item is fragile, limt MUST be > 0
+      // if item is NOT fragile, limit doesn't matter
+      if (item.fragile) {
+        if (limit > 0) {
+          possibleBoxTypes.push(boxType);
         }
+        // if limit is 0 DO NOT push it
+      } else {
+        // item not fragile, so this box is fine
+        possibleBoxTypes.push(boxType);
       }
+    }
+  });
 
-      if (!itemPlaced) {
-        console.log('No existing box worked - Creating new box...')
-        const result = createNewBox(item, input.boxTypes, boxes)
+  let bestBoxTypeOption: BoxBlueprint = possibleBoxTypes[0];
 
-        if (result.success) {
-          const newBox = result.box
-          newBox.items.push(item)
-          newBox.usedVolume += item.volume
-          newBox.fragileCount += (item.fragile ? 1 : 0)
-
-          console.log(`Created new box ${newBox.boxId} (type: ${newBox.type})`)
-          itemPlaced = true
-        } else {
-          leftovers.push(item.id)
-        }
+  possibleBoxTypes.forEach((possibleBoxType) => {
+    // is this box smaller (better) than our current best option?
+    if (possibleBoxType.capacity < bestBoxTypeOption.capacity) {
+      bestBoxTypeOption = possibleBoxType;
+    }
+    // if sizes are the same, we need a tie-breaker
+    else if (possibleBoxType.capacity === bestBoxTypeOption.capacity) {
+      // deterministic tie-breaker: pick the one with the alphabetically first 'type'
+      if (possibleBoxType.type < bestBoxTypeOption.type) {
+        bestBoxTypeOption = possibleBoxType;
       }
+    }
+  });
+  return bestBoxTypeOption;
+}
 
-    } else {
-      console.log(`Item ${item.id} is INVALID - added to errors`)
-      errors.push({ id: item.id, error: 'Invalid Item' })
-      continue
+// {
+//   boxes: Array<{ boxId: number, type: string, items: string[], usedVolume: number, fragileCount: number }>,
+//   leftovers: string[], // item ids that couldn't be packed or were invalid
+//   errors: Array<{ id?: string, error: string }> // validation/packing errors (id optional for global errors)
+// }
+
+export function packParcels(input: InputData | null) {
+  if (!input || !input.items || !input.boxTypes) {
+    return {
+      boxes: [],
+      leftovers: [],
+      errors: [{ error: "invalid input" }],
+    };
+  }
+
+  const { items, boxTypes } = input;
+  const boxes: Array<Box> = [];
+  const leftovers: Array<string> = [];
+  const errors: Array<ErrorMessage> = [];
+
+  // loop through each item
+  for (const item of items) {
+    // validation step
+    const isValidItem = validate(item);
+
+    if (!isValidItem) {
+      errors.push({
+        id: item.id,
+        error: `Item: ${item.id} ain't fuckin' validdd`,
+      });
+      leftovers.push(item.id); // invalid items also go to leftovers
+      continue; // STOP here for this item, go to the next one
     }
 
+    // leftover check
+    const itemIsLeftover = isItemALeftover(item, boxTypes);
+
+    if (itemIsLeftover) {
+      leftovers.push(item.id);
+      continue; // STOP here for this item, go to the next one
+    }
+
+    // find a box step
+    // we need a place for this item
+    let newBox: Box | null = null;
+
+    for (const box of boxes) {
+      // check if the item fits in this specific box
+      const isBoxInvalid = isBoxFull(item, box) || isBoxFragileLimitFull(item, box);
+
+      if (!isBoxInvalid) {
+        // found one! set as our target and stop looking
+        newBox = box;
+        break;
+      }
+    }
+
+    // create box step
+    // if box is still null, none of our open boxes worked -- open a brand new box
+    if (newBox === null) {
+      const ourNewBoxType = chooseBoxType(item, boxTypes);
+
+      // create new box object
+      const freshBox: Box = {
+        boxId: boxes.length, // the index is the current length (so the most recent created)
+        type: ourNewBoxType,
+        items: [],
+        usedVolume: 0,
+        fragileCount: 0,
+      };
+
+      // add it to our list of boxes so we can use it
+      boxes.push(freshBox);
+
+      // set this new box as the one we are going to use right now
+      newBox = freshBox;
+    }
+
+    // packing step
+    // now 'newBox' is guaranteed to be the correct box
+    // put the item inside
+    newBox.items.push(item.id);
+    newBox.usedVolume = newBox.usedVolume + item.volume;
+
+    if (item.fragile) {
+      newBox.fragileCount += 1;
+    }
   }
 
-  const returnObj = {
-    boxes,
+  return {
+    boxes: boxes.map((b) => ({
+      ...b,
+      type: b.type.type,
+    })),
     leftovers,
     errors,
-  }
-
-  console.log(`Final state: ${boxes.length} - total boxes`)
-  return returnObj
+  };
 }
-
-function createNewBox(item: Item, boxTypes, boxes: OpenBox[]): CreateBoxResult {
-  const filteredBoxTypeArr = boxTypes.filter(box => box.capacity >= item.volume && (box.fragileLimit ?? Infinity) >= (item.fragile ? 1 : 0))
-  console.log('filteredBoxTypeArr:', filteredBoxTypeArr.map(b => `${b.type}(${b.capacity})`))
-  console.log('Initial value:', filteredBoxTypeArr[0]?.type)
-
-  if (filteredBoxTypeArr.length === 0) {  // if no BoxTypes fit send to leftOvers
-    return { success: false }
-  }
-
-  const smallestBoxToFitItem = filteredBoxTypeArr.reduce((smallestBox, currentBox) => {
-    if (currentBox.capacity < smallestBox.capacity) {
-      return currentBox
-    } else if (currentBox.capacity === smallestBox.capacity) {
-      return currentBox.type < smallestBox.type ? currentBox : smallestBox
-    } else {
-      return smallestBox
-    }
-  }, filteredBoxTypeArr[0])
-
-  const newBox: OpenBox = {
-    ...smallestBoxToFitItem,
-    boxId: randomUUID(),
-    items: [],
-    usedVolume: 0,
-    fragileCount: 0,
-    fragileLimit: smallestBoxToFitItem.fragileLimit ?? Infinity
-  }
-  boxes.push(newBox)
-
-  return { success: true, box: newBox }
-}
-
-// console.log(packParcels(input))
-
-//  Return Object:
-//  {
-//  boxes: Array<{ boxId: number, type: string, items: string[],
-//  usedVolume: number, fragileCount: number }>
-//  leftovers: string[], // item ids that couldn't be packed or were invalid
-//  errors: Array<{ id?: string, error: string }>
-//  // validation/packing errors (id optional for global errors)
-//  }
