@@ -61,7 +61,7 @@ Implementational note:
 type Item = {
   id: string;
   volume: number;
-  fragile: boolean;
+  fragile?: boolean;
 };
 
 type Box = {
@@ -143,15 +143,19 @@ function canFragileItemFitInBox(item: Item, boxTypes: Array<BoxBlueprint>): bool
 }
 
 function isItemALeftover(item: Item, boxTypes: Array<BoxBlueprint>): boolean {
-  const canItemFitIntoBoxType = willItemFitInBoxType(item, boxTypes);
-  const canFragileItemFitIntoBoxType = item.fragile
-    ? canFragileItemFitInBox(item, boxTypes)
-    : true;
+  console.log("avail box types:", boxTypes);
+  console.log("avail item:", item);
 
-  if (!canItemFitIntoBoxType || !canFragileItemFitIntoBoxType) {
-    return true;
+  for (const box of boxTypes) {
+    const validCapacity = box.capacity >= item.volume;
+    const limit = box.fragileLimit ?? Infinity;
+    const validFragile = !item.fragile || limit > 0;
+
+    if (validCapacity && validFragile) {
+      return false; // it fits somewhere -- not a leftover
+    }
   }
-  return false;
+  return true; // fits nowhere, thus leftover
 }
 
 function chooseBoxType(item: Item, boxTypes: Array<BoxBlueprint>): BoxBlueprint {
@@ -159,10 +163,10 @@ function chooseBoxType(item: Item, boxTypes: Array<BoxBlueprint>): BoxBlueprint 
 
   boxTypes.forEach((boxType) => {
     if (boxType.capacity >= item.volume) {
+      // is the box big enough?
       const limit = boxType.fragileLimit ?? Infinity;
 
-      // if item is fragile, limt MUST be > 0
-      // if item is NOT fragile, limit doesn't matter
+      // does it allow fragile items?
       if (item.fragile) {
         if (limit > 0) {
           possibleBoxTypes.push(boxType);
