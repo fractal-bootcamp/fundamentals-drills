@@ -1,21 +1,29 @@
 /**
- * Assignment 1 — Consecutive Sum Streak
+ * Word Frequency Ranker
  *
- * Context:
- * In analytics or signal processing, we sometimes want to detect “streaks” of rising data. Given an array of integers,
- * return the length of the longest consecutive increasing run (where each next number is exactly 1 greater).
- * For example, [1,2,3,5,6,7,8,10] has a longest streak [5,6,7,8] of length 4.
+ * Given a string of text, find the most frequently occurring word (case-insensitive).
+ * Words are separated by spaces. If there is a tie, return the word that appears first.
+ * Punctuation is considered part of the word (e.g., "hello," and "hello" are different).
  *
- * Input:
- *   - nums: number[] — may be empty or contain duplicates.
- * Output:
- *   - number — length of the longest strictly consecutive +1 run.
+ * Input: A string of text (may be empty, may contain multiple words)
+ * Output: The most frequent word as a string, or empty string if input is empty
  *
  * Examples:
- *   longestStreak([1,2,3,5,6,7,8,10]) -> 4
- *   longestStreak([5,5,5]) -> 1
- *   longestStreak([]) -> 0
+ * - mostFrequentWord("the cat and the dog") => "the"
+ * - mostFrequentWord("apple banana apple") => "apple"
+ * - mostFrequentWord("one two three") => "one" (all tied, return first)
+ * - mostFrequentWord("") => ""
  */
-export function longestStreak(nums: number[]): number {
-  return 0
+
+export function mostFrequentWord(text: string): string {
+  // Your implementation here
+  const words = text.split(' ')
+  const ranker: Map<string, number> = new Map()
+  for (let word of words) {
+    if (Array.from(ranker.keys()).includes(word)) {
+      let count = ranker.get(word)
+      count += 1
+      ranker.set(word, count)
+    }
+  }
 }
