@@ -9,14 +9,19 @@
 // [] => 0
 
 export function teamScoreSummary(players: { name: string; points: number }[]): number {
-  // filter players who scored > 10
-  // const filteredPlayers = players.filter((player) => player.points > 10)
-  // find sum of points based on filteredPlayers
-  // return filteredPlayers.reduce((total, player) => total + player.points, 0)
+  // const runningTotal = 0
+  // for each player in players
+  //    if player.points > 10
+  //        runningTotal = runningTotal + player.points
+  let runningTotal = 0;
 
-  return players
-    .filter((player) => player.points > 10)
-    .reduce((total, player) => total + player.points, 0);
+  for (const player of players) {
+    if (player.points > 10) {
+      runningTotal = runningTotal + player.points;
+    }
+  }
+
+  return runningTotal;
 }
 
 // Problem 2: Premium Product Names
@@ -29,11 +34,22 @@ export function teamScoreSummary(players: { name: string; points: number }[]): n
 // [{ name: "keyboard", price: 150, quantity: 0 }, { name: "monitor", price: 200, quantity: 3 }] => ["monitor"]
 // [] => []
 
-export function premiumProductNames(products: { name: string; price: number; quantity: number }[]): string[] {
-  return products
-    .filter((product) => product.quantity > 0 && product.price >= 100)
-    .map((product) => product.name)
-    .sort()
+export function premiumProductNames(
+  products: { name: string; price: number; quantity: number }[],
+): string[] {
+  // let productnames: Array<string> = []
+  // for each product in products
+  // if product.quantity > 0 && product.price >= 100
+  // return productNames.sort()
+
+  const productNames: Array<string> = [];
+
+  for (const product of products) {
+    if (product.quantity > 0 && product.price >= 100) {
+      productNames.push(product.name);
+    }
+  }
+  return productNames.sort();
 }
 
 // Problem 3: All Orders Complete
@@ -48,18 +64,13 @@ export function premiumProductNames(products: { name: string; price: number; qua
 export function allOrdersComplete(
   orders: { orderId: string; status: string }[],
 ): boolean {
-  const ordersGoodArr = orders.filter(
-    (order) => order.status === "shipped" || order.status === "delivered",
-  );
-
-  if (ordersGoodArr.length === orders.length) {
-    return true;
-  } else {
-    return false;
+  for (const order of orders) {
+    if (order.status !== "shipped" && order.status !== "delivered") {
+      return false;
+    }
   }
+  return true;
 }
-
-// console.log(allOrdersComplete([{ orderId: "B1", status: "shipped" }, { orderId: "B2", status: "pending" }]))
 
 // Problem 4: Group Cities by Country
 // Given an array of city objects, return an object where keys are country names
@@ -73,17 +84,18 @@ export function allOrdersComplete(
 //   => { Japan: ["Tokyo"], Germany: ["Berlin"] }
 // [] => {}
 
-export function groupCitiesByCountry(cities: { city: string; country: string }[]): Record<string, string[]> {
-  // return -> {key: countryName, value: [cityName]}
+export function groupCitiesByCountry(
+  cities: { city: string; country: string }[],
+): Record<string, string[]> {
+  const countryObject: Record<string, Array<string>> = {};
 
-  return cities.reduce((newCountryObj, currentCity) => {
-    if (newCountryObj[currentCity.country] === undefined) {
-        newCountryObj[currentCity.country] = [currentCity.city]
-    } else {
-      newCountryObj[currentCity.country].push(currentCity.city)
+  for (let i = 0; i < cities.length; i++) {
+    if (!countryObject[cities[i].country]) {
+      countryObject[cities[i].country] = [];
     }
-  return newCountryObj;
-  }, {});
+    countryObject[cities[i].country].push(cities[i].city);
+  }
+  return countryObject;
 }
 
 // Problem 5: Calculate Department Budget
@@ -99,7 +111,15 @@ export function groupCitiesByCountry(cities: { city: string; country: string }[]
 export function calculateDepartmentBudget(
   employees: { name: string; department: string; salary: number }[],
 ): number {
-  return employees
-    .filter((employee) => employee.department === "engineering")
-    .reduce((total, currEmployee) => total + currEmployee.salary, 0);
+  // store a new var = filter all objects whose departments are eng
+  const filteredForEng = employees.filter(
+    (employee) => employee.department === "engineering",
+  );
+
+  // store a new var = reduce all salaries in this new array
+  const reducedSalaries = filteredForEng.reduce(
+    (totalSalaries, currentEmployee) => totalSalaries + currentEmployee.salary,
+    0,
+  );
+  return reducedSalaries;
 }
