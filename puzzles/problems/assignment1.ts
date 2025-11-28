@@ -8,9 +8,19 @@
 // - Simple validation logic
 
 // SHARED TYPES
-export type Book = {};
+export type Book = {
+  id: string;
+  title: string;
+  totalCopies: number;
+  availableCopies: number;
+};
 
-export type User = {};
+export type User = {
+  id: string;
+  name: string;
+  type: "student" | "teacher";
+  activeLoans: Array<string>; // list of book IDs currently borrowed
+};
 
 // ------------------------------------------------------------------
 
@@ -26,7 +36,17 @@ export type User = {};
 // getBookAvailability(inv, "b2") => false
 // getBookAvailability(inv, "missing") => false
 
-export function getBookAvailability() {}
+export function getBookAvailability(
+  inventory: Record<string, Book>,
+  bookId: string,
+): boolean {
+  const book = inventory[bookId];
+
+  if (book && book.availableCopies > 0) {
+    return true;
+  }
+  return false;
+}
 
 // ------------------------------------------------------------------
 
@@ -43,7 +63,14 @@ export function getBookAvailability() {}
 // User: { type: "student", activeLoans: ["b1"] } (1 loan) => true
 // User: { type: "student", activeLoans: ["b1", "b2"] } (2 loans) => false
 
-export function canUserBorrow() {}
+export function canUserBorrow(user: User): boolean {
+  const limit = user.type === "teacher" ? 5 : 2;
+
+  if (user.activeLoans.length >= limit) {
+    return false;
+  }
+  return true;
+}
 
 // ------------------------------------------------------------------
 
@@ -59,7 +86,18 @@ export function canUserBorrow() {}
 // Book: { id: "b1", availableCopies: 5 ... }
 // => { id: "b1", availableCopies: 4 ... }
 
-export function decrementBookCopies() {}
+export function decrementBookCopies(book: Book): Book {
+  if (book.availableCopies === 0) {
+    return book;
+  }
+
+  const outgoingBook = {
+    ...book,
+    availableCopies: book.availableCopies - 1,
+  };
+
+  return outgoingBook;
+}
 
 // ------------------------------------------------------------------
 
@@ -74,4 +112,9 @@ export function decrementBookCopies() {}
 // User: { activeLoans: ["b1"] ... }, bookId: "b2"
 // => { activeLoans: ["b1", "b2"] ... }
 
-export function addLoanToUser() {}
+export function addLoanToUser(user: User, bookId: string): User {
+  return {
+    ...user,
+    activeLoans: [...user.activeLoans, bookId],
+  };
+}
