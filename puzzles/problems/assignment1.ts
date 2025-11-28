@@ -1,21 +1,77 @@
-/**
- * Assignment 1 — Consecutive Sum Streak
- *
- * Context:
- * In analytics or signal processing, we sometimes want to detect “streaks” of rising data. Given an array of integers,
- * return the length of the longest consecutive increasing run (where each next number is exactly 1 greater).
- * For example, [1,2,3,5,6,7,8,10] has a longest streak [5,6,7,8] of length 4.
- *
- * Input:
- *   - nums: number[] — may be empty or contain duplicates.
- * Output:
- *   - number — length of the longest strictly consecutive +1 run.
- *
- * Examples:
- *   longestStreak([1,2,3,5,6,7,8,10]) -> 4
- *   longestStreak([5,5,5]) -> 1
- *   longestStreak([]) -> 0
- */
-export function longestStreak(nums: number[]): number {
-  return 0
-}
+// Problem: Library System Primitives
+// We are building a checkout system for a library.
+// We need helper functions to handle lookups, validation, and immutable state updates.
+//
+// Key Concepts:
+// - Dictionary/Record access (finding things by ID)
+// - Immutable updates (creating copies of objects/arrays)
+// - Simple validation logic
+
+// SHARED TYPES
+export type Book = {};
+
+export type User = {};
+
+// ------------------------------------------------------------------
+
+// Function 1: Get Book Availability
+// Check if a book exists in the inventory AND has copies available.
+//
+// Input: Inventory object (Record<string, Book>), bookId (string)
+// Output: boolean
+//
+// Examples:
+// Inventory: { "b1": { availableCopies: 1 ... }, "b2": { availableCopies: 0 ... } }
+// getBookAvailability(inv, "b1") => true
+// getBookAvailability(inv, "b2") => false
+// getBookAvailability(inv, "missing") => false
+
+export function getBookAvailability() {}
+
+// ------------------------------------------------------------------
+
+// Function 2: Can User Borrow
+// Check if a user is allowed to borrow more books.
+// Rules:
+// - "student" can have max 2 active loans.
+// - "teacher" can have max 5 active loans.
+//
+// Input: User object
+// Output: boolean
+//
+// Examples:
+// User: { type: "student", activeLoans: ["b1"] } (1 loan) => true
+// User: { type: "student", activeLoans: ["b1", "b2"] } (2 loans) => false
+
+export function canUserBorrow() {}
+
+// ------------------------------------------------------------------
+
+// Function 3: Decrement Book Copies
+// Return a NEW Book object with availableCopies decreased by 1.
+// Do NOT mutate the original.
+// If copies are already 0, return the original book (or handle as you wish, but assume valid input for this helper).
+//
+// Input: Book object
+// Output: New Book object
+//
+// Examples:
+// Book: { id: "b1", availableCopies: 5 ... }
+// => { id: "b1", availableCopies: 4 ... }
+
+export function decrementBookCopies() {}
+
+// ------------------------------------------------------------------
+
+// Function 4: Add Loan to User
+// Return a NEW User object with the new bookId added to their activeLoans list.
+// Do NOT mutate the original.
+//
+// Input: User object, bookId (string)
+// Output: New User object
+//
+// Examples:
+// User: { activeLoans: ["b1"] ... }, bookId: "b2"
+// => { activeLoans: ["b1", "b2"] ... }
+
+export function addLoanToUser() {}
