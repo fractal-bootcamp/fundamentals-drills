@@ -1,102 +1,99 @@
 import { describe, it, expect } from "vitest";
-import { packParcels } from "../problems/assignment2";
+import { scheduleBatch } from "../problems/assignment2";
 
-describe("packParcels", () => {
-  it("returns empty packing for empty items", () => {
-    const input = { boxTypes: [{ type: "S", capacity: 5 }], items: [] };
-    const r = packParcels(input);
-    expect(r.boxes).toEqual([]);
-    expect(r.leftovers).toEqual([]);
-    expect(r.errors).toEqual([]);
-  });
+describe("Assignment 2: The Scheduler", () => {
+  const s1 = {
+    id: "s1",
+    region: "us-east",
+    tags: ["linux"],
+    capacity: { cpu: 100, mem: 100 },
+    used: { cpu: 0, mem: 0 },
+  };
+  const s2 = {
+    id: "s2",
+    region: "us-west",
+    tags: ["win"],
+    capacity: { cpu: 100, mem: 100 },
+    used: { cpu: 0, mem: 0 },
+  };
 
-  it("handles completely invalid top-level input", () => {
-    const r = packParcels(null);
-    expect(r.boxes).toEqual([]);
-    expect(r.leftovers).toEqual([]);
-    expect(r.errors.length).toBeGreaterThanOrEqual(1);
-    expect(r.errors[0].error).toMatch(/invalid input/);
-  });
-
-  it("chooses lexicographically smallest type when capacities tie (deterministic tie-breaker)", () => {
-    const input = {
-      boxTypes: [
-        { type: "Z", capacity: 5 },
-        { type: "A", capacity: 5 }, // should win by lexicographic order
-      ],
-      items: [{ id: "i1", volume: 5 }],
-    };
-    const r = packParcels(input);
-    expect(r.boxes).toHaveLength(1);
-    expect(r.boxes[0].type).toBe("A");
-    expect(r.boxes[0].items).toEqual(["i1"]);
-    expect(r.leftovers).toEqual([]);
-    expect(r.errors).toEqual([]);
-  });
-
-  it("respects fragile limits and opens new boxes when an open box's fragile quota is full", () => {
-    const input = {
-      boxTypes: [{ type: "F1", capacity: 5, fragileLimit: 1 }],
-      items: [
-        { id: "f1", volume: 1, fragile: true },
-        { id: "f2", volume: 1, fragile: true }, // should open a new F1 box because fragileLimit is 1
-      ],
+  it("schedules a simple job to the correct region", () => {
+    const job = {
+      id: "j1",
+      requiredRegion: "us-east",
+      requiredTags: [],
+      requirements: { cpu: 10, mem: 10 },
     };
 
-    const r = packParcels(input);
-    expect(r.boxes.length).toBe(2);
-    expect(r.boxes[0].type).toBe("F1");
-    expect(r.boxes[1].type).toBe("F1");
-    expect(r.boxes[0].items).toEqual(["f1"]);
-    expect(r.boxes[1].items).toEqual(["f2"]);
-    expect(r.leftovers).toEqual([]);
-    expect(r.errors).toEqual([]);
+    const result = scheduleBatch({ jobs: [job], servers: [s1, s2] });
+
+    expect(result.failedJobs).toHaveLength(0);
+    expect(result.scheduledJobs["s1"]).toContain("j1");
+    expect(result.serverState.find((s) => s.id === "s1")?.used.cpu).toBe(10);
   });
 
-  it("realistic scenario: mixes zero-volume, fragile counts, oversized and invalid items", () => {
-    const input = {
-      boxTypes: [
-        { type: "S", capacity: 5, fragileLimit: 1 },
-        { type: "M", capacity: 10, fragileLimit: 2 },
-        { type: "L", capacity: 20 }, // unlimited fragile
-      ],
-      items: [
-        { id: "a", volume: 3, fragile: false }, // goes to S
-        { id: "b", volume: 2, fragile: true },  // fits S (fragile 1)
-        { id: "c", volume: 1, fragile: true },  // S full, opens M
-        { id: "d", volume: 0, fragile: true },  // zero volume but counts fragile, goes to M
-        { id: "e", volume: 25, fragile: false }, // too big -> leftover
-        { id: "f", volume: -1 },                 // invalid -> leftover + error
-        { id: "g", volume: 5, fragile: false },  // should fit into existing M if space
-      ],
+  it("fails jobs that fit nowhere", () => {
+    const hugeJob = {
+      id: "huge",
+      requiredTags: [],
+      requirements: { cpu: 200, mem: 10 },
     };
 
-    const r = packParcels(input);
+    const result = scheduleBatch({ jobs: [hugeJob], servers: [s1] });
 
-    // Boxes: expect S then M created
-    expect(r.boxes.length).toBeGreaterThanOrEqual(2);
+    expect(result.failedJobs).toContain("huge");
+    expect(result.scheduledJobs["s1"]).toHaveLength(0);
+  });
 
-    const boxS = r.boxes.find(b => b.type === "S");
-    const boxM = r.boxes.find(b => b.type === "M");
+  it("stacks multiple jobs on the same server until full", () => {
+    const jobs = [
+      {
+        id: "j1",
+        requiredTags: [],
+        requirements: { cpu: 40, mem: 10 },
+      },
+      {
+        id: "j2",
+        requiredTags: [],
+        requirements: { cpu: 40, mem: 10 },
+      },
+      {
+        id: "j3",
+        requiredTags: [],
+        requirements: { cpu: 40, mem: 10 },
+      }, // 40+40+40 = 120 > 100, should fail
+    ];
 
-    expect(boxS).toBeDefined();
-    expect(boxM).toBeDefined();
+    const result = scheduleBatch({ jobs, servers: [s1] });
 
-    expect(boxS!.items).toEqual(["a", "b"]);
-    expect(boxS!.usedVolume).toBe(5);
-    expect(boxS!.fragileCount).toBe(1);
+    expect(result.scheduledJobs["s1"]).toEqual(["j1", "j2"]);
+    expect(result.failedJobs).toEqual(["j3"]);
+    expect(result.serverState[0].used.cpu).toBe(80);
+  });
 
-    // M should contain c, d, g in that order (d has zero volume)
-    expect(boxM!.items).toEqual(["c", "d", "g"]);
-    expect(boxM!.usedVolume).toBe(1 + 0 + 5);
-    expect(boxM!.fragileCount).toBe(2); // c and d are fragile
+  it("balances load between servers (prefer lowest cpu load)", () => {
+    // Both servers are identical and fit the job.
+    // j1 goes to s1 (tie break id).
+    // j2 should go to s2 (because s1 has 10% load, s2 has 0%).
+    const s1Copy = { ...s1 };
+    const s1Clone = { ...s1, id: "s1-clone" }; // "s1" < "s1-clone"
 
-    // leftovers should include the too-big and invalid items
-    expect(r.leftovers).toContain("e");
-    expect(r.leftovers).toContain("f");
+    const jobs = [
+      {
+        id: "j1",
+        requiredTags: [],
+        requirements: { cpu: 10, mem: 10 },
+      },
+      {
+        id: "j2",
+        requiredTags: [],
+        requirements: { cpu: 10, mem: 10 },
+      },
+    ];
 
-    // errors should mention invalid or cannot accommodate where appropriate
-    expect(r.errors.some(er => er.id === "f" && /invalid/i.test(er.error))).toBe(true);
-    expect(r.errors.some(er => er.id === "e" && /no box type/i.test(er.error))).toBe(true);
+    const result = scheduleBatch({ jobs, servers: [s1Copy, s1Clone] });
+
+    expect(result.scheduledJobs["s1"]).toContain("j1");
+    expect(result.scheduledJobs["s1-clone"]).toContain("j2");
   });
 });

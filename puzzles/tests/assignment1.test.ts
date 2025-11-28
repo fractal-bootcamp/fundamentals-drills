@@ -1,51 +1,127 @@
 import { describe, it, expect } from "vitest";
-import { topVoters } from "../problems/assignment1";
+import {
+  checkCapabilities,
+  checkCapacity,
+  findBestServer,
+  deployJob,
+  type Server,
+  type Job,
+} from "../problems/assignment1";
 
-describe("topVoters", () => {
-  it("returns empty array for empty input", () => {
-    expect(topVoters([])).toEqual([]);
+describe("Assignment 1: Scheduler Primitives", () => {
+  const baseServer: Server = {
+    id: "s1",
+    region: "us-east",
+    tags: ["linux", "gpu"],
+    capacity: { cpu: 100, mem: 64 },
+    used: { cpu: 0, mem: 0 },
+  };
+
+  describe("checkCapabilities", () => {
+    it("matches when region and tags align", () => {
+      const job: Job = {
+        id: "j1",
+        requiredRegion: "us-east",
+        requiredTags: ["gpu"],
+        requirements: { cpu: 10, mem: 10 },
+      };
+      expect(checkCapabilities(baseServer, job)).toBe(true);
+    });
+
+    it("matches when region is optional", () => {
+      const job: Job = {
+        id: "j1",
+        requiredTags: [],
+        requirements: { cpu: 10, mem: 10 },
+      };
+      expect(checkCapabilities(baseServer, job)).toBe(true);
+    });
+
+    it("fails when region mismatch", () => {
+      const job: Job = {
+        id: "j1",
+        requiredRegion: "eu-west",
+        requiredTags: [],
+        requirements: { cpu: 10, mem: 10 },
+      };
+      expect(checkCapabilities(baseServer, job)).toBe(false);
+    });
+
+    it("fails when missing a required tag", () => {
+      const job: Job = {
+        id: "j1",
+        requiredTags: ["windows"],
+        requirements: { cpu: 10, mem: 10 },
+      };
+      expect(checkCapabilities(baseServer, job)).toBe(false);
+    });
   });
 
-  it("returns single winner for simple input", () => {
-    const votes = ["alice", "bob", "alice"];
-    expect(topVoters(votes)).toEqual(["alice"]);
+  describe("checkCapacity", () => {
+    it("passes when plenty of space", () => {
+      const s = { ...baseServer, used: { cpu: 50, mem: 10 } };
+      const job: Job = {
+        id: "j",
+        requiredTags: [],
+        requirements: { cpu: 10, mem: 10 },
+      };
+      expect(checkCapacity(s, job)).toBe(true);
+    });
+
+    it("fails when CPU insufficient", () => {
+      const s = { ...baseServer, used: { cpu: 95, mem: 0 } };
+      const job: Job = {
+        id: "j",
+        requiredTags: [],
+        requirements: { cpu: 10, mem: 10 },
+      };
+      expect(checkCapacity(s, job)).toBe(false);
+    });
+
+    it("fails when Memory insufficient", () => {
+      const s = { ...baseServer, used: { cpu: 0, mem: 60 } };
+      const job: Job = {
+        id: "j",
+        requiredTags: [],
+        requirements: { cpu: 10, mem: 10 },
+      };
+      expect(checkCapacity(s, job)).toBe(false);
+    });
   });
 
-  it("returns all tied winners sorted alphabetically", () => {
-    const votes = ["b", "a", "b", "a"];
-    // both 'a' and 'b' have 2 votes -> sorted order
-    expect(topVoters(votes)).toEqual(["a", "b"]);
+  describe("findBestServer", () => {
+    it("picks the server with lowest CPU load", () => {
+      const s1 = { ...baseServer, id: "A", used: { cpu: 50, mem: 0 } }; // 50%
+      const s2 = { ...baseServer, id: "B", used: { cpu: 10, mem: 0 } }; // 10%
+      const s3 = { ...baseServer, id: "C", used: { cpu: 80, mem: 0 } }; // 80%
+      expect(findBestServer([s1, s2, s3])?.id).toBe("B");
+    });
+
+    it("uses ID as tie breaker", () => {
+      const s1 = { ...baseServer, id: "server-2", used: { cpu: 10, mem: 0 } };
+      const s2 = { ...baseServer, id: "server-1", used: { cpu: 10, mem: 0 } };
+      expect(findBestServer([s1, s2])?.id).toBe("server-1");
+    });
+
+    it("returns null for empty list", () => {
+      expect(findBestServer([])).toBe(null);
+    });
   });
 
-  it("is case-sensitive when counting names", () => {
-    const votes = ["A", "a", "A"];
-    // 'A' has 2 votes, 'a' has 1
-    expect(topVoters(votes)).toEqual(["A"]);
-  });
+  describe("deployJob", () => {
+    it("returns a new server with increased usage", () => {
+      const initial = { ...baseServer, used: { cpu: 10, mem: 10 } };
+      const job: Job = {
+        id: "j",
+        requiredTags: [],
+        requirements: { cpu: 5, mem: 20 },
+      };
 
-  it("handles all votes for the same candidate", () => {
-    const votes = Array.from({ length: 10 }, () => "same");
-    expect(topVoters(votes)).toEqual(["same"]);
-  });
+      const result = deployJob(initial, job);
 
-  it("works for multiple candidates with varying counts", () => {
-    const votes = [
-      "x", "y", "z", "x", "y", "x", // x:3, y:2, z:1
-      "w", "w",                      // w:2
-    ];
-    expect(topVoters(votes)).toEqual(["x"]);
-  });
-
-  it("table-driven examples (several representative cases)", () => {
-    const cases: { input: string[]; expected: string[] }[] = [
-      { input: ["one"], expected: ["one"] },
-      { input: ["a", "b", "c", "b"], expected: ["b"] },
-      { input: ["tie1", "tie2"], expected: ["tie1", "tie2"] }, // both 1 vote, sorted
-      { input: ["n", "n", "m", "m"], expected: ["m", "n"] }, // tie 2 votes each -> alphabetical
-    ];
-
-    for (const c of cases) {
-      expect(topVoters(c.input)).toEqual(c.expected);
-    }
+      expect(result.used.cpu).toBe(15);
+      expect(result.used.mem).toBe(30);
+      expect(result).not.toBe(initial); // Reference check
+    });
   });
 });
