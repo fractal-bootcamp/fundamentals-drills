@@ -1,21 +1,43 @@
 /**
- * Assignment 1 — Consecutive Sum Streak
+ * Student Grade Calculator
  *
- * Context:
- * In analytics or signal processing, we sometimes want to detect “streaks” of rising data. Given an array of integers,
- * return the length of the longest consecutive increasing run (where each next number is exactly 1 greater).
- * For example, [1,2,3,5,6,7,8,10] has a longest streak [5,6,7,8] of length 4.
+ * Given an array of student records, find the student with the highest average grade.
+ * Each student record contains a name and an array of test scores. Calculate each
+ * student's average and return the name of the student with the highest average.
+ * If there's a tie, return the student whose name appears first in the array.
  *
- * Input:
- *   - nums: number[] — may be empty or contain duplicates.
- * Output:
- *   - number — length of the longest strictly consecutive +1 run.
+ * Input: Array of objects with { name: string, scores: number[] }
+ * Output: String representing the name of the top student
  *
  * Examples:
- *   longestStreak([1,2,3,5,6,7,8,10]) -> 4
- *   longestStreak([5,5,5]) -> 1
- *   longestStreak([]) -> 0
+ * - [{ name: "Alice", scores: [85, 90, 78] }, { name: "Bob", scores: [92, 88] }] → "Bob"
+ * - [{ name: "Charlie", scores: [80] }, { name: "Dana", scores: [80, 80] }] → "Charlie"
  */
-export function longestStreak(nums: number[]): number {
-  return 0
+export type Students = {
+  name: string,
+  scores: number[]
+}
+
+export type individualStudentScore = {
+  name: string,
+  score: number
+}
+
+export function findTopStudent(students: Students[]): string {
+  if (students.length === 0) throw new Error('No students provided')
+
+  let topStudentSoFar: string = "";
+  let topStudentScoreSoFar: number = 0;
+
+  for (let student of students) {
+    let totalScore = 0;
+    for (let i of student.scores) {
+      totalScore += (i / student.scores.length);
+      if (totalScore > topStudentScoreSoFar) {
+        topStudentScoreSoFar = totalScore;
+        topStudentSoFar = student.name;
+      }
+    }
+  }
+  return topStudentSoFar;
 }
