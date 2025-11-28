@@ -4,22 +4,7 @@
 // These functions will handle validation, capacity checking, sorting, and state updates.
 
 // SHARED TYPES (Used in both assignments)
-export type Resources = { cpu: number; mem: number };
-
-export type Server = {
-  id: string;
-  region: string;
-  tags: Array<string>;
-  capacity: Resources;
-  used: Resources;
-};
-
-export type Job = {
-  id: string;
-  requiredRegion?: string;
-  requiredTags: Array<string>; // not optional, but can be empty
-  requirements: Resources;
-};
+import { type Job, type Server, type Resources } from "./assignment2";
 
 // ------------------------------------------------------------------
 
@@ -96,7 +81,7 @@ export function checkCapacity(server: Server, job: Job): boolean {
 // => Server "S1" (tie-breaker: "S1" < "S2")
 
 export function findBestServer(servers: Server[]): Server | null {
-  if (!servers) {
+  if (!servers || servers.length === 0) {
     return null;
   }
 
@@ -109,8 +94,13 @@ export function findBestServer(servers: Server[]): Server | null {
     if (currentLoad < bestLoad) {
       bestServer = server;
       bestLoad = currentLoad;
+    } else if (currentLoad === bestLoad) {
+      if (server.id < bestServer.id) {
+        bestServer = server;
+      }
     }
   }
+  return bestServer;
 }
 
 // ------------------------------------------------------------------
@@ -127,4 +117,12 @@ export function findBestServer(servers: Server[]): Server | null {
 // Job: { requirements: {cpu: 5, mem: 5} ... }
 // => New Server { used: {cpu: 15, mem: 15} ... }
 
-export function deployJob(server: Server, job: Job): Server {}
+export function deployJob(server: Server, job: Job): Server {
+  return {
+    ...server,
+    used: {
+      cpu: server.used.cpu + job.requirements.cpu,
+      mem: server.used.mem + job.requirements.mem,
+    },
+  };
+}

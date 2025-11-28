@@ -49,15 +49,15 @@ This assignment is about ORCHESTRATING those helpers.
 */
 
 // Re-defining types for self-containment (normally you'd import)
-type Resources = { cpu: number; mem: number };
-type Server = {
+export type Resources = { cpu: number; mem: number };
+export type Server = {
   id: string;
   region: string;
   tags: string[];
   capacity: Resources;
   used: Resources;
 };
-type Job = {
+export type Job = {
   id: string;
   requiredRegion?: string;
   requiredTags: string[];
@@ -75,71 +75,43 @@ type SchedulerOutput = {
   failedJobs: string[];
 };
 
+import {
+  checkCapabilities,
+  checkCapacity,
+  findBestServer,
+  deployJob,
+} from "./assignment1";
+
 export function scheduleBatch(input: SchedulerInput): SchedulerOutput {
   // Initialize state
   // We need to mutate 'serverState' as we go, or replace objects in it,
   // because the next job needs to see the updated capacity of the chosen server.
-  let serverState = input.servers.map((s) => ({ ...s })); // Shallow copy to be safe
-  const failedJobs: string[] = [];
-  const scheduledJobs: Record<string, string[]> = {};
+  const { jobs } = input;
 
-  // Initialize output map keys
-  serverState.forEach((s) => (scheduledJobs[s.id] = []));
+  const serverState: Array<Server> = structuredClone(input.servers);
+  const scheduledJobs: Record<string, Array<string>> = {};
+  const failedJobs: Array<string> = [];
 
-  for (const job of input.jobs) {
-    // 1. Find candidates (Region & Tags & Capacity)
-    const candidates = serverState.filter((server) => {
-      // Check Region
-      if (job.requiredRegion && job.requiredRegion !== server.region) {
-        return false;
-      }
-      // Check Tags
-      for (const tag of job.requiredTags) {
-        if (!server.tags.includes(tag)) {
-          return false;
-        }
-      }
-      // Check Capacity
-      const freeCpu = server.capacity.cpu - server.used.cpu;
-      const freeMem = server.capacity.mem - server.used.mem;
-      if (freeCpu < job.requirements.cpu || freeMem < job.requirements.mem) {
-        return false;
-      }
+  // init scheduledJobs Array
+  input.servers.forEach((server) => {
+    scheduledJobs[server.id] = [];
+  });
 
-      return true;
-    });
+  // filter for jobCapabilities
+  for (const job of jobs) {
+    const candidates = serverState.filter((server) => checkCapabilities(server, job));
+    const validServers = candidates.filter((candidate) => checkCapacity(candidate, job));
+    const chosenServer = findBestServer(validServers);
 
-    // 2. Pick Best (Lowest CPU Load)
-    // (Inlining the sort logic from Assignment 1)
-    candidates.sort((a, b) => {
-      const loadA = a.used.cpu / a.capacity.cpu;
-      const loadB = b.used.cpu / b.capacity.cpu;
-      if (loadA !== loadB) return loadA - loadB;
-      return a.id.localeCompare(b.id);
-    });
-
-    const chosen = candidates[0];
-
-    if (chosen) {
-      // 3. Deploy (Update state)
-      // We need to update the specific server in our `serverState` array
-      const index = serverState.findIndex((s) => s.id === chosen.id);
-      if (index !== -1) {
-        serverState[index] = {
-          ...chosen,
-          used: {
-            cpu: chosen.used.cpu + job.requirements.cpu,
-            mem: chosen.used.mem + job.requirements.mem,
-          },
-        };
-        scheduledJobs[chosen.id].push(job.id);
-      }
-    } else {
-      // 4. Handle Failure
+    if (!chosenServer) {
       failedJobs.push(job.id);
+    } else {
+      const updatedServer = deployJob(chosenServer, job);
+      const index = serverState.findIndex((server) => server.id === chosenServer.id);
+      serverState[index] = updatedServer;
+      scheduledJobs[chosenServer.id].push(job.id);
     }
   }
-
   return {
     serverState,
     scheduledJobs,
