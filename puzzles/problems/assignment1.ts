@@ -67,7 +67,15 @@ export function checkCapabilities(server: Server, job: Job): boolean {
 // Job: { requirements: {cpu: 15, mem: 20} }
 // => false (15 > 10, not enough CPU)
 
-export function checkCapacity(server: Server, job: Job): boolean {}
+export function checkCapacity(server: Server, job: Job): boolean {
+  const freeCpu = server.capacity.cpu - server.used.cpu;
+  const freeMem = server.capacity.mem - server.used.mem;
+
+  if (freeCpu < job.requirements.cpu || freeMem < job.requirements.mem) {
+    return false;
+  }
+  return true;
+}
 
 // ------------------------------------------------------------------
 
@@ -87,7 +95,23 @@ export function checkCapacity(server: Server, job: Job): boolean {}
 // [ {id:"S2", load: 20%}, {id:"S1", load: 20%} ]
 // => Server "S1" (tie-breaker: "S1" < "S2")
 
-export function findBestServer(servers: Server[]): Server | null {}
+export function findBestServer(servers: Server[]): Server | null {
+  if (!servers) {
+    return null;
+  }
+
+  let bestServer = servers[0];
+  let bestLoad = bestServer.used.cpu / bestServer.capacity.cpu;
+
+  for (const server of servers) {
+    const currentLoad = server.used.cpu / server.capacity.cpu;
+
+    if (currentLoad < bestLoad) {
+      bestServer = server;
+      bestLoad = currentLoad;
+    }
+  }
+}
 
 // ------------------------------------------------------------------
 
