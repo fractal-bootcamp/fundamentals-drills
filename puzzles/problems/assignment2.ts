@@ -1,60 +1,142 @@
-// @ts-nocheck
-/**
- * Programming Puzzle — Vending Sessions
- *
- * You will implement a tiny vending machine that processes a list of user sessions.
- * Each session is a sequence of actions: inserting coins, selecting an item, or cancelling.
- * There is NO persistent coin bank: change is conceptual and unlimited; only inventory changes over time.
- * Sessions are independent except for inventory stock, which is shared and persists across sessions.
- *
- * Input:
- *   {
- *     inventory: { [sku: string]: { price: number; stock: number } } // price in whole cents (>=0), stock>=0
- *     sessions: Array<Session>                                        // Session = Action[]
- *   }
- *   Action is one of:
- *     ["insert", number]     // coin must be one of the allowed denominations [100,50,25,10,5,1]
- *     ["select", string]     // attempt to buy sku
- *     ["cancel"]             // abort session & refund inserted coins
- *     ["noop"]               // does nothing
- *
- * Output:
- *   {
- *     inventory: { ...updated inventory... },
- *     receipts: Array<{
- *       dispensed?: string;                        // sku if an item was dispensed
- *       changeCoins: { [denom: number]: number };  // change returned as a greedy breakdown in the allowed denominations
- *       changeTotal: number;                        // total change (cents)
- *       spent: number;                              // cents the machine kept this session
- *       errors: string[];                           // rule violations or unsupported ops
- *     }>
- *   }
- *
- * Rules & Notes:
- *   - Start each session with credit=0 and an empty "inserted" coin pouch.
- *   - "insert" adds to the session credit if the coin is in the allowed denominations; otherwise record an error and ignore it.
- *   - "select":
- *       * Fails if sku is invalid, out of stock, or credit < price (record an error; session continues).
- *       * On success: dispense the item, decrement inventory, keep exactly the price as spent, return change = credit - price
- *         using greedy breakdown (unlimited coins; no bank constraints), then the session ENDS (ignore further actions).
- *   - "cancel" refunds exactly the coins the user inserted this session (returned as a breakdown; session ENDS).
- *   - If a session ends without "select" success or "cancel", nothing is dispensed or refunded; it's just an idle session end.
- *   - Deterministic; integers only; no randomness or timing.
- *
- * Examples:
- *   Example A:
- *     inv={A:{price:125,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","A"] ]
- *     ]
- *     => dispensed A, spent 125, change 0, inventory A.stock=0
- *
- *   Example B:
- *     inv={B:{price:130,stock:1}}, sessions=[
- *       [ ["insert",100],["insert",25],["select","B"] ], // insufficient: error, session continues
- *       [ ["insert",100],["select","B"] ]                // success with change 70 = 50+10+10
- *     ]
- */
+/*
+Assignment 2: Order Fulfillment Processor
 
-export function processVendingSessions(input) {
-  return {}
+Context:
+We are processing a batch of customer orders.
+We need to verify stock for ALL items in an order, find a box for the shipment,
+and then update our inventory.
+
+Input:
+{
+  orders: Array<{ id: string, items: Array<{ productId: string, quantity: number }> }>,
+  inventory: Record<string, Product>,
+  boxes: Array<Box>
+}
+
+Rules:
+- Process orders in order.
+- For each order:
+  1. Check if ALL items are in stock. If any item is missing or low stock, fail the whole order.
+  2. Calculate the total weight of the order.
+  3. Find the smallest box that fits the order. (If no box fits, fail the order "Too heavy").
+  4. If all checks pass:
+     - Update inventory for EVERY item in the order.
+     - Create a shipment record.
+  5. If failed:
+     - Add to 'failedOrders' list with reason.
+
+- Return:
+  {
+    inventory: Record<string, Product>, // Final state
+    shipments: Array<{ orderId: string, boxId: string, totalWeight: number }>,
+    failedOrders: Array<{ orderId: string, reason: string }>
+  }
+
+Edge Cases:
+- Order with item not in inventory -> Fail "Item ... invalid"
+- Order with insufficient stock -> Fail "Item ... out of stock"
+- Order too heavy for any box -> Fail "Too heavy"
+
+NOTE:
+Use helpers from Assignment 1.
+Be careful to update inventory for ALL items only if the order succeeds.
+*/
+
+import {
+  type Product,
+  type Box,
+  type OrderItem,
+  checkStock,
+  calculateTotalWeight,
+  findSmallestBox,
+  reduceInventory,
+} from "./assignment1";
+
+type Order = {
+  id: string;
+  items: OrderItem[];
+};
+
+type FulfillmentInput = {
+  orders: Order[];
+  inventory: Record<string, Product>;
+  boxes: Box[];
+};
+
+type Shipment = {
+  orderId: string;
+  boxId: string;
+  totalWeight: number;
+};
+
+type FailedOrder = {
+  orderId: string;
+  reason: string;
+};
+
+type FulfillmentOutput = {
+  inventory: Record<string, Product>;
+  shipments: Shipment[];
+  failedOrders: FailedOrder[];
+};
+
+export function processOrders(input: FulfillmentInput): FulfillmentOutput {
+  // Initialize State
+  const inventory = { ...input.inventory }; // Shallow copy of record
+  const shipments: Shipment[] = [];
+  const failedOrders: FailedOrder[] = [];
+
+  for (const order of input.orders) {
+    // 1. Verify Stock for ALL items
+    let stockError: string | null = null;
+
+    for (const item of order.items) {
+      if (!checkStock(inventory, item.productId, item.quantity)) {
+        // We can be specific: is it missing or just low stock?
+        // For simplicity, generic error or specific if you want.
+        stockError = `Item ${item.productId} issue`;
+        break; // Stop checking items for this order
+      }
+    }
+
+    if (stockError) {
+      failedOrders.push({ orderId: order.id, reason: stockError });
+      continue;
+    }
+
+    // 2. Calculate Weight
+    const weight = calculateTotalWeight(order.items, inventory);
+
+    // 3. Find Box
+    const box = findSmallestBox(input.boxes, weight);
+
+    if (!box) {
+      failedOrders.push({ orderId: order.id, reason: "Too heavy" });
+      continue;
+    }
+
+    // --- EXECUTE FULFILLMENT ---
+    // At this point, we know stock is good AND box is good.
+    // Now we must commit the transaction.
+
+    // 4. Update Inventory for all items
+    for (const item of order.items) {
+      const currentProduct = inventory[item.productId];
+      // Save the updated product back to the record
+      inventory[item.productId] = reduceInventory(currentProduct, item.quantity);
+    }
+
+    // 5. Create Shipment
+    shipments.push({
+      orderId: order.id,
+      boxId: box.id,
+      totalWeight: weight,
+    });
+  }
+
+  return {
+    inventory,
+    shipments,
+    failedOrders,
+  };
 }
