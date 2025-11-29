@@ -42,6 +42,7 @@ export function getBookAvailability(
 ): boolean {
   const book = inventory[bookId];
 
+  // if book exists and has more than 0 inventory book is avail
   if (book && book.availableCopies > 0) {
     return true;
   }
@@ -64,6 +65,7 @@ export function getBookAvailability(
 // User: { type: "student", activeLoans: ["b1", "b2"] } (2 loans) => false
 
 export function canUserBorrow(user: User): boolean {
+  // can a user rent more books?
   const limit = user.type === "teacher" ? 5 : 2;
 
   if (user.activeLoans.length >= limit) {
@@ -87,6 +89,7 @@ export function canUserBorrow(user: User): boolean {
 // => { id: "b1", availableCopies: 4 ... }
 
 export function decrementBookCopies(book: Book): Book {
+  // update book inventory
   if (book.availableCopies === 0) {
     return book;
   }

@@ -54,10 +54,71 @@ import {
   addLoanToUser,
 } from "./assignment1";
 
-type Request = {};
+type Request = {
+  userId: string;
+  bookId: string;
+};
 
-type LibraryInput = {};
+type LibraryInput = {
+  requests: Array<Request>;
+  inventory: Record<string, Book>;
+  users: Array<User>;
+};
 
-type LibraryOutput = {};
+type LibraryOutput = {
+  inventory: Record<string, Book>;
+  users: Array<User>;
+  errors: Array<string>;
+};
 
-export function processLibraryRequests() {}
+export function processLibraryRequests(input: LibraryInput): LibraryOutput {
+  const { requests } = input;
+  const users = input.users.map((user) => ({ ...user }));
+  const inventory = { ...input.inventory };
+  const errors: Array<string> = [];
+
+  console.log("Current Inventory before update:", inventory);
+
+  // validate userId
+  for (const request of requests) {
+    // match the request's userId to user.id
+    const userIndex = users.findIndex((user) => user.id === request.userId);
+
+    if (userIndex === -1) {
+      errors.push("User not found");
+      continue;
+    }
+
+    const currentUser = users[userIndex];
+    console.log("Current user b4 update:", currentUser);
+
+    const currentUsersRequestedBookId = request.bookId;
+    const currentRequestedBookObj = inventory[currentUsersRequestedBookId];
+
+    const isBookAvail = getBookAvailability(inventory, currentUsersRequestedBookId);
+
+    // isBookAvailable?
+    if (!currentRequestedBookObj) {
+      errors.push("Book not found");
+      continue;
+    } else if (!isBookAvail) {
+      errors.push("Book unavailable");
+      continue;
+    } else if (!canUserBorrow(currentUser)) {
+      errors.push("User limit reached");
+    } else {
+      const updatedUser = addLoanToUser(currentUser, currentUsersRequestedBookId);
+      users[userIndex] = updatedUser;
+      console.log("Current user after update:", currentUser);
+
+      const updatedBook = decrementBookCopies(currentRequestedBookObj);
+      inventory[currentUsersRequestedBookId] = updatedBook;
+      console.log("Current Inventory after update:", inventory);
+    }
+  }
+  return {
+    inventory,
+    users,
+    errors,
+  };
+}
