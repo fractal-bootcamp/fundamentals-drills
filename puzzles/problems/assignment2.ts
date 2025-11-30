@@ -42,7 +42,7 @@ Use helpers from Assignment 1.
 Be careful to update inventory for ALL items only if the order succeeds.
 */
 
-import type {
+import {
   Product,
   Box,
   OrderItem,
@@ -83,8 +83,74 @@ type FailedOrder = {
 };
 
 export function processOrders(input: FulfillmentInput): FulfillmentOutput {
+  const { orders, boxes } = input;
+  const currentInventory = { ...input.inventory };
+  const failedOrders: Array<FailedOrder> = [];
+  const shipments: Array<Shipment> = [];
+
+  // are all items in stock?
+  for (const order of orders) {
+    let isStockOk = true;
+
+    for (const item of order.items) {
+      const pId = item.productId;
+
+      // if item not in inventory fail: "Item ... invalid"
+      if (!currentInventory[pId]) {
+        failedOrders.push({
+          orderId: pId,
+          reason: "Item ... invalid",
+        });
+        isStockOk = false;
+        break;
+      }
+      // if item out of stock fail: "Item ... out of stock"
+      else if (!checkStock(currentInventory, pId, item.quantity)) {
+        failedOrders.push({
+          orderId: pId,
+          reason: "Item ... out of stock",
+        });
+        isStockOk = false;
+        break;
+      }
+    }
+
+    if (!isStockOk) {
+      continue;
+    }
+
+    // calculate total weight of order
+    const orderWeight = calculateTotalWeight(order.items, currentInventory);
+
+    // find smallest box that fits order
+    const box = findSmallestBox(boxes, orderWeight);
+
+    // if order too heavy fail: "Too heavy"
+    if (!box) {
+      failedOrders.push({
+        orderId: order.id,
+        reason: "Too heavy",
+      });
+      continue;
+    }
+
+    // update inventory for every item in order
+    for (const item of order.items) {
+      const pId = item.productId;
+      const updatedProduct = reduceInventory(currentInventory[pId], item.quantity);
+      currentInventory[pId] = updatedProduct;
+    }
+
+    // create a shipment record
+    shipments.push({
+      orderId: order.id,
+      boxId: box.id,
+      totalWeight: orderWeight,
+    });
+  }
+
   return {
-    inventory,
+    inventory: currentInventory,
     shipments,
     failedOrders,
   };
