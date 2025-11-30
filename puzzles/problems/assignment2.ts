@@ -42,10 +42,10 @@ Use helpers from Assignment 1.
 Be careful to update inventory for ALL items only if the order succeeds.
 */
 
-import {
-  type Product,
-  type Box,
-  type OrderItem,
+import type {
+  Product,
+  Box,
+  OrderItem,
   checkStock,
   calculateTotalWeight,
   findSmallestBox,
@@ -54,14 +54,10 @@ import {
 
 type Order = {
   id: string;
-  items: OrderItem[];
+  items: Array<OrderItem>;
 };
 
-type FulfillmentInput = {
-  orders: Order[];
-  inventory: Record<string, Product>;
-  boxes: Box[];
-};
+export type Inventory = Record<string, Product>;
 
 type Shipment = {
   orderId: string;
@@ -69,71 +65,24 @@ type Shipment = {
   totalWeight: number;
 };
 
+type FulfillmentInput = {
+  orders: Array<Order>;
+  inventory: Record<string, Product>;
+  boxes: Array<Box>;
+};
+
+type FulfillmentOutput = {
+  inventory: Record<string, Product>;
+  shipments: Array<Shipment>;
+  failedOrders: Array<FailedOrder>;
+};
+
 type FailedOrder = {
   orderId: string;
   reason: string;
 };
 
-type FulfillmentOutput = {
-  inventory: Record<string, Product>;
-  shipments: Shipment[];
-  failedOrders: FailedOrder[];
-};
-
 export function processOrders(input: FulfillmentInput): FulfillmentOutput {
-  // Initialize State
-  const inventory = { ...input.inventory }; // Shallow copy of record
-  const shipments: Shipment[] = [];
-  const failedOrders: FailedOrder[] = [];
-
-  for (const order of input.orders) {
-    // 1. Verify Stock for ALL items
-    let stockError: string | null = null;
-
-    for (const item of order.items) {
-      if (!checkStock(inventory, item.productId, item.quantity)) {
-        // We can be specific: is it missing or just low stock?
-        // For simplicity, generic error or specific if you want.
-        stockError = `Item ${item.productId} issue`;
-        break; // Stop checking items for this order
-      }
-    }
-
-    if (stockError) {
-      failedOrders.push({ orderId: order.id, reason: stockError });
-      continue;
-    }
-
-    // 2. Calculate Weight
-    const weight = calculateTotalWeight(order.items, inventory);
-
-    // 3. Find Box
-    const box = findSmallestBox(input.boxes, weight);
-
-    if (!box) {
-      failedOrders.push({ orderId: order.id, reason: "Too heavy" });
-      continue;
-    }
-
-    // --- EXECUTE FULFILLMENT ---
-    // At this point, we know stock is good AND box is good.
-    // Now we must commit the transaction.
-
-    // 4. Update Inventory for all items
-    for (const item of order.items) {
-      const currentProduct = inventory[item.productId];
-      // Save the updated product back to the record
-      inventory[item.productId] = reduceInventory(currentProduct, item.quantity);
-    }
-
-    // 5. Create Shipment
-    shipments.push({
-      orderId: order.id,
-      boxId: box.id,
-      totalWeight: weight,
-    });
-  }
-
   return {
     inventory,
     shipments,

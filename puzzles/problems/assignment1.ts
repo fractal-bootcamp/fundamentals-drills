@@ -2,6 +2,8 @@
 // We are building a fulfillment system for an online store.
 // We need helpers to check stock, calculate shipment weights, find boxes, and update inventory.
 
+import { Inventory } from "./assignment2";
+
 // SHARED TYPES
 export type Product = {
   id: string;
@@ -11,7 +13,7 @@ export type Product = {
 
 export type Box = {
   id: string;
-  maxWeight: number; // in grams
+  maxWeight: number;
 };
 
 export type OrderItem = {
@@ -34,15 +36,21 @@ export type OrderItem = {
 // checkStock(inv, "z9", 1) => false (product missing)
 
 export function checkStock(
-  inventory: Record<string, Product>,
+  inventory: Inventory,
   productId: string,
-  quantity: number,
+  requestedQuantity: number,
 ): boolean {
   const product = inventory[productId];
+
   if (!product) {
     return false;
   }
-  return product.stock >= quantity;
+
+  if (product.stock < requestedQuantity) {
+    return false;
+  }
+
+  return true;
 }
 
 // ------------------------------------------------------------------
@@ -60,15 +68,21 @@ export function checkStock(
 // => 200
 
 export function calculateTotalWeight(
-  items: OrderItem[],
-  inventory: Record<string, Product>,
+  items: Array<OrderItem>,
+  inventory: Inventory,
 ): number {
   let total = 0;
+
   for (const item of items) {
-    const product = inventory[item.productId];
-    if (product) {
-      total += product.weight * item.quantity;
+    const productId = item.productId;
+    let currentWeight = 0;
+
+    if (!inventory[productId].id) {
+      currentWeight = 0;
+    } else {
+      currentWeight = currentWeight + inventory[productId].weight;
     }
+    total = total + item.quantity * currentWeight;
   }
   return total;
 }
@@ -89,18 +103,11 @@ export function calculateTotalWeight(
 // Weight: 800 => Box {max: 1000}
 // Weight: 2000 => null
 
-export function findSmallestBox(boxes: Box[], weight: number): Box | null {
-  // Filter for boxes that can hold the weight
-  const validBoxes = boxes.filter((b) => b.maxWeight >= weight);
+export function findSmallestBox(boxes: Array<Box>, weight: number): Box | null {
+  const bigEnoughBoxes = boxes.filter((box) => box.maxWeight >= weight);
+  const smallestAvailBoxes = bigEnoughBoxes.sort((a, b) => a.maxWeight - b.maxWeight);
 
-  if (validBoxes.length === 0) {
-    return null;
-  }
-
-  // Sort by size ascending (smallest first)
-  validBoxes.sort((a, b) => a.maxWeight - b.maxWeight);
-
-  return validBoxes[0];
+  return smallestAvailBoxes[0] || null;
 }
 
 // ------------------------------------------------------------------
@@ -116,7 +123,7 @@ export function findSmallestBox(boxes: Box[], weight: number): Box | null {
 // Product: { stock: 10 ... }, qty: 3
 // => { stock: 7 ... }
 
-export function reduceInventory(product: Product, quantity: number): Product {
+export function reduceInventory(product: Product, quantity: number) {
   return {
     ...product,
     stock: product.stock - quantity,
