@@ -16,6 +16,40 @@
  *   longestStreak([5,5,5]) -> 1
  *   longestStreak([]) -> 0
  */
+function isConsecutive(number1, number2) {
+  if (number1 + 1 == number2) {
+    return true
+  }
+}
+
 export function longestStreak(nums: number[]): number {
-  return 0
+  let consecutiveSumStreak = 0;
+  let streaksArray = []
+  // 1. Handle edge cases.
+  if (nums.length === 0) {
+    return 0
+  }
+
+  if (nums.length === 1) {
+    return 1
+  }
+
+  for (let i = 0; i <= nums.length; i++) {
+    // const previousNumber = i - 1 >= 0 ? nums[i - 1] : 0
+    const currentNumber = nums[i]
+    // zero is making previous number 
+    if (nums[i - 1] !== 0 && !nums[i - 1]) {
+      consecutiveSumStreak++
+    } else if (currentNumber - 1 === nums[i - 1]) {
+      console.log(`adding ${currentNumber} to streak`)
+      consecutiveSumStreak++
+    } else {
+      console.log('made it to else')
+      console.log(consecutiveSumStreak)
+      streaksArray.push(consecutiveSumStreak)
+      consecutiveSumStreak = 1
+    }
+  }
+
+  return Math.max(...streaksArray)
 }
