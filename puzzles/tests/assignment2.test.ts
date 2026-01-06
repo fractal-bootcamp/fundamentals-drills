@@ -1,431 +1,259 @@
 import { describe, it, expect } from "vitest";
-import { processVendingSessions } from "../problems/assignment2";
+import {
+  processDailyEvents,
+  type LoanEvent,
+  type LibraryState,
+} from "../problems/assignment2";
+import type { Patron, Loan, HoldRequest } from "../problems/assignment1";
 
-describe("processVendingSessions", () => {
-  // Basic functionality tests
-  it("should handle successful purchase from example A", () => {
-    const input = {
-      inventory: { A: { price: 125, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["insert", 25], ["select", "A"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ A: { price: 125, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "A",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 125,
-      errors: []
-    }]);
+describe("Assignment 2: Actions & Orchestration", () => {
+  const createPatron = (
+    id: string,
+    tier: "basic" | "premium" | "elite" = "basic",
+    balance: number = 0,
+  ): Patron => ({
+    id,
+    name: `Patron ${id}`,
+    membershipTier: tier,
+    accountBalance: balance,
   });
 
-  it("should handle insufficient credit from example B", () => {
-    const input = {
-      inventory: { B: { price: 130, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["insert", 25], ["select", "B"]],
-        [["insert", 100], ["select", "B"]]
-      ]
-    };
+  const createLoan = (
+    bookId: string,
+    patronId: string,
+    dueDate: Date,
+    renewalCount: number = 0,
+  ): Loan => ({
+    bookId,
+    patronId,
+    dueDate,
+    renewalCount,
+    type: "standard",
+  });
 
-    const result = processVendingSessions(input);
+  describe("processReturn action", () => {
+    it("processes on-time return without fees", () => {
+      const patrons = [createPatron("p1", "basic", 0)];
+      const loans = [createLoan("b1", "p1", new Date("2024-01-20"))];
+      const events: LoanEvent[] = [{ type: "return", bookId: "b1", patronId: "p1" }];
+      const currentDate = new Date("2024-01-15");
 
-    expect(result.inventory).toEqual({ B: { price: 130, stock: 1 } });
-    expect(result.receipts[0]).toEqual({
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["insufficient credit: have 125, need 130"]
+      const result = processDailyEvents(patrons, loans, events, currentDate);
+
+      expect(result.finalState.activeLoans.has("b1")).toBe(false);
+      expect(result.finalState.patrons.get("p1")?.accountBalance).toBe(0);
+      expect(result.finalState.eventLog).toContain("Book b1 returned by p1 on time");
     });
-    expect(result.receipts[1]).toEqual({
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["insufficient credit: have 100, need 130"]
+
+    it("processes overdue return and charges late fees", () => {
+      const patrons = [createPatron("p1", "basic", 0)];
+      const loans = [createLoan("b1", "p1", new Date("2024-01-10"))];
+      const events: LoanEvent[] = [{ type: "return", bookId: "b1", patronId: "p1" }];
+      const currentDate = new Date("2024-01-20");
+
+      const result = processDailyEvents(patrons, loans, events, currentDate);
+
+      expect(result.finalState.activeLoans.has("b1")).toBe(false);
+      // 10 days overdue * $0.50 = $5.00
+      expect(result.finalState.patrons.get("p1")?.accountBalance).toBe(-5);
+      expect(result.finalState.eventLog[0]).toContain("Late fee: $5.00");
+    });
+
+    it("rejects return for non-existent loan", () => {
+      const patrons = [createPatron("p1")];
+      const loans: Loan[] = [];
+      const events: LoanEvent[] = [{ type: "return", bookId: "b1", patronId: "p1" }];
+      const currentDate = new Date("2024-01-15");
+
+      const result = processDailyEvents(patrons, loans, events, currentDate);
+
+      expect(result.finalState.eventLog).toContain(
+        "Return failed: No active loan for book b1",
+      );
+    });
+
+    it("rejects return from wrong patron", () => {
+      const patrons = [createPatron("p1"), createPatron("p2")];
+      const loans = [createLoan("b1", "p1", new Date("2024-01-20"))];
+      const events: LoanEvent[] = [{ type: "return", bookId: "b1", patronId: "p2" }];
+      const currentDate = new Date("2024-01-15");
+
+      const result = processDailyEvents(patrons, loans, events, currentDate);
+
+      expect(result.finalState.activeLoans.has("b1")).toBe(true);
+      expect(result.finalState.eventLog).toContain(
+        "Return failed: Book b1 not loaned to patron p2",
+      );
     });
   });
 
-  it("should handle purchase with change", () => {
-    const input = {
-      inventory: { C: { price: 75, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "C"]]
-      ]
-    };
+  describe("processRenewal action", () => {
+    it("approves renewal for eligible loan", () => {
+      const patrons = [createPatron("p1")];
+      const loans = [createLoan("b1", "p1", new Date("2024-01-20"), 0)];
+      const events: LoanEvent[] = [{ type: "renew", bookId: "b1", patronId: "p1" }];
+      const currentDate = new Date("2024-01-15");
 
-    const result = processVendingSessions(input);
+      const result = processDailyEvents(patrons, loans, events, currentDate);
 
-    expect(result.inventory).toEqual({ C: { price: 75, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "C",
-      changeCoins: { 25: 1 },
-      changeTotal: 25,
-      spent: 75,
-      errors: []
-    }]);
-  });
-
-  it("should handle complex change breakdown", () => {
-    const input = {
-      inventory: { D: { price: 35, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "D"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ D: { price: 35, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "D",
-      changeCoins: { 50: 1, 10: 1, 5: 1 },
-      changeTotal: 65,
-      spent: 35,
-      errors: []
-    }]);
-  });
-
-  it("should handle cancel operation", () => {
-    const input = {
-      inventory: { E: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 25], ["insert", 25], ["cancel"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ E: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: { 25: 2 },
-      changeTotal: 50,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle invalid coin denominations", () => {
-    const input = {
-      inventory: { F: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 75], ["insert", 50], ["select", "F"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ F: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "F",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: ["unsupported coin: 75"]
-    }]);
-  });
-
-  it("should handle invalid SKU", () => {
-    const input = {
-      inventory: { G: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "INVALID"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ G: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["invalid sku: INVALID"]
-    }]);
-  });
-
-  it("should handle out of stock", () => {
-    const input = {
-      inventory: { H: { price: 50, stock: 0 } },
-      sessions: [
-        [["insert", 50], ["select", "H"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ H: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["out of stock: H"]
-    }]);
-  });
-
-  it("should handle multiple sessions with inventory depletion", () => {
-    const input = {
-      inventory: { I: { price: 25, stock: 2 } },
-      sessions: [
-        [["insert", 25], ["select", "I"]],
-        [["insert", 25], ["select", "I"]],
-        [["insert", 25], ["select", "I"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ I: { price: 25, stock: 0 } });
-    expect(result.receipts).toHaveLength(3);
-    expect(result.receipts[0].dispensed).toBe("I");
-    expect(result.receipts[1].dispensed).toBe("I");
-    expect(result.receipts[2].dispensed).toBeUndefined();
-    expect(result.receipts[2].errors).toEqual(["out of stock: I"]);
-  });
-
-  it("should handle noop operations", () => {
-    const input = {
-      inventory: { J: { price: 50, stock: 1 } },
-      sessions: [
-        [["noop"], ["insert", 50], ["noop"], ["select", "J"], ["noop"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ J: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "J",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: []
-    }]);
-  });
-
-  it("should handle unknown actions", () => {
-    const input = {
-      inventory: { K: { price: 50, stock: 1 } },
-      sessions: [
-        [["unknown"], ["insert", 50], ["select", "K"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ K: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "K",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: ["unknown action: unknown"]
-    }]);
-  });
-
-  it("should ignore actions after session ends", () => {
-    const input = {
-      inventory: { L: { price: 50, stock: 2 } },
-      sessions: [
-        [["insert", 50], ["select", "L"], ["insert", 100], ["select", "L"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ L: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "L",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: []
-    }]);
-  });
-
-  it("should handle cancel after session ends", () => {
-    const input = {
-      inventory: { M: { price: 25, stock: 1 } },
-      sessions: [
-        [["insert", 25], ["cancel"], ["insert", 50]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ M: { price: 25, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: { 25: 1 },
-      changeTotal: 25,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle empty sessions", () => {
-    const input = {
-      inventory: { N: { price: 50, stock: 1 } },
-      sessions: [
-        []
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ N: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle session that just inserts coins", () => {
-    const input = {
-      inventory: { O: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 25], ["insert", 10]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ O: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle multiple errors in single session", () => {
-    const input = {
-      inventory: { P: { price: 100, stock: 1 } },
-      sessions: [
-        [["insert", 75], ["select", "INVALID"], ["insert", 50], ["select", "P"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ P: { price: 100, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["unsupported coin: 75", "invalid sku: INVALID", "insufficient credit: have 50, need 100"]
-    }]);
-  });
-
-  it("should handle zero price items", () => {
-    const input = {
-      inventory: { FREE: { price: 0, stock: 1 } },
-      sessions: [
-        [["select", "FREE"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ FREE: { price: 0, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "FREE",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle large denomination breakdown", () => {
-    const input = {
-      inventory: { Q: { price: 1, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "Q"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ Q: { price: 1, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "Q",
-      changeCoins: { 50: 1, 25: 1, 10: 2, 1: 4 },
-      changeTotal: 99,
-      spent: 1,
-      errors: []
-    }]);
-  });
-
-  it("should handle empty inventory", () => {
-    const input = {
-      inventory: {},
-      sessions: [
-        [["insert", 50], ["select", "ANYTHING"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({});
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["invalid sku: ANYTHING"]
-    }]);
-  });
-
-  it("should handle malformed input gracefully", () => {
-    const input = {
-      inventory: null,
-      sessions: null
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({});
-    expect(result.receipts).toEqual([]);
-  });
-
-  it("should normalize inventory with negative values", () => {
-    const input = {
-      inventory: {
-        R: { price: -50, stock: -1 },
-        S: { price: 100.5, stock: 2.7 }
-      },
-      sessions: [
-        [["insert", 100], ["select", "S"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({
-      R: { price: 0, stock: 0 },
-      S: { price: 100, stock: 1 }
+      const loan = result.finalState.activeLoans.get("b1");
+      expect(loan?.renewalCount).toBe(1);
+      expect(loan?.dueDate.getTime()).toBeGreaterThan(new Date("2024-01-20").getTime());
+      expect(result.finalState.eventLog[0]).toContain("renewed");
     });
-    expect(result.receipts).toEqual([{
-      dispensed: "S",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 100,
-      errors: []
-    }]);
+
+    it("denies renewal for overdue loan", () => {
+      const patrons = [createPatron("p1")];
+      const loans = [createLoan("b1", "p1", new Date("2024-01-10"), 0)];
+      const events: LoanEvent[] = [{ type: "renew", bookId: "b1", patronId: "p1" }];
+      const currentDate = new Date("2024-01-15");
+
+      const result = processDailyEvents(patrons, loans, events, currentDate);
+
+      const loan = result.finalState.activeLoans.get("b1");
+      expect(loan?.renewalCount).toBe(0);
+      expect(result.finalState.eventLog).toContain("Renewal denied for book b1");
+    });
+
+    it("denies renewal when already renewed twice", () => {
+      const patrons = [createPatron("p1")];
+      const loans = [createLoan("b1", "p1", new Date("2024-01-20"), 2)];
+      const events: LoanEvent[] = [{ type: "renew", bookId: "b1", patronId: "p1" }];
+      const currentDate = new Date("2024-01-15");
+
+      const result = processDailyEvents(patrons, loans, events, currentDate);
+
+      const loan = result.finalState.activeLoans.get("b1");
+      expect(loan?.renewalCount).toBe(2);
+      expect(result.finalState.eventLog).toContain("Renewal denied for book b1");
+    });
+  });
+
+  describe("processCheckout action", () => {
+    it("checks out book to highest priority patron", () => {
+      const patrons = [createPatron("p1", "basic"), createPatron("p2", "elite")];
+      const loans: Loan[] = [];
+      const holdRequests: HoldRequest[] = [
+        { patronId: "p1", requestDate: new Date("2024-01-10"), membershipTier: "basic" },
+        { patronId: "p2", requestDate: new Date("2024-01-12"), membershipTier: "elite" },
+      ];
+      const events: LoanEvent[] = [{ type: "checkout", bookId: "b1", holdRequests }];
+      const currentDate = new Date("2024-01-15");
+
+      const result = processDailyEvents(patrons, loans, events, currentDate);
+
+      const loan = result.finalState.activeLoans.get("b1");
+      expect(loan?.patronId).toBe("p2"); // Elite patron has priority
+      expect(result.finalState.eventLog).toContain("Book b1 checked out to p2");
+    });
+
+    it("rejects checkout when book is already on loan", () => {
+      const patrons = [createPatron("p1"), createPatron("p2")];
+      const loans = [createLoan("b1", "p1", new Date("2024-01-20"))];
+      const holdRequests: HoldRequest[] = [
+        { patronId: "p2", requestDate: new Date("2024-01-10"), membershipTier: "basic" },
+      ];
+      const events: LoanEvent[] = [{ type: "checkout", bookId: "b1", holdRequests }];
+      const currentDate = new Date("2024-01-15");
+
+      const result = processDailyEvents(patrons, loans, events, currentDate);
+
+      expect(result.finalState.eventLog).toContain(
+        "Checkout failed: Book b1 already on loan",
+      );
+    });
+
+    it("rejects checkout when no hold requests exist", () => {
+      const patrons = [createPatron("p1")];
+      const loans: Loan[] = [];
+      const events: LoanEvent[] = [{ type: "checkout", bookId: "b1", holdRequests: [] }];
+      const currentDate = new Date("2024-01-15");
+
+      const result = processDailyEvents(patrons, loans, events, currentDate);
+
+      expect(result.finalState.eventLog).toContain(
+        "Checkout failed: No hold requests for book b1",
+      );
+    });
+  });
+
+  describe("processAddHold action", () => {
+    it("adds hold request to queue", () => {
+      const patrons = [createPatron("p1")];
+      const loans: Loan[] = [];
+      const holdRequest: HoldRequest = {
+        patronId: "p1",
+        requestDate: new Date("2024-01-15"),
+        membershipTier: "basic",
+      };
+      const events: LoanEvent[] = [{ type: "addHold", bookId: "b1", holdRequest }];
+      const currentDate = new Date("2024-01-15");
+
+      const result = processDailyEvents(patrons, loans, events, currentDate);
+
+      const queue = result.finalState.holdQueues.get("b1");
+      expect(queue?.length).toBe(1);
+      expect(queue?.[0].patronId).toBe("p1");
+      expect(result.finalState.eventLog).toContain("Hold added for book b1 by patron p1");
+    });
+  });
+
+  describe("Integration: Calculations driving Actions", () => {
+    it("processes complete book lifecycle with calculations", () => {
+      const patrons = [createPatron("p1", "basic", 0), createPatron("p2", "elite", 0)];
+      const loans = [createLoan("b1", "p1", new Date("2024-01-10"), 0)];
+      const holdRequests: HoldRequest[] = [
+        { patronId: "p2", requestDate: new Date("2024-01-12"), membershipTier: "elite" },
+      ];
+
+      // Sequence: return (with late fee), checkout to next patron, renew
+      const events: LoanEvent[] = [
+        { type: "return", bookId: "b1", patronId: "p1" },
+        { type: "checkout", bookId: "b1", holdRequests },
+        { type: "renew", bookId: "b1", patronId: "p2" },
+      ];
+      const currentDate = new Date("2024-01-20");
+
+      const result = processDailyEvents(patrons, loans, events, currentDate);
+
+      // Verify late fee was charged (10 days * $0.50)
+      expect(result.finalState.patrons.get("p1")?.accountBalance).toBe(-5);
+
+      // Verify book was checked out to elite patron
+      const loan = result.finalState.activeLoans.get("b1");
+      expect(loan?.patronId).toBe("p2");
+
+      // Verify renewal was approved
+      expect(loan?.renewalCount).toBe(1);
+
+      // Verify all events were logged
+      expect(result.eventsProcessed).toBe(3);
+      expect(result.finalState.eventLog.length).toBe(3);
+    });
+
+    it("processes multiple returns with varying late fees", () => {
+      const patrons = [
+        createPatron("p1", "basic", 0),
+        createPatron("p2", "basic", 0),
+        createPatron("p3", "basic", 0),
+      ];
+      const loans = [
+        createLoan("b1", "p1", new Date("2024-01-15"), 0), // 0 days overdue
+        createLoan("b2", "p2", new Date("2024-01-10"), 0), // 5 days overdue
+        createLoan("b3", "p3", new Date("2024-01-05"), 0), // 10 days overdue
+      ];
+      const events: LoanEvent[] = [
+        { type: "return", bookId: "b1", patronId: "p1" },
+        { type: "return", bookId: "b2", patronId: "p2" },
+        { type: "return", bookId: "b3", patronId: "p3" },
+      ];
+      const currentDate = new Date("2024-01-15");
+
+      const result = processDailyEvents(patrons, loans, events, currentDate);
+
+      expect(result.finalState.patrons.get("p1")?.accountBalance).toBe(0);
+      expect(result.finalState.patrons.get("p2")?.accountBalance).toBe(-2.5);
+      expect(result.finalState.patrons.get("p3")?.accountBalance).toBe(-5);
+    });
   });
 });

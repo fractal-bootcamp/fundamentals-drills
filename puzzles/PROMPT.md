@@ -1,6 +1,8 @@
-# Generator Prompt — Programming Puzzles
+# Generator Prompt — "Grokking Simplicity" Drills
 
-You are generating **two TypeScript programming assignments** plus their tests. This step measures core programming fundamentals without AI.
+You are generating **two linked TypeScript programming assignments** plus their tests.
+You will strictly follow the **Actions, Calculations, Data (ACD)** paradigm from the book _Grokking Simplicity_.
+
 Replace the four files below **every time** this prompt is run:
 
 - `puzzles/problems/assignment1.ts`
@@ -12,100 +14,132 @@ Do **not** create any other files. Do **not** include explanations outside of th
 
 ---
 
-## Constraints (both assignments)
+## Global Constraints
 
 - Language: **TypeScript**, `strict: true`.
-- Export exactly **one** named function per assignment (e.g., `export function superSpenders(...)`).
-- Include a concise problem statement as a file header comment **inside** each `.ts` file with:
-  - Context in 2–4 sentences
-  - Input/Output specification (types and invariants)
-  - 1–2 short examples (not exhaustive)
 - No external libraries. Node/built-ins only.
-- Pure and deterministic. No I/O, no randomness, no dates, no floating-point tricks.
-- Reasonable time budget: Assignment 1 should take a skilled student ~10–20 minutes; Assignment 2 ~20–35 minutes.
-- Line-count targets (not hard limits): solution ~15–40 LOC (Assignment 1), ~40–90 LOC (Assignment 2). Tests can exceed this.
+- **Dependency Rule**: `assignment2.ts` depends on `assignment1.ts`.
+
+---
+
+## Assignment 1: "Data & Calculations" (The Pure Layer)
+
+**Conceptual Goal:**
+This file represents the **functional core**. It contains **Data** (types) and **Calculations** (pure functions).
+It must be testable without any context, state, or setup.
+
+**Content Requirements:**
+
+1.  **Data**: Define the interface/types for the domain (e.g., `Cart`, `TaxRate`, `GameState`).
+2.  **Calculations**: Export **3 to 6** pure functions.
+    - These functions take inputs and return outputs.
+    - **No side effects.** No reading global state. No mutation.
+    - _Tip for the Generator_: Look for complex logic (e.g., "determine winner", "calculate pro-rated refund", "validate strict password rules") and extract it here.
+
+**Header Comment:**
+
+- Context: "We are building the pure logic for a [Domain Name]."
+- **Architecture**: List the exported functions and explicitly label them as `// Calculation`.
+  - Example: `calculateNextPosition(current, move) // Calculation: determines next coord`
+- **Example Data Sketch**: Provide a rough input/output example for the main calculation to help visualize intent.
+  - Example:
+    ```typescript
+    // Example Input:
+    // { position: { x: 5, y: 3 }, move: "north", gridSize: 10 }
+    // Example Output:
+    // { x: 5, y: 4 }
+    ```
+
+---
+
+## Assignment 2: "Actions" (The Imperative Shell)
+
+**Conceptual Goal:**
+This file represents the **stateful shell**. It contains the **Actions**.
+It manages the timeline of events, side effects, and state updates.
+
+**Content Requirements:**
+
+1.  **Context**: A system that processes a series of inputs over time (e.g., processing a stream of payments, simulating a robot vacuum).
+2.  **The Main Action**: Export exactly **one** function (e.g., `processBatch`, `runSimulation`).
+    - Initialize local state (Data).
+    - Loop through inputs.
+    - **Call Assignment 1 Calculations** to decide what to do next.
+    - Based on the result of the calculation, **mutate** the local state.
+3.  **Constraint**: The Main Action should contain **minimal logic**. It should mostly consist of calling helpers and assigning results.
+
+**Header Comment:**
+
+- Context: "We are processing a timeline of [Events]."
+- Rules: Explain how the state changes over time.
+- **Example Data Sketch**: Provide a rough example of the input structure to help visualize the action flow.
+  - Example:
+    ```typescript
+    // Example Input:
+    // {
+    //   initialState: { robot: { x: 0, y: 0 }, cleanedCells: [] },
+    //   moves: ["north", "north", "east", "south"]
+    // }
+    // Example Output:
+    // { robot: { x: 1, y: 1 }, cleanedCells: [[0,0], [0,1], [0,2], [1,2], [1,1]] }
+    ```
 
 ---
 
 ## Tests
 
 - Use **Vitest** (`describe`, `it`, `expect`) only.
-- Cover:
-  - Representative “happy path” cases
-  - Edge cases (empty inputs, boundaries, duplicates, ties, ordering)
-  - At least one property-like check or randomized-free table of cases
-- Tests must import the exported function from the assignment file.
-- No flaky or timing-dependent tests.
-- Keep names and error messages clear.
+- **`assignment1.test.ts`**:
+  - **Calculation Tests**: Verify input -> output. Focus on edge cases (empty arrays, negatives).
+- **`assignment2.test.ts`**:
+  - **Action Tests**: Verify the state changes correctly after a sequence of events.
+  - Include a test case called "Integration: Calculations driving Actions".
 
 ---
 
-## Assignment 1 (“starter”) — Content Requirements
+## File Templates
 
-Our goal with this problem is to test basic typescript syntax familiarity and the ability to use all the core functions on objects, maps, sets, numbers, arrays, and strings. It should require 2-4 core operations (grouping, summing, filtering, sorting, if/else, for loop, while, etc) on 1-2 core data structures. Edge cases should be straightforward (empty inputs, boundary conditions) rather than tricky business rules. Do not use regexes.
+**`assignment1.ts`** structure:
 
-**Examples**
-These examples give you a sense of the difficulty and level of modeling. They are for abstract inspiration, not for copying. Be creative and create different problem types. Do not build a sales order analyzer, simple calculator, scheduler problem, etc.
+```typescript
+/*
+Assignment 1: Data & Calculations
+Domain: [Domain Name]
 
- - Given a list of tournament data in the format { winner: string, loser: string}, return the contestant with the most wins.
- - Evaluate a simple expression of a string like `number operator number`, where `number` is any integer and `operator` is one of `+ / - *`
- - Given a list of elevation data, return the indexes of all peaks. For instance, [1,2,1,9,4,6,4] would return [1,3,5].
- - Given a list of meetings for a given meeting room (with times modeled as minutes since midnight), return if there are any scheduling conflicts.
- - Given a board of the game connect 4, return if red or black or nobody has won.
+Calculations to Implement:
+1. [Name] - [Description]
+2. ...
+*/
 
----
+// TODO: Export Data Types
 
-## Assignment 2 ("extended") — Content Requirements
+// TODO: Export Pure Calculations
+```
 
-Our goal with this problem is to test the ability to come up with good data models and types and produce at least one good abstraction.
+**`assignment2.ts`** structure:
 
-We are heavily inspiried by [Advent of Code](https://adventofcode.com/) and [Codewars Kata](https://www.codewars.com/kata/search), which do involve abstract data modeling and algorithms, but in a deeply practical problem domain. Usually you're solving a problem with real objects, or real-world rules, or modelling a system, and not just making abstract transformations on abstract data structures. Mapping from real-world objects to abstract data models is part of the problem. Often, the inputs and outputs are simple, and there is lots of emergent complexity in modeling the system.
+```typescript
+/*
+Assignment 2: Actions & Orchestration
+Domain: [Domain Name]
 
-**Examples**:
-Do not re-use these (e.g. don't ask someone to simulate a booking system or a tournament).
+Main Action:
+- Iterate through [Inputs]
+- Maintain [State]
+- Use Assignment 1 to determine outcomes
+*/
 
- - You are driving a toy car that starts at `0,0`. given a bunch of commands of `turnleft, turnright, moveforward, moveback`, return the final location of the car.
- - Simulate a rock-paper-scissors tournament. Each player only plays one of `R,P,S`, and matches are processed left to right. For instance, given
-  ` {steve: "R", joe: "P", bob: "S", james: "S"} and a match setup like ["steve", "joe", "bob", "james"], first steve and joe play, and the winner of that plays the winner of the bob vs james match. In case of a tie, the left/first player wins. Return the winner of the tournament (in this case, bob).
- - You are running a college class reservation system. Given a list of classes and their capacity, and a list of student requests to join a class, return the people in each class and the waitlist. Requests are processed in order.
+import {} from // Import Types and Calculations
+"./assignment1";
 
----
-
-### File Content Requirements
-
-**`assignment1.ts`**
-- Export one named function with explicit parameter and return types.
-- Include the problem statement header comment with Input/Output and relevant examples.
-- No console I/O.
-
-**`assignment1.test.ts`**
-- Import the function from `../problems/assignment1`.
-- 3-10 tests total, covering normal + edge cases.
-- Use only Vitest. Deterministic.
-
-**`assignment2.ts`**
-- Export one named function with no types on the input/output (that's part of the modelling exercise for students).
-- Include a clear problem statement header comment with rules and common edge cases spelled out.
-- If a helper type or small internal helper function is natural, define it locally (not exported).
-
-**`assignment2.test.ts`**
-- Import the function from `../problems/assignment2`.
-- 3-10 tests total, including at least:
-  - One scenario that forces the intended abstraction
-  - One minimal/empty-input scenario
-  - One “realistic” full scenario
+// TODO: Export Main Action Function
+```
 
 ---
 
 ## Style & Quality
 
-- Prefer small, composable helpers over clever one-liners.
-- Name things clearly; avoid abbreviations.
-- Keep mutation localized; prefer immutable transforms when reasonable.
-- Avoid over-abstraction on Assignment 1; include a modest, purposeful abstraction on Assignment 2.
+- **Calculation Complexity**: Make sure the helpers in Assignment 1 are not just trivial one-liners. They should handle specific business rules (e.g., "Items expire 3 days after production unless frozen").
+- **Action Simplicity**: The code in Assignment 2 should be readable like a manual: "If item is valid (calc), add to cart (action). Else, log error (action)."
 
 ---
-
-## Verification
-
-All tests must pass **after** the student writes a correct solution. Ensure the tests reflect the stated rules precisely and unambiguously by running `bun test`. You are not done until all the tests pass.

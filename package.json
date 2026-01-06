@@ -12,7 +12,8 @@
     "test-bugfix": "bun test ./bugfix/tests/bugfix.test.ts",
     "test-assignment1": "bun test ./puzzles/tests/assignment1.test.ts",
     "test-assignment2": "bun test ./puzzles/tests/assignment2.test.ts",
-    "test-refactor": "vitest ./refactor/tests/RefactorMe.test.tsx"
+    "test-refactor": "vitest ./refactor/tests/RefactorMe.test.tsx",
+    "test:debug": "node --inspect-brk ./node_modules/.bin/vitest"
   },
   "dependencies": {
     "react": "^19.1.1",
