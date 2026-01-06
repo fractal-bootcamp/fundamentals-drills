@@ -1,85 +1,211 @@
-import { describe, it, expect } from 'vitest';
-import { longestStreak } from '../problems/assignment1';
+import { describe, it, expect } from "vitest";
+import {
+  calculateDaysOverdue,
+  calculateLateFee,
+  isBookEligibleForRenewal,
+  prioritizeHoldQueue,
+  type Loan,
+  type HoldRequest,
+} from "../problems/assignment1";
 
-describe('longestStreak', () => {
-  it('should find longest consecutive streak from example', () => {
-    expect(longestStreak([1,2,3,5,6,7,8,10])).toBe(4);
+describe("Assignment 1: Data & Calculations", () => {
+  describe("calculateDaysOverdue", () => {
+    it("returns 0 when book is not overdue", () => {
+      const dueDate = new Date("2024-01-15");
+      const currentDate = new Date("2024-01-10");
+      expect(calculateDaysOverdue(dueDate, currentDate)).toBe(0);
+    });
+
+    it("returns 0 when book is due today", () => {
+      const dueDate = new Date("2024-01-15");
+      const currentDate = new Date("2024-01-15");
+      expect(calculateDaysOverdue(dueDate, currentDate)).toBe(0);
+    });
+
+    it("calculates correct days overdue", () => {
+      const dueDate = new Date("2024-01-15");
+      const currentDate = new Date("2024-01-20");
+      expect(calculateDaysOverdue(dueDate, currentDate)).toBe(5);
+    });
+
+    it("handles large overdue periods", () => {
+      const dueDate = new Date("2024-01-01");
+      const currentDate = new Date("2024-12-31");
+      expect(calculateDaysOverdue(dueDate, currentDate)).toBe(365);
+    });
   });
 
-  it('should return 1 for array with all same numbers', () => {
-    expect(longestStreak([5,5,5])).toBe(1);
+  describe("calculateLateFee", () => {
+    it("returns 0 when no days overdue", () => {
+      expect(calculateLateFee(0, "standard")).toBe(0);
+      expect(calculateLateFee(0, "reference")).toBe(0);
+      expect(calculateLateFee(0, "rare")).toBe(0);
+    });
+
+    it("calculates standard book fee correctly", () => {
+      expect(calculateLateFee(10, "standard")).toBe(5); // 10 * 0.50
+    });
+
+    it("calculates reference book fee correctly", () => {
+      expect(calculateLateFee(10, "reference")).toBe(10); // 10 * 1.00
+    });
+
+    it("calculates rare book fee correctly", () => {
+      expect(calculateLateFee(10, "rare")).toBe(25); // 10 * 2.50
+    });
+
+    it("caps standard book fee at $25", () => {
+      expect(calculateLateFee(100, "standard")).toBe(25);
+    });
+
+    it("caps reference book fee at $50", () => {
+      expect(calculateLateFee(100, "reference")).toBe(50);
+    });
+
+    it("caps rare book fee at $100", () => {
+      expect(calculateLateFee(100, "rare")).toBe(100);
+    });
+
+    it("handles fees exactly at cap", () => {
+      expect(calculateLateFee(50, "standard")).toBe(25); // would be 25, capped at 25
+      expect(calculateLateFee(50, "reference")).toBe(50); // would be 50, capped at 50
+      expect(calculateLateFee(40, "rare")).toBe(100); // would be 100, capped at 100
+    });
   });
 
-  it('should return 0 for empty array', () => {
-    expect(longestStreak([])).toBe(0);
+  describe("isBookEligibleForRenewal", () => {
+    it("allows renewal for standard book with no renewals and not overdue", () => {
+      const loan: Loan = {
+        bookId: "1",
+        patronId: "p1",
+        dueDate: new Date("2024-01-20"),
+        renewalCount: 0,
+        type: "standard",
+      };
+      const currentDate = new Date("2024-01-15");
+      expect(isBookEligibleForRenewal(loan, currentDate)).toBe(true);
+    });
+
+    it("disallows renewal for reference books", () => {
+      const loan: Loan = {
+        bookId: "1",
+        patronId: "p1",
+        dueDate: new Date("2024-01-20"),
+        renewalCount: 0,
+        type: "reference",
+      };
+      const currentDate = new Date("2024-01-15");
+      expect(isBookEligibleForRenewal(loan, currentDate)).toBe(false);
+    });
+
+    it("disallows renewal when renewal count is 2", () => {
+      const loan: Loan = {
+        bookId: "1",
+        patronId: "p1",
+        dueDate: new Date("2024-01-20"),
+        renewalCount: 2,
+        type: "standard",
+      };
+      const currentDate = new Date("2024-01-15");
+      expect(isBookEligibleForRenewal(loan, currentDate)).toBe(false);
+    });
+
+    it("disallows renewal when renewal count exceeds 2", () => {
+      const loan: Loan = {
+        bookId: "1",
+        patronId: "p1",
+        dueDate: new Date("2024-01-20"),
+        renewalCount: 3,
+        type: "rare",
+      };
+      const currentDate = new Date("2024-01-15");
+      expect(isBookEligibleForRenewal(loan, currentDate)).toBe(false);
+    });
+
+    it("disallows renewal when book is overdue", () => {
+      const loan: Loan = {
+        bookId: "1",
+        patronId: "p1",
+        dueDate: new Date("2024-01-10"),
+        renewalCount: 0,
+        type: "standard",
+      };
+      const currentDate = new Date("2024-01-15");
+      expect(isBookEligibleForRenewal(loan, currentDate)).toBe(false);
+    });
+
+    it("allows renewal for rare book with 1 renewal and not overdue", () => {
+      const loan: Loan = {
+        bookId: "1",
+        patronId: "p1",
+        dueDate: new Date("2024-01-20"),
+        renewalCount: 1,
+        type: "rare",
+      };
+      const currentDate = new Date("2024-01-15");
+      expect(isBookEligibleForRenewal(loan, currentDate)).toBe(true);
+    });
   });
 
-  it('should handle single element array', () => {
-    expect(longestStreak([42])).toBe(1);
-  });
+  describe("prioritizeHoldQueue", () => {
+    it("returns empty array for empty input", () => {
+      expect(prioritizeHoldQueue([])).toEqual([]);
+    });
 
-  it('should handle perfectly consecutive array', () => {
-    expect(longestStreak([1,2,3,4,5])).toBe(5);
-  });
+    it("prioritizes elite over premium over basic", () => {
+      const holds: HoldRequest[] = [
+        { patronId: "p1", requestDate: new Date("2024-01-10"), membershipTier: "basic" },
+        { patronId: "p2", requestDate: new Date("2024-01-10"), membershipTier: "elite" },
+        {
+          patronId: "p3",
+          requestDate: new Date("2024-01-10"),
+          membershipTier: "premium",
+        },
+      ];
+      const result = prioritizeHoldQueue(holds);
+      expect(result[0].patronId).toBe("p2");
+      expect(result[1].patronId).toBe("p3");
+      expect(result[2].patronId).toBe("p1");
+    });
 
-  it('should handle array with no consecutive elements', () => {
-    expect(longestStreak([1,3,5,7,9])).toBe(1);
-  });
+    it("sorts by request date within same tier", () => {
+      const holds: HoldRequest[] = [
+        { patronId: "p1", requestDate: new Date("2024-01-15"), membershipTier: "basic" },
+        { patronId: "p2", requestDate: new Date("2024-01-10"), membershipTier: "basic" },
+        { patronId: "p3", requestDate: new Date("2024-01-12"), membershipTier: "basic" },
+      ];
+      const result = prioritizeHoldQueue(holds);
+      expect(result[0].patronId).toBe("p2");
+      expect(result[1].patronId).toBe("p3");
+      expect(result[2].patronId).toBe("p1");
+    });
 
-  it('should handle array with multiple streaks', () => {
-    expect(longestStreak([1,2,3,10,11,12,13,14,20,21,22,0,0,0,45,46,47])).toBe(5);
-  });
+    it("applies both tier and date sorting", () => {
+      const holds: HoldRequest[] = [
+        { patronId: "p1", requestDate: new Date("2024-01-10"), membershipTier: "basic" },
+        { patronId: "p2", requestDate: new Date("2024-01-15"), membershipTier: "elite" },
+        { patronId: "p3", requestDate: new Date("2024-01-08"), membershipTier: "elite" },
+        {
+          patronId: "p4",
+          requestDate: new Date("2024-01-12"),
+          membershipTier: "premium",
+        },
+      ];
+      const result = prioritizeHoldQueue(holds);
+      expect(result[0].patronId).toBe("p3"); // elite, earliest
+      expect(result[1].patronId).toBe("p2"); // elite, later
+      expect(result[2].patronId).toBe("p4"); // premium
+      expect(result[3].patronId).toBe("p1"); // basic
+    });
 
-  it('should handle negative consecutive numbers', () => {
-    expect(longestStreak([-3,-2,-1,0,1])).toBe(5);
-  });
-
-  it('should handle mixed positive and negative with gaps', () => {
-    expect(longestStreak([-5,-4,-3,0,1,2,10,11])).toBe(3);
-  });
-
-  it('should handle unsorted array', () => {
-    expect(longestStreak([3,1,2,4,5])).toBe(2); // 1,2 is the longest consecutive run in array order
-  });
-
-  it('should handle duplicates breaking consecutive runs', () => {
-    expect(longestStreak([1,2,2,3,4])).toBe(3); // 2,3,4 is the longest consecutive run
-  });
-
-  it('should handle large numbers', () => {
-    expect(longestStreak([1000,1001,1002,2000,2001])).toBe(3);
-  });
-
-  it('should handle array starting with consecutive sequence', () => {
-    expect(longestStreak([1,2,3,4,10,15,20])).toBe(4);
-  });
-
-  it('should handle array ending with consecutive sequence', () => {
-    expect(longestStreak([1,5,10,15,16,17,18,19])).toBe(5); // 15,16,17,18,19 is the longest consecutive run
-  });
-
-  it('should handle two element consecutive array', () => {
-    expect(longestStreak([5,6])).toBe(2);
-  });
-
-  it('should handle two element non-consecutive array', () => {
-    expect(longestStreak([5,10])).toBe(1);
-  });
-
-  it('should handle reverse sorted array', () => {
-    expect(longestStreak([10,9,8,7,6])).toBe(1);
-  });
-
-  it('should handle array with zeros', () => {
-    expect(longestStreak([0,1,2,0,0,3,4,5])).toBe(3); // 0,1,2 and 3,4,5 are both length 3
-  });
-
-  it('should handle very long consecutive sequence', () => {
-    const longArray = Array.from({length: 100}, (_, i) => i + 1);
-    expect(longestStreak(longArray)).toBe(100);
-  });
-
-  it('should handle array with repeated consecutive patterns', () => {
-    expect(longestStreak([1,2,5,6,7,10,11])).toBe(3);
+    it("does not mutate the original array", () => {
+      const holds: HoldRequest[] = [
+        { patronId: "p1", requestDate: new Date("2024-01-15"), membershipTier: "basic" },
+        { patronId: "p2", requestDate: new Date("2024-01-10"), membershipTier: "elite" },
+      ];
+      const original = [...holds];
+      prioritizeHoldQueue(holds);
+      expect(holds).toEqual(original);
+    });
   });
 });
