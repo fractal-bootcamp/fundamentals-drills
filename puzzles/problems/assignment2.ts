@@ -48,6 +48,7 @@ Example Output:
 
 */
 
+import { L } from "vitest/dist/chunks/reporters.d.BFLkQcL6.js";
 import {
   calculateDaysOverdue,
   calculateLateFee,
@@ -98,19 +99,19 @@ export function processDailyEvents(
   // process events
   for (const event of events) {
     if (event.type === "return") {
-      processReturn(state, event.bookId, event.patronId, currentDate);
+      state = processReturn(state, event.bookId, event.patronId, currentDate);
     } else if (event.type === "renew") {
-      processRenewal(state, event.bookId, event.patronId, currentDate);
+      state = processRenewal(state, event.bookId, event.patronId, currentDate);
     } else if (event.type === "checkout") {
-      processCheckout(state, event.bookId, event.holdRequests, currentDate);
+      state = processCheckout(state, event.bookId, event.holdRequests, currentDate);
     } else if (event.type === "addHold") {
-      processAddHold(state, event.bookId, event.holdRequest);
-      console.log(`hold for ${event.bookId}`);
-      console.log(`request for ${event.holdRequest}`);
-      console.log(`hold queues: ${state.holdQueues}`);
+      state = processAddHold(state, event.bookId, event.holdRequest);
+      // console.log(`hold for ${event.bookId}`);
+      // console.log(`request for ${event.holdRequest}`);
+      // console.log(`hold queues: ${state.holdQueues}`);
     }
   }
-  // process returns, renewals, checkouts
+  console.log("event logs:", state.eventLog);
 
   return {
     finalState: state,
@@ -123,30 +124,44 @@ function processReturn(
   bookId: string,
   patronId: string,
   currentDate: Date,
-): void {
+): LibraryState {
   const loan = state.activeLoans.get(bookId);
   if (!loan) {
-    state.eventLog.push(`Return failed: No active loan for book ${bookId}`);
-    return;
+    return {
+      ...state,
+      eventLog: [...state.eventLog, `Return failed: No active loan for book ${bookId}`],
+    };
   }
 
   if (patronId !== loan.patronId) {
-    state.eventLog.push(`Return failed: Book ${bookId} not loaned to patron ${patronId}`);
-    return;
+    return {
+      ...state,
+      eventLog: [
+        ...state.eventLog,
+        `Return failed: Book ${bookId} not loaned to patron ${patronId}`,
+      ],
+    };
   }
 
   // update patron balance
-  const lateFee = updatePatronBalance(state, patronId, loan, currentDate);
-
-  if (lateFee) {
-    state.eventLog.push(`Late fee: $${lateFee.toFixed(2)}`);
-  }
+  const daysOverdue = calculateDaysOverdue(loan.dueDate, currentDate);
+  const lateFee = calculateLateFee(daysOverdue, loan.type);
+  const stateWithFee = updatePatronBalance(state, patronId, loan, currentDate);
 
   // remove from active loans
-  state.activeLoans.delete(bookId);
+  const updatedLoans = new Map(stateWithFee.activeLoans);
+  updatedLoans.delete(bookId);
 
-  // add to event eventLog
-  state.eventLog.push(`Book ${bookId} returned by ${patronId} on time`);
+  const returnMessage =
+    stateWithFee.eventLog.length > state.eventLog.length
+      ? `Book ${bookId} returned by ${patronId} Late fee: $${lateFee.toFixed(2)}` // late
+      : `Book ${bookId} returned by ${patronId} on time`;
+
+  return {
+    ...stateWithFee,
+    activeLoans: updatedLoans,
+    eventLog: [...stateWithFee.eventLog, returnMessage],
+  };
 }
 
 function processRenewal(
@@ -154,28 +169,47 @@ function processRenewal(
   bookId: string,
   patronId: string,
   currentDate: Date,
-) {
+): LibraryState {
   const loan = state.activeLoans.get(bookId);
   if (!loan) {
-    state.eventLog.push(`Renewal failed: No active loan for book ${bookId}`);
-    return;
+    return {
+      ...state,
+      eventLog: [...state.eventLog, `Renewal failed: No active loan for book ${bookId}`],
+    };
   }
 
   if (loan.patronId !== patronId) {
-    state.eventLog.push(
-      `Renewal failed: Book ${bookId} not loaned to patron ${patronId}`,
-    );
-    return;
+    return {
+      ...state,
+      eventLog: [
+        ...state.eventLog,
+        `Renewal failed: Book ${bookId} not loaned to patron ${patronId}`,
+      ],
+    };
   }
 
   const bookIsEligible = isBookEligibleForRenewal(loan, currentDate);
 
   if (bookIsEligible) {
-    loan.renewalCount++;
-    loan.dueDate = new Date(currentDate.getTime() + ONE_DAY_MS * 14);
-    state.eventLog.push(`${bookId} renewed for ${patronId}`);
+    const updatedLoan = {
+      ...loan,
+      renewalCount: loan.renewalCount + 1,
+      dueDate: new Date(currentDate.getTime() + ONE_DAY_MS * 14),
+    };
+    const updatedLoans = new Map(state.activeLoans);
+
+    updatedLoans.set(bookId, updatedLoan);
+
+    return {
+      ...state,
+      activeLoans: updatedLoans,
+      eventLog: [...state.eventLog, `${bookId} renewed for ${patronId}`],
+    };
   } else {
-    state.eventLog.push(`Renewal denied for book ${bookId}`);
+    return {
+      ...state,
+      eventLog: [...state.eventLog, `Renewal denied for book ${bookId}`],
+    };
   }
 }
 
@@ -184,25 +218,31 @@ function processCheckout(
   bookId: string,
   holdRequests: Array<HoldRequest>,
   currentDate: Date,
-): void {
+): LibraryState {
   // is the book already on loan?
   if (state.activeLoans.has(bookId)) {
-    state.eventLog.push(`Checkout failed: Book ${bookId} already on loan`);
-    return;
+    return {
+      ...state,
+      eventLog: [...state.eventLog, `Checkout failed: Book ${bookId} already on loan`],
+    };
   }
 
-  // are there hold requests?
-  if (holdRequests.length === 0) {
-    state.eventLog.push(`Checkout failed: No Hold Requests for ${bookId}`);
-  }
+  console.log(`Hold Requests prior to que: ${holdRequests}`);
 
   // create new loan for highest priority patron
   const prioritized = prioritizeHoldQueue(holdRequests);
   const nextPatron = prioritized[0];
 
+  console.log(`Our prioritized que: ${prioritized}`);
+
   if (!nextPatron) {
-    state.eventLog.push(`Checkout failed: No hold requests for book ${bookId}`);
-    return;
+    return {
+      ...state,
+      eventLog: [
+        ...state.eventLog,
+        `Checkout failed: No hold requests for book ${bookId}`,
+      ],
+    };
   }
 
   // create newLoan & add book to active loans
@@ -214,8 +254,15 @@ function processCheckout(
     type: "standard",
   };
 
-  state.activeLoans.set(bookId, newLoan);
-  state.eventLog.push(`Book ${bookId} checked out to ${nextPatron.patronId}`);
+  const updatedLoans = new Map(state.activeLoans);
+
+  updatedLoans.set(bookId, newLoan);
+
+  return {
+    ...state,
+    activeLoans: updatedLoans,
+    eventLog: [...state.eventLog, `Book ${bookId} checked out to ${nextPatron.patronId}`],
+  };
 }
 
 function processAddHold(state: LibraryState, bookId: string, holdRequest: HoldRequest) {
@@ -231,7 +278,14 @@ function processAddHold(state: LibraryState, bookId: string, holdRequest: HoldRe
   updatedHoldQueues.set(bookId, newQueue);
   console.log("updated hold queues:");
 
-  return { ...state, holdQueues: updatedHoldQueues };
+  return {
+    ...state,
+    holdQueues: updatedHoldQueues,
+    eventLog: [
+      ...state.eventLog,
+      `Hold added for book ${bookId} by patron ${holdRequest.patronId}`,
+    ],
+  };
 }
 
 /**
@@ -242,21 +296,26 @@ function updatePatronBalance(
   patronId: string,
   loan: Loan,
   currentDate: Date,
-): number {
+): LibraryState {
   const daysOverdue = calculateDaysOverdue(loan.dueDate, currentDate);
   const lateFee = calculateLateFee(daysOverdue, loan.type);
 
   const patron = state.patrons.get(patronId);
-
-  if (!patron) {
-    return 0; // no patron = no fee
-  }
+  if (!patron) return state; // no patron = no fee
 
   // create new patron object
   const updatedPatron = { ...patron, accountBalance: patron.accountBalance - lateFee };
+  const updatedPatrons = new Map(state.patrons);
+  updatedPatrons.set(patronId, updatedPatron);
 
-  // update that patron's key w/ updatedPatron object
-  state.patrons.set(patronId, updatedPatron);
+  const updatedEventLog =
+    lateFee > 0
+      ? [...state.eventLog, `Late fee: $${lateFee.toFixed(2)}`]
+      : state.eventLog;
 
-  return lateFee;
+  return {
+    ...state,
+    patrons: updatedPatrons,
+    eventLog: updatedEventLog,
+  };
 }
