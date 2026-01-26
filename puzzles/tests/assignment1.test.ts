@@ -1,85 +1,143 @@
-import { describe, it, expect } from 'vitest';
-import { longestStreak } from '../problems/assignment1';
+import { describe, it, expect } from "vitest";
+import {
+  formatNames,
+  findPeaks,
+  countCharacterTypes,
+  type User,
+} from "../problems/assignment1";
 
-describe('longestStreak', () => {
-  it('should find longest consecutive streak from example', () => {
-    expect(longestStreak([1,2,3,5,6,7,8,10])).toBe(4);
+describe("Problem 1: formatNames", () => {
+  it("should filter out users under 18", () => {
+    const users: User[] = [
+      { first: "A", last: "A", age: 17 },
+      { first: "B", last: "B", age: 18 },
+      { first: "C", last: "C", age: 10 },
+    ];
+    expect(formatNames(users)).toEqual(["B, B"]);
   });
 
-  it('should return 1 for array with all same numbers', () => {
-    expect(longestStreak([5,5,5])).toBe(1);
+  it('should format as "Last, First"', () => {
+    const users: User[] = [{ first: "John", last: "Doe", age: 20 }];
+    expect(formatNames(users)).toEqual(["Doe, John"]);
   });
 
-  it('should return 0 for empty array', () => {
-    expect(longestStreak([])).toBe(0);
+  it("should sort by last name then first name", () => {
+    const users: User[] = [
+      { first: "Zack", last: "Adams", age: 30 },
+      { first: "Alice", last: "Doe", age: 25 },
+      { first: "Bob", last: "Adams", age: 40 },
+    ];
+    // Adams, Bob comes before Adams, Zack alphabetically?
+    // Usually B comes before Z.
+    // Wait, Adams, Bob vs Adams, Zack.
+    expect(formatNames(users)).toEqual(["Adams, Bob", "Adams, Zack", "Doe, Alice"]);
   });
 
-  it('should handle single element array', () => {
-    expect(longestStreak([42])).toBe(1);
+  it("should handle empty input", () => {
+    expect(formatNames([])).toEqual([]);
   });
 
-  it('should handle perfectly consecutive array', () => {
-    expect(longestStreak([1,2,3,4,5])).toBe(5);
+  it("should handle all users filtered out", () => {
+    const users: User[] = [
+      { first: "Kid", last: "One", age: 5 },
+      { first: "Kid", last: "Two", age: 15 },
+    ];
+    expect(formatNames(users)).toEqual([]);
+  });
+});
+
+describe("Problem 2: findPeaks", () => {
+  it("should find peaks in the middle", () => {
+    expect(findPeaks([1, 5, 1, 6, 4])).toEqual([1, 3]);
   });
 
-  it('should handle array with no consecutive elements', () => {
-    expect(longestStreak([1,3,5,7,9])).toBe(1);
+  it("should handle peak at the start", () => {
+    expect(findPeaks([10, 5, 6])).toEqual([0]);
   });
 
-  it('should handle array with multiple streaks', () => {
-    expect(longestStreak([1,2,3,10,11,12,13,14,20,21,22,0,0,0,45,46,47])).toBe(5);
+  it("should handle peak at the end", () => {
+    expect(findPeaks([1, 2, 3, 50])).toEqual([3]);
   });
 
-  it('should handle negative consecutive numbers', () => {
-    expect(longestStreak([-3,-2,-1,0,1])).toBe(5);
+  it("should handle single element", () => {
+    // A single element is strictly greater than its non-existent neighbors?
+    // Usually defined as yes or no depending on problem.
+    // Let's stick to the prompt implication: "For the first element... if greater than second".
+    // If there is no second, it's trivial?
+    // Let's decide: Single element is a peak.
+    expect(findPeaks([5])).toEqual([0]);
   });
 
-  it('should handle mixed positive and negative with gaps', () => {
-    expect(longestStreak([-5,-4,-3,0,1,2,10,11])).toBe(3);
+  it("should handle empty array", () => {
+    expect(findPeaks([])).toEqual([]);
   });
 
-  it('should handle unsorted array', () => {
-    expect(longestStreak([3,1,2,4,5])).toBe(2); // 1,2 is the longest consecutive run in array order
+  it("should handle two elements ascending", () => {
+    expect(findPeaks([1, 5])).toEqual([1]);
   });
 
-  it('should handle duplicates breaking consecutive runs', () => {
-    expect(longestStreak([1,2,2,3,4])).toBe(3); // 2,3,4 is the longest consecutive run
+  it("should handle two elements descending", () => {
+    expect(findPeaks([5, 1])).toEqual([0]);
   });
 
-  it('should handle large numbers', () => {
-    expect(longestStreak([1000,1001,1002,2000,2001])).toBe(3);
+  it("should handle plateau (no strict peak)", () => {
+    expect(findPeaks([2, 2, 2])).toEqual([]);
   });
 
-  it('should handle array starting with consecutive sequence', () => {
-    expect(longestStreak([1,2,3,4,10,15,20])).toBe(4);
+  it("should handle zigzag", () => {
+    expect(findPeaks([1, 10, 1, 10, 1])).toEqual([1, 3]);
+  });
+});
+
+describe("Problem 3: countCharacterTypes", () => {
+  it("should count correctly for simple mixed string", () => {
+    // H: cons, e: vow, l: cons, l: cons, o: vow -> 2 vow, 3 cons
+    expect(countCharacterTypes("Hello")).toEqual({
+      vowels: 2,
+      consonants: 3,
+      numbers: 0,
+      others: 0,
+    });
   });
 
-  it('should handle array ending with consecutive sequence', () => {
-    expect(longestStreak([1,5,10,15,16,17,18,19])).toBe(5); // 15,16,17,18,19 is the longest consecutive run
+  it("should handle numbers and others", () => {
+    expect(countCharacterTypes("123 !?")).toEqual({
+      vowels: 0,
+      consonants: 0,
+      numbers: 3,
+      others: 3, // space, !, ?
+    });
   });
 
-  it('should handle two element consecutive array', () => {
-    expect(longestStreak([5,6])).toBe(2);
+  it("should be case insensitive for letters", () => {
+    expect(countCharacterTypes("AaEe")).toEqual({
+      vowels: 4,
+      consonants: 0,
+      numbers: 0,
+      others: 0,
+    });
   });
 
-  it('should handle two element non-consecutive array', () => {
-    expect(longestStreak([5,10])).toBe(1);
+  it("should handle empty string", () => {
+    expect(countCharacterTypes("")).toEqual({
+      vowels: 0,
+      consonants: 0,
+      numbers: 0,
+      others: 0,
+    });
   });
 
-  it('should handle reverse sorted array', () => {
-    expect(longestStreak([10,9,8,7,6])).toBe(1);
-  });
-
-  it('should handle array with zeros', () => {
-    expect(longestStreak([0,1,2,0,0,3,4,5])).toBe(3); // 0,1,2 and 3,4,5 are both length 3
-  });
-
-  it('should handle very long consecutive sequence', () => {
-    const longArray = Array.from({length: 100}, (_, i) => i + 1);
-    expect(longestStreak(longArray)).toBe(100);
-  });
-
-  it('should handle array with repeated consecutive patterns', () => {
-    expect(longestStreak([1,2,5,6,7,10,11])).toBe(3);
+  it("should handle all types together", () => {
+    // "Testing 1, 2, 3!"
+    // Vowels: e, i (2)
+    // Consonants: T, s, t, n, g (5)
+    // Numbers: 1, 2, 3 (3)
+    // Others: space, comma, space, comma, space, ! (6)
+    expect(countCharacterTypes("Testing 1, 2, 3!")).toEqual({
+      vowels: 2,
+      consonants: 5,
+      numbers: 3,
+      others: 6,
+    });
   });
 });
