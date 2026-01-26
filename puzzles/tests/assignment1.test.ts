@@ -1,85 +1,80 @@
-import { describe, it, expect } from 'vitest';
-import { longestStreak } from '../problems/assignment1';
+import { describe, it, expect } from "vitest";
+import { findPeaks, summarizeSpending } from "../problems/assignment1";
 
-describe('longestStreak', () => {
-  it('should find longest consecutive streak from example', () => {
-    expect(longestStreak([1,2,3,5,6,7,8,10])).toBe(4);
+describe("findPeaks", () => {
+  it("should find peaks in the middle of the array", () => {
+    expect(findPeaks([1, 2, 1, 3, 5, 2])).toEqual([1, 4]);
   });
 
-  it('should return 1 for array with all same numbers', () => {
-    expect(longestStreak([5,5,5])).toBe(1);
+  it("should find peaks at the start and end", () => {
+    expect(findPeaks([10, 8, 6, 7, 9])).toEqual([0, 4]);
   });
 
-  it('should return 0 for empty array', () => {
-    expect(longestStreak([])).toBe(0);
+  it("should return empty array for empty input", () => {
+    expect(findPeaks([])).toEqual([]);
   });
 
-  it('should handle single element array', () => {
-    expect(longestStreak([42])).toBe(1);
+  it("should handle single element as a peak", () => {
+    expect(findPeaks([42])).toEqual([0]);
   });
 
-  it('should handle perfectly consecutive array', () => {
-    expect(longestStreak([1,2,3,4,5])).toBe(5);
+  it("should return empty array for constant values (no strict peaks)", () => {
+    expect(findPeaks([5, 5, 5, 5])).toEqual([]);
   });
 
-  it('should handle array with no consecutive elements', () => {
-    expect(longestStreak([1,3,5,7,9])).toBe(1);
+  it('should handle "valley" patterns', () => {
+    expect(findPeaks([5, 2, 5])).toEqual([0, 2]);
   });
 
-  it('should handle array with multiple streaks', () => {
-    expect(longestStreak([1,2,3,10,11,12,13,14,20,21,22,0,0,0,45,46,47])).toBe(5);
+  it("should handle increasing sequences", () => {
+    expect(findPeaks([1, 2, 3, 4, 5])).toEqual([4]);
   });
 
-  it('should handle negative consecutive numbers', () => {
-    expect(longestStreak([-3,-2,-1,0,1])).toBe(5);
+  it("should handle decreasing sequences", () => {
+    expect(findPeaks([5, 4, 3, 2, 1])).toEqual([0]);
+  });
+});
+
+describe("summarizeSpending", () => {
+  const data = [
+    { dept: "Engineering", amount: 500 },
+    { dept: "Sales", amount: 200 },
+    { dept: "Engineering", amount: 150 },
+    { dept: "HR", amount: 100 },
+    { dept: "Sales", amount: 400 },
+    { dept: "Marketing", amount: 50 },
+  ];
+
+  it("should group, sum, filter, and sort departments", () => {
+    const result = summarizeSpending(data, 300);
+    expect(result).toEqual([
+      { dept: "Engineering", total: 650 },
+      { dept: "Sales", total: 600 },
+    ]);
   });
 
-  it('should handle mixed positive and negative with gaps', () => {
-    expect(longestStreak([-5,-4,-3,0,1,2,10,11])).toBe(3);
+  it("should return an empty array if no department exceeds threshold", () => {
+    expect(summarizeSpending(data, 1000)).toEqual([]);
   });
 
-  it('should handle unsorted array', () => {
-    expect(longestStreak([3,1,2,4,5])).toBe(2); // 1,2 is the longest consecutive run in array order
+  it("should handle threshold being exactly equal (exclusive)", () => {
+    const simple = [{ dept: "HR", amount: 150 }];
+    expect(summarizeSpending(simple, 150)).toEqual([]);
   });
 
-  it('should handle duplicates breaking consecutive runs', () => {
-    expect(longestStreak([1,2,2,3,4])).toBe(3); // 2,3,4 is the longest consecutive run
+  it("should handle empty input", () => {
+    expect(summarizeSpending([], 100)).toEqual([]);
   });
 
-  it('should handle large numbers', () => {
-    expect(longestStreak([1000,1001,1002,2000,2001])).toBe(3);
-  });
-
-  it('should handle array starting with consecutive sequence', () => {
-    expect(longestStreak([1,2,3,4,10,15,20])).toBe(4);
-  });
-
-  it('should handle array ending with consecutive sequence', () => {
-    expect(longestStreak([1,5,10,15,16,17,18,19])).toBe(5); // 15,16,17,18,19 is the longest consecutive run
-  });
-
-  it('should handle two element consecutive array', () => {
-    expect(longestStreak([5,6])).toBe(2);
-  });
-
-  it('should handle two element non-consecutive array', () => {
-    expect(longestStreak([5,10])).toBe(1);
-  });
-
-  it('should handle reverse sorted array', () => {
-    expect(longestStreak([10,9,8,7,6])).toBe(1);
-  });
-
-  it('should handle array with zeros', () => {
-    expect(longestStreak([0,1,2,0,0,3,4,5])).toBe(3); // 0,1,2 and 3,4,5 are both length 3
-  });
-
-  it('should handle very long consecutive sequence', () => {
-    const longArray = Array.from({length: 100}, (_, i) => i + 1);
-    expect(longestStreak(longArray)).toBe(100);
-  });
-
-  it('should handle array with repeated consecutive patterns', () => {
-    expect(longestStreak([1,2,5,6,7,10,11])).toBe(3);
+  it("should return all departments if threshold is 0", () => {
+    const simple = [
+      { dept: "A", amount: 10 },
+      { dept: "B", amount: 20 },
+    ];
+    const result = summarizeSpending(simple, 0);
+    expect(result).toEqual([
+      { dept: "B", total: 20 },
+      { dept: "A", total: 10 },
+    ]);
   });
 });
