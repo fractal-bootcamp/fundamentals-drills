@@ -55,6 +55,120 @@
  *     ]
  */
 
+// started at 16:55
+
+// intuition about the problem
+// person is putting in coins or selecting an item
+// items have prices
+// when they select the item, they either have enough or don't have enough
+// dispensed undefined when they don't get an item dispensed
+// a session is a sequence of user actions
+// there is an inventory wiht prices
+
+
+// make types
+type Inventory = {
+  price: number
+  stock: number
+}
+
+type Session = [string, number] []
+
+type Input = {
+  inventory: Inventory
+  sessions: session
+}
+
+type Receipt = {
+  dispensed: string
+  changeCoins: {}
+  changeTotal: number
+  spent: number
+  errors: string[]
+}
+
+type Result = {
+
+}
+
+
+// hold a value to sum the insert events
+// when a select event occurs, check the value of the Item selected
+// lookup the price of the value selected
+// compare the summed inserted value with the price of the selected item
+// return the result
+
 export function processVendingSessions(input) {
-  return {}
+
+  let sumInsertedValue = 0
+  let selectedItem = undefined
+  let selectedItemValue = undefined
+  let sessions = input.sessions
+  let receipts = []
+  let inventory = input.inventory
+  let receipt = undefined
+  
+  // check all of the sessions
+  for (let i = 0; i < sessions.length; i++) {
+    
+    let sessionEvents = sessions[i]
+    console.log('input sessions', sessionEvents)
+    let sessionInsertValue = 0
+
+    // for each session, check the events
+    for (let j = 0; j < sessionEvents.length; j++) {
+      let sessionEvent = sessionEvents[j]
+      let sessionEventType = sessionEvent[0]
+      let sessionEventValue = sessionEvent[1]
+      console.log('session event type:', sessionEventType)
+      console.log('session event value:', sessionEventValue)
+
+      // if it's an insert event, add to the sessionInsertValue
+      
+      if (sessionEventType === 'insert') {
+        sessionInsertValue += sessionEventValue
+        console.log('session insert value:', sessionInsertValue)
+      
+      } else if (sessionEventType === 'select') {
+        // find the object in the inventory
+        selectedItem = sessionEventValue
+        console.log('selected item:', selectedItem)
+        let selectedItemPrice = inventory[sessionEventValue].price
+        console.log('selected item price:', selectedItemPrice)
+        let selectedItemStock = inventory[sessionEventValue].stock
+        console.log('selected item stock:', selectedItemStock)
+        
+        // check if the sessionInsertValue >= selectedItemValue and at least 1 stock
+        if (sessionInsertValue >= selectedItemPrice && selectedItemStock >= 1) {
+          let paidDifference = sessionInsertValue - selectedItemPrice
+          
+          receipt = {
+            dispensed: selectedItem,
+            changeCoins: {}, // need to calc
+            changeTotal: paidDifference,
+            spent: sessionInsertValue,
+            errors: []
+          }
+
+          console.log('receipt:', receipt)
+          
+          receipts.push(receipt)
+          console.log('receipts:', receipts)
+
+          // decrement the item stock by 1
+          inventory[selectedItem].stock = selectedItemStock - 1
+          console.log('new item stock:', selectedItemStock)
+          
+        }
+      }
+    }
+  }
+
+  let result = {
+    inventory: inventory, 
+    receipts: receipts
+  }
+
+  console.log('result:', result)
+  return result
 }
