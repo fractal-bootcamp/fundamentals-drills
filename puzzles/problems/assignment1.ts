@@ -16,6 +16,24 @@
  *   longestStreak([5,5,5]) -> 1
  *   longestStreak([]) -> 0
  */
+
 export function longestStreak(nums: number[]): number {
-  return 0
+  let longestStreak = 0
+
+  if (nums.length != 0) {
+    longestStreak = 1
+    let counter = longestStreak
+
+    for (let i = 1; i < nums.length; i++) {
+      if (nums[i] === nums[i - 1] + 1) {
+        counter += 1
+        longestStreak < counter ? longestStreak += 1 : null
+      } else {
+        counter = 1
+      }
+    }
+    
+  }
+
+  return longestStreak
 }
