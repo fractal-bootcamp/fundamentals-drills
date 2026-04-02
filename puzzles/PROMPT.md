@@ -130,7 +130,7 @@ Main Action:
 */
 
 import {} from // Import Types and Calculations
-"./assignment1";
+'./assignment1';
 
 // TODO: Export Main Action Function
 ```
