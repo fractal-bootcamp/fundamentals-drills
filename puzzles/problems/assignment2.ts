@@ -1,321 +1,128 @@
 /*
 Assignment 2: Actions & Orchestration
-Domain: Library Daily Loan Processing System
+Domain: Warehouse Order Processing System
+
+We are processing a timeline of warehouse events (placeOrder, restock, cancelOrder).
 
 Main Action:
-- Process daily loan events (returns, renewals, checkouts)
-- Maintain library state (active loans, patron balances, hold queues)
-- Use Assignment 1 calculations to determine fees and eligibility
+- Iterate through WarehouseEvents
+- Maintain WarehouseState (inventory, orders, totalRevenue, eventLog)
+- Use Assignment 1 to validate, check fulfillability, compute totals, and assess restock urgency
 
 Rules:
-1. When a book is returned, calculate and charge any late fees to patron balance
-2. When a renewal is requested, check eligibility and either approve or deny
-3. When a checkout is requested, assign book from hold queue using priority
-4. State updates occur sequentially as events are processed
+1. placeOrder: validate lines → check fulfillable → deduct inventory → record fulfilled order + revenue
+2. restock: add units to inventory; log new stock urgency level (CRITICAL / LOW / HEALTHY)
+3. cancelOrder: if order was fulfilled, restore inventory and deduct revenue; mark order cancelled
 
 Example Input:
-initialPatrons: [
-  { id: "p1", name: "Alice", membershipTier: "basic", accountBalance: 0 },
-  { id: "p2", name: "Bob", membershipTier: "elite", accountBalance: -5 }
-]
-initialLoans: [
-  { bookId: "b1", patronId: "p1", dueDate: Date("2024-01-10"), renewalCount: 0, type: "standard" }
-]
-events: [
-  { type: "return", bookId: "b1", patronId: "p1" },
-  { type: "checkout", bookId: "b1", holdRequests: [
-    { patronId: "p2", requestDate: Date("2024-01-12"), membershipTier: "elite" }
-  ]}
-]
-currentDate: Date("2024-01-20")
+{
+  initialInventory: [
+    { productId: "p1", quantity: 100, reorderThreshold: 20 }
+  ],
+  events: [
+    { type: "placeOrder", orderId: "o1", lines: [{ productId: "p1", quantity: 30, unitPrice: 10 }] },
+    { type: "cancelOrder", orderId: "o1" },
+    { type: "restock", productId: "p1", quantity: 50 }
+  ]
+}
 
 Example Output:
 {
-  finalState: {
-    activeLoans: Map { "b1" => { bookId: "b1", patronId: "p2", dueDate: Date("2024-02-03"), ... } },
-    patrons: Map {
-      "p1" => { id: "p1", accountBalance: -5.00, ... },  // charged $5 late fee (10 days * $0.50)
-      "p2" => { id: "p2", accountBalance: -5, ... }
-    },
-    holdQueues: Map {},
-    eventLog: [
-      "Book b1 returned by p1. Late fee: $5.00",
-      "Book b1 checked out to p2"
-    ]
-  },
-  eventsProcessed: 2
+  inventory: Map { "p1" => { productId: "p1", quantity: 120, reorderThreshold: 20 } },
+  orders: Map { "o1" => { orderId: "o1", lines: [...], status: "cancelled", total: 285 } },
+  totalRevenue: 0,
+  eventLog: [
+    "Order o1 fulfilled. Total: $285.00",
+    "Order o1 cancelled. Inventory restored.",
+    "Restocked p1 by 50 units. New quantity: 120. Stock: HEALTHY"
+  ]
 }
-
 */
 
-import { L } from "vitest/dist/chunks/reporters.d.BFLkQcL6.js";
 import {
-  calculateDaysOverdue,
-  calculateLateFee,
-  isBookEligibleForRenewal,
-  prioritizeHoldQueue,
-  type Loan,
-  type Patron,
-  type Book,
-  type HoldRequest,
-  ONE_DAY_MS,
+  validateOrderItems,
+  isOrderFulfillable,
+  calculateOrderTotal,
+  calculateRestockPriority,
+  type InventoryItem,
+  type OrderedItem,
+  type Order,
 } from "./assignment1";
 
-// Event Types
-export type LoanEvent =
-  | { type: "return"; bookId: string; patronId: string }
-  | { type: "renew"; bookId: string; patronId: string }
-  | { type: "checkout"; bookId: string; holdRequests: Array<HoldRequest> }
-  | { type: "addHold"; bookId: string; holdRequest: HoldRequest };
+// --- Event Types ---
 
-// State Types
-export interface LibraryState {
-  activeLoans: Map<string, Loan>; // bookId -> Loan
-  patrons: Map<string, Patron>; // patronId -> Patron
-  holdQueues: Map<string, Array<HoldRequest>>; // bookId -> HoldRequest[]
-  eventLog: Array<string>; // Audit trail of what happened
+export type WarehouseEvent =
+
+
+// --- State ---
+
+export interface WarehouseState {
+
 }
 
-export interface ProcessingResult {
-  finalState: LibraryState;
-  eventsProcessed: number;
+export interface WarehouseResult {
+
 }
 
-// Main Action Function
-export function processDailyEvents(
-  initialPatrons: Array<Patron>,
-  initialLoans: Array<Loan>,
-  events: Array<LoanEvent>,
-  currentDate: Date,
-): ProcessingResult {
-  // init state from arrays
-  let state: LibraryState = {
-    activeLoans: new Map(initialLoans.map((loan) => [loan.bookId, loan])),
-    patrons: new Map(initialPatrons.map((patron) => [patron.id, patron])),
-    holdQueues: new Map(),
+// --- Main Action ---
+
+export function processWarehouseEvents(
+  initialInventory: InventoryItem[],
+  events: WarehouseEvent[],
+): WarehouseResult {
+  let state: WarehouseState = {
+    inventory: new Map(initialInventory.map((item) => [item.productId, item])),
+    orders: new Map(),
+    totalRevenue: 0,
     eventLog: [],
   };
 
-  // process events
   for (const event of events) {
-    if (event.type === "return") {
-      state = processReturn(state, event.bookId, event.patronId, currentDate);
-    } else if (event.type === "renew") {
-      state = processRenewal(state, event.bookId, event.patronId, currentDate);
-    } else if (event.type === "checkout") {
-      state = processCheckout(state, event.bookId, event.holdRequests, currentDate);
-    } else if (event.type === "addHold") {
-      state = processAddHold(state, event.bookId, event.holdRequest);
-      // console.log(`hold for ${event.bookId}`);
-      // console.log(`request for ${event.holdRequest}`);
-      // console.log(`hold queues: ${state.holdQueues}`);
+    if (event.type === "placeOrder") {
+      state = handlePlaceOrder(state, event.orderId, event.lines);
+    } else if (event.type === "restock") {
+      state = handleRestock(state, event.productId, event.quantity);
+    } else if (event.type === "cancelOrder") {
+      state = handleCancelOrder(state, event.orderId);
     }
   }
-  console.log("event logs:", state.eventLog);
 
-  return {
-    finalState: state,
-    eventsProcessed: events.length,
-  };
+  return { finalState: state, eventsProcessed: events.length };
 }
 
-function processReturn(
-  state: LibraryState,
-  bookId: string,
-  patronId: string,
-  currentDate: Date,
-): LibraryState {
-  const loan = state.activeLoans.get(bookId);
-  if (!loan) {
-    return {
-      ...state,
-      eventLog: [...state.eventLog, `Return failed: No active loan for book ${bookId}`],
-    };
-  }
+// --- Private Action Handlers ---
 
-  if (patronId !== loan.patronId) {
-    return {
-      ...state,
-      eventLog: [
-        ...state.eventLog,
-        `Return failed: Book ${bookId} not loaned to patron ${patronId}`,
-      ],
-    };
-  }
-
-  // update patron balance
-  const daysOverdue = calculateDaysOverdue(loan.dueDate, currentDate);
-  const lateFee = calculateLateFee(daysOverdue, loan.type);
-  const stateWithFee = updatePatronBalance(state, patronId, loan, currentDate);
-
-  // remove from active loans
-  const updatedLoans = new Map(stateWithFee.activeLoans);
-  updatedLoans.delete(bookId);
-
-  const returnMessage =
-    stateWithFee.eventLog.length > state.eventLog.length
-      ? `Book ${bookId} returned by ${patronId} Late fee: $${lateFee.toFixed(2)}` // late
-      : `Book ${bookId} returned by ${patronId} on time`;
-
-  return {
-    ...stateWithFee,
-    activeLoans: updatedLoans,
-    eventLog: [...stateWithFee.eventLog, returnMessage],
-  };
+// Action: validates and fulfills an order.
+// - On validation error → log rejection, do not create order
+// - On insufficient stock → log rejection, do not create order
+// - On success → deduct inventory per line, create fulfilled order, add to revenue
+function handlePlaceOrder(
+  state: WarehouseState,
+  orderId: string,
+  lines: OrderedItem[],
+): WarehouseState {
+  // TODO
+  return state;
 }
 
-function processRenewal(
-  state: LibraryState,
-  bookId: string,
-  patronId: string,
-  currentDate: Date,
-): LibraryState {
-  const loan = state.activeLoans.get(bookId);
-  if (!loan) {
-    return {
-      ...state,
-      eventLog: [...state.eventLog, `Renewal failed: No active loan for book ${bookId}`],
-    };
-  }
-
-  if (loan.patronId !== patronId) {
-    return {
-      ...state,
-      eventLog: [
-        ...state.eventLog,
-        `Renewal failed: Book ${bookId} not loaned to patron ${patronId}`,
-      ],
-    };
-  }
-
-  const bookIsEligible = isBookEligibleForRenewal(loan, currentDate);
-
-  if (bookIsEligible) {
-    const updatedLoan = {
-      ...loan,
-      renewalCount: loan.renewalCount + 1,
-      dueDate: new Date(currentDate.getTime() + ONE_DAY_MS * 14),
-    };
-    const updatedLoans = new Map(state.activeLoans);
-
-    updatedLoans.set(bookId, updatedLoan);
-
-    return {
-      ...state,
-      activeLoans: updatedLoans,
-      eventLog: [...state.eventLog, `${bookId} renewed for ${patronId}`],
-    };
-  } else {
-    return {
-      ...state,
-      eventLog: [...state.eventLog, `Renewal denied for book ${bookId}`],
-    };
-  }
+// Action: adds units to a product's inventory.
+// - On unknown productId → log failure
+// - On success → update quantity, log new quantity and stock status (CRITICAL/LOW/HEALTHY)
+//   Use calculateRestockPriority to determine the status label.
+function handleRestock(
+  state: WarehouseState,
+  productId: string,
+  quantity: number,
+): WarehouseState {
+  // TODO
+  return state;
 }
 
-function processCheckout(
-  state: LibraryState,
-  bookId: string,
-  holdRequests: Array<HoldRequest>,
-  currentDate: Date,
-): LibraryState {
-  // is the book already on loan?
-  if (state.activeLoans.has(bookId)) {
-    return {
-      ...state,
-      eventLog: [...state.eventLog, `Checkout failed: Book ${bookId} already on loan`],
-    };
-  }
-
-  console.log(`Hold Requests prior to que: ${holdRequests}`);
-
-  // create new loan for highest priority patron
-  const prioritized = prioritizeHoldQueue(holdRequests);
-  const nextPatron = prioritized[0];
-
-  console.log(`Our prioritized que: ${prioritized}`);
-
-  if (!nextPatron) {
-    return {
-      ...state,
-      eventLog: [
-        ...state.eventLog,
-        `Checkout failed: No hold requests for book ${bookId}`,
-      ],
-    };
-  }
-
-  // create newLoan & add book to active loans
-  const newLoan: Loan = {
-    bookId,
-    patronId: nextPatron.patronId,
-    dueDate: new Date(currentDate.getTime() + ONE_DAY_MS * 14),
-    renewalCount: 0,
-    type: "standard",
-  };
-
-  const updatedLoans = new Map(state.activeLoans);
-
-  updatedLoans.set(bookId, newLoan);
-
-  return {
-    ...state,
-    activeLoans: updatedLoans,
-    eventLog: [...state.eventLog, `Book ${bookId} checked out to ${nextPatron.patronId}`],
-  };
-}
-
-function processAddHold(state: LibraryState, bookId: string, holdRequest: HoldRequest) {
-  const updatedHoldQueues = new Map(state.holdQueues);
-  const currentQueue = state.holdQueues.get(bookId) || [];
-  console.log("current queue:", currentQueue);
-
-  const newQueue = [...currentQueue, holdRequest];
-  console.log("new queue:", newQueue);
-
-  console.log(`Adding hold for bookId: "${bookId}"`);
-
-  updatedHoldQueues.set(bookId, newQueue);
-  console.log("updated hold queues:");
-
-  return {
-    ...state,
-    holdQueues: updatedHoldQueues,
-    eventLog: [
-      ...state.eventLog,
-      `Hold added for book ${bookId} by patron ${holdRequest.patronId}`,
-    ],
-  };
-}
-
-/**
- * Updates patron balance by subtracting the late fee
- */
-function updatePatronBalance(
-  state: LibraryState,
-  patronId: string,
-  loan: Loan,
-  currentDate: Date,
-): LibraryState {
-  const daysOverdue = calculateDaysOverdue(loan.dueDate, currentDate);
-  const lateFee = calculateLateFee(daysOverdue, loan.type);
-
-  const patron = state.patrons.get(patronId);
-  if (!patron) return state; // no patron = no fee
-
-  // create new patron object
-  const updatedPatron = { ...patron, accountBalance: patron.accountBalance - lateFee };
-  const updatedPatrons = new Map(state.patrons);
-  updatedPatrons.set(patronId, updatedPatron);
-
-  const updatedEventLog =
-    lateFee > 0
-      ? [...state.eventLog, `Late fee: $${lateFee.toFixed(2)}`]
-      : state.eventLog;
-
-  return {
-    ...state,
-    patrons: updatedPatrons,
-    eventLog: updatedEventLog,
-  };
+// Action: cancels a previously fulfilled order.
+// - On missing order → log failure
+// - On order not fulfilled → log failure
+// - On success → restore inventory per line, deduct revenue, mark order cancelled
+function handleCancelOrder(state: WarehouseState, orderId: string): WarehouseState {
+  // TODO
+  return state;
 }

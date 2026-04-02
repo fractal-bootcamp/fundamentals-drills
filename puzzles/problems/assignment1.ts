@@ -1,114 +1,110 @@
 /*
 Assignment 1: Data & Calculations
-Domain: Library Book Loan Management System
+Domain: Warehouse Inventory Management
+
+We are building the pure logic for a warehouse order fulfillment system.
 
 Calculations to Implement:
-1. calculateDaysOverdue - Determines how many days a book is overdue
-2. calculateLateFee - Computes the late fee based on overdue days and book type
-3. isBookEligibleForRenewal - Checks if a book can be renewed based on loan history
-4. prioritizeHoldQueue - Sorts library patrons by priority for reserved books
+1. validateOrderItems(items, knownProductIds)   // Calculation: returns error messages for invalid product IDs, quantities, or prices
+2. isOrderFulfillable(items, inventory)         // Calculation: returns true if all line items have sufficient stock
+3. applyBulkDiscount(quantity, unitPrice)       // Calculation: tiered volume discount (0% / 5% / 10% / 15%)
+4. calculateOrderTotal(items)                   // Calculation: sums discounted line totals across all items
+5. calculateRestockPriority(item)               // Calculation: urgency score 0–100 based on stock vs. reorder threshold
+
+Example Input / Output:
+// calculateOrderTotal([{ productId: "p1", quantity: 50, unitPrice: 20.00 }])
+// → 900.00   (50 * $20 = $1000, minus 10% bulk discount for 25–99 units)
+//
+// calculateRestockPriority({ productId: "p1", quantity: 5, reorderThreshold: 20 })
+// → 100   (quantity is at or below threshold → critical)
 */
 
-// Data Types
+// --- Data Types ---
 
-export type BookType = "standard" | "reference" | "rare";
-
-export interface Book {
-  id: string;
-  title: string;
-  type: BookType;
+export interface InventoryItem {
+  productId: string;
+  quantity: number; // current units in stock
+  reorderThreshold: number; // trigger restocking when stock falls to or below this
 }
 
-export interface Patron {
-  id: string;
-  name: string;
-  membershipTier: "basic" | "premium" | "elite";
-  accountBalance: number; // negative means they owe money
+export interface OrderedItem {
+  productId: string;
+  quantity: number;
+  unitPrice: number; // selling price per unit
 }
 
-export interface Loan {
-  bookId: string;
-  patronId: string;
-  dueDate: Date;
-  renewalCount: number;
-  type: BookType;
+export type OrderStatus = 'fulfilled' | 'cancelled' | 'rejected';
+
+export interface Order {
+  orderId: string;
+  items: Array<OrderedItem>;
+  status: OrderStatus;
+  total: number;
 }
 
-export interface HoldRequest {
-  patronId: string;
-  requestDate: Date;
-  membershipTier: "basic" | "premium" | "elite";
+// --- Pure Calculations ---
+
+// Calculation: validates that all OrderedItems reference known product IDs and have
+// positive quantities and non-negative prices.
+// Returns a list of error messages; an empty array means the order is valid.
+//
+// Example: validateOrderItems([{ productId: "p99", quantity: 0, unitPrice: 10 }], new Set(["p1"]))
+// → ["Unknown product: p99", "Invalid quantity for p99: 0"]
+export function validateOrderItems(
+  items: Array<OrderedItem>,
+  knownProductIds: Set<string>,
+): Array<string> {
+  // validate items & knownProductIds are truthy
+  // knownId = for id in knownProductIds.productId
+
+  // for item in items, does item.productId === knownId
+
+  // resultObject = []
+  return [];
 }
 
-export const ONE_DAY_MS = 1000 * 60 * 60 * 24;
-
-// Pure Calculations
-
-// Calculation: Determines how many days a book is overdue (0 if not overdue)
-export function calculateDaysOverdue(dueDate: Date, currentDate: Date): number {
-  const msOverdue = currentDate.getTime() - dueDate.getTime();
-  const daysOverdue = Math.floor(msOverdue / ONE_DAY_MS);
-
-  return Math.max(0, daysOverdue);
+// Calculation: returns true only if every line item has a matching product in
+// inventory AND that product has enough stock to cover the requested quantity.
+// An empty items array is considered unfulfillable.
+//
+// Example: isOrderFulfillable([{ productId: "p1", quantity: 5, unitPrice: 10 }], Map { "p1" => { quantity: 3, ... } })
+// → false  (only 3 in stock, need 5)
+export function isOrderFulfillable(
+  items: Array<OrderedItem>,
+  inventory: Map<string, InventoryItem>,
+): boolean {
+  // TODO
+  return false;
 }
 
-// Calculation: Computes the late fee based on overdue days and book type
-// Standard: $0.50/day, Reference: $1.00/day, Rare: $2.50/day
-// Fee caps at $25 for standard, $50 for reference, $100 for rare
-export function calculateLateFee(daysOverdue: number, bookType: BookType): number {
-  if (daysOverdue === 0) return 0;
-
-  const fees: Record<BookType, { dailyRate: number; cap: number }> = {
-    standard: { dailyRate: 0.5, cap: 25 },
-    reference: { dailyRate: 1.0, cap: 50 },
-    rare: { dailyRate: 2.5, cap: 100 },
-  };
-
-  const fee = fees[bookType];
-  const totalFee = daysOverdue * fee.dailyRate;
-  return Math.min(totalFee, fee.cap);
+// Calculation: applies a tiered bulk discount to a single line's subtotal.
+// Tiers: 1–9 units → 0%, 10–24 → 5%, 25–99 → 10%, 100+ → 15%
+//
+// Example: applyBulkDiscount(25, 10)  → 225.00  (250 * 0.90)
+// Example: applyBulkDiscount(9, 10)   → 90.00   (no discount)
+export function applyBulkDiscount(quantity: number, unitPrice: number): number {
+  // TODO
+  return 0;
 }
 
-// Calculation: Checks if a book can be renewed
-// Rules:
-// - Cannot renew if already renewed 2 or more times
-// - Cannot renew if overdue
-// - Reference books cannot be renewed at all
-export function isBookEligibleForRenewal(loan: Loan, currentDate: Date): boolean {
-  if (loan.type === "reference") return false;
-  if (loan.renewalCount >= 2) return false;
-
-  const isOverdue = calculateDaysOverdue(loan.dueDate, currentDate);
-  if (isOverdue > 0) return false;
-
-  return true;
+// Calculation: sums the discounted totals of all order items.
+// Delegates per-line discounting to applyBulkDiscount.
+//
+// Example: calculateOrderTotal([{ productId: "p1", quantity: 10, unitPrice: 20 }])
+// → 190.00  (200 * 0.95, 5% discount for 10–24 units)
+export function calculateOrderTotal(items: Array<OrderedItem>): number {
+  // TODO
+  return 0;
 }
 
-// Calculation: Sorts hold requests by priority
-// Priority rules (highest to lowest):
-// 1. Elite members come first
-// 2. Premium members come second
-// 3. Basic members come last
-// 4. Within same tier, earlier request date has priority
-export function prioritizeHoldQueue(holds: HoldRequest[]): HoldRequest[] {
-  return [...holds].sort((a, b) => {
-    const tierPriority = { elite: 1, premium: 2, basic: 3 };
-
-    if (tierPriority[a.membershipTier] !== tierPriority[b.membershipTier]) {
-      return tierPriority[a.membershipTier] - tierPriority[b.membershipTier];
-    }
-
-    return a.requestDate.getTime() - b.requestDate.getTime();
-  });
+// Calculation: produces an urgency score for restocking decisions.
+// 100 = out of stock or at/below threshold (critical)
+// 50  = between threshold and 2× threshold (low)
+// 0   = above 2× threshold (healthy)
+//
+// Example: calculateRestockPriority({ productId: "p1", quantity: 15, reorderThreshold: 10 })
+// → 50   (15 is between 10 and 20)
+export function calculateRestockPriority(item: InventoryItem): number {
+  // TODO
+  return 0;
 }
-
-// // Test data
-// const testHolds: HoldRequest[] = [
-//   { patronId: "p1", requestDate: new Date("2024-01-10"), membershipTier: "basic" },
-//   { patronId: "p2", requestDate: new Date("2024-01-15"), membershipTier: "elite" },
-//   { patronId: "p3", requestDate: new Date("2024-01-08"), membershipTier: "elite" },
-//   { patronId: "p4", requestDate: new Date("2024-01-12"), membershipTier: "premium" },
-// ];
-
-// console.log("Input:", testHolds);
-// console.log("Sorted:", prioritizeHoldQueue(testHolds));

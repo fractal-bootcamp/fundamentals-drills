@@ -1,259 +1,256 @@
-import { describe, it, expect } from "vitest";
-import {
-  processDailyEvents,
-  type LoanEvent,
-  type LibraryState,
-} from "../problems/assignment2";
-import type { Patron, Loan, HoldRequest } from "../problems/assignment1";
+import { describe, it, expect } from 'vitest';
+import { processWarehouseEvents, type WarehouseEvent } from '../problems/assignment2';
+import type { InventoryItem, OrderedItem } from '../problems/assignment1';
 
-describe("Assignment 2: Actions & Orchestration", () => {
-  const createPatron = (
-    id: string,
-    tier: "basic" | "premium" | "elite" = "basic",
-    balance: number = 0,
-  ): Patron => ({
-    id,
-    name: `Patron ${id}`,
-    membershipTier: tier,
-    accountBalance: balance,
+describe('Assignment 2: Actions & Orchestration', () => {
+  const makeItem = (productId: string, quantity: number, reorderThreshold = 10): InventoryItem => ({
+    productId,
+    quantity,
+    reorderThreshold,
   });
 
-  const createLoan = (
-    bookId: string,
-    patronId: string,
-    dueDate: Date,
-    renewalCount: number = 0,
-  ): Loan => ({
-    bookId,
-    patronId,
-    dueDate,
-    renewalCount,
-    type: "standard",
-  });
+  describe('placeOrder event', () => {
+    it('fulfills a valid order and deducts inventory', () => {
+      const inventory = [makeItem('p1', 100)];
+      const events: WarehouseEvent[] = [
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          lines: [{ productId: 'p1', quantity: 30, unitPrice: 10 }],
+        },
+      ];
+      const result = processWarehouseEvents(inventory, events);
 
-  describe("processReturn action", () => {
-    it("processes on-time return without fees", () => {
-      const patrons = [createPatron("p1", "basic", 0)];
-      const loans = [createLoan("b1", "p1", new Date("2024-01-20"))];
-      const events: LoanEvent[] = [{ type: "return", bookId: "b1", patronId: "p1" }];
-      const currentDate = new Date("2024-01-15");
-
-      const result = processDailyEvents(patrons, loans, events, currentDate);
-
-      expect(result.finalState.activeLoans.has("b1")).toBe(false);
-      expect(result.finalState.patrons.get("p1")?.accountBalance).toBe(0);
-      expect(result.finalState.eventLog).toContain("Book b1 returned by p1 on time");
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(70);
+      expect(result.finalState.orders.get('o1')?.status).toBe('fulfilled');
+      expect(result.finalState.totalRevenue).toBeGreaterThan(0);
+      expect(result.finalState.eventLog[0]).toContain('fulfilled');
     });
 
-    it("processes overdue return and charges late fees", () => {
-      const patrons = [createPatron("p1", "basic", 0)];
-      const loans = [createLoan("b1", "p1", new Date("2024-01-10"))];
-      const events: LoanEvent[] = [{ type: "return", bookId: "b1", patronId: "p1" }];
-      const currentDate = new Date("2024-01-20");
+    it('rejects order when stock is insufficient', () => {
+      const inventory = [makeItem('p1', 5)];
+      const events: WarehouseEvent[] = [
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          lines: [{ productId: 'p1', quantity: 10, unitPrice: 10 }],
+        },
+      ];
+      const result = processWarehouseEvents(inventory, events);
 
-      const result = processDailyEvents(patrons, loans, events, currentDate);
-
-      expect(result.finalState.activeLoans.has("b1")).toBe(false);
-      // 10 days overdue * $0.50 = $5.00
-      expect(result.finalState.patrons.get("p1")?.accountBalance).toBe(-5);
-      expect(result.finalState.eventLog[0]).toContain("Late fee: $5.00");
+      expect(result.finalState.orders.has('o1')).toBe(false);
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(5); // unchanged
+      expect(result.finalState.totalRevenue).toBe(0);
+      expect(result.finalState.eventLog[0]).toContain('rejected');
     });
 
-    it("rejects return for non-existent loan", () => {
-      const patrons = [createPatron("p1")];
-      const loans: Loan[] = [];
-      const events: LoanEvent[] = [{ type: "return", bookId: "b1", patronId: "p1" }];
-      const currentDate = new Date("2024-01-15");
+    it('rejects order with unknown product ID', () => {
+      const inventory = [makeItem('p1', 100)];
+      const events: WarehouseEvent[] = [
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          lines: [{ productId: 'ghost', quantity: 1, unitPrice: 10 }],
+        },
+      ];
+      const result = processWarehouseEvents(inventory, events);
 
-      const result = processDailyEvents(patrons, loans, events, currentDate);
-
-      expect(result.finalState.eventLog).toContain(
-        "Return failed: No active loan for book b1",
-      );
+      expect(result.finalState.orders.has('o1')).toBe(false);
+      expect(result.finalState.eventLog[0]).toContain('rejected');
     });
 
-    it("rejects return from wrong patron", () => {
-      const patrons = [createPatron("p1"), createPatron("p2")];
-      const loans = [createLoan("b1", "p1", new Date("2024-01-20"))];
-      const events: LoanEvent[] = [{ type: "return", bookId: "b1", patronId: "p2" }];
-      const currentDate = new Date("2024-01-15");
+    it('applies bulk discount for large orders (100+ units = 15% off)', () => {
+      const inventory = [makeItem('p1', 200)];
+      const events: WarehouseEvent[] = [
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          lines: [{ productId: 'p1', quantity: 100, unitPrice: 10 }],
+        },
+      ];
+      const result = processWarehouseEvents(inventory, events);
 
-      const result = processDailyEvents(patrons, loans, events, currentDate);
-
-      expect(result.finalState.activeLoans.has("b1")).toBe(true);
-      expect(result.finalState.eventLog).toContain(
-        "Return failed: Book b1 not loaned to patron p2",
-      );
-    });
-  });
-
-  describe("processRenewal action", () => {
-    it("approves renewal for eligible loan", () => {
-      const patrons = [createPatron("p1")];
-      const loans = [createLoan("b1", "p1", new Date("2024-01-20"), 0)];
-      const events: LoanEvent[] = [{ type: "renew", bookId: "b1", patronId: "p1" }];
-      const currentDate = new Date("2024-01-15");
-
-      const result = processDailyEvents(patrons, loans, events, currentDate);
-
-      const loan = result.finalState.activeLoans.get("b1");
-      expect(loan?.renewalCount).toBe(1);
-      expect(loan?.dueDate.getTime()).toBeGreaterThan(new Date("2024-01-20").getTime());
-      expect(result.finalState.eventLog[0]).toContain("renewed");
+      // 100 * $10 * 0.85 = $850
+      expect(result.finalState.orders.get('o1')?.total).toBe(850);
+      expect(result.finalState.totalRevenue).toBe(850);
     });
 
-    it("denies renewal for overdue loan", () => {
-      const patrons = [createPatron("p1")];
-      const loans = [createLoan("b1", "p1", new Date("2024-01-10"), 0)];
-      const events: LoanEvent[] = [{ type: "renew", bookId: "b1", patronId: "p1" }];
-      const currentDate = new Date("2024-01-15");
+    it('deducts inventory across multiple lines in one order', () => {
+      const inventory = [makeItem('p1', 100), makeItem('p2', 50)];
+      const events: WarehouseEvent[] = [
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          lines: [
+            { productId: 'p1', quantity: 20, unitPrice: 10 },
+            { productId: 'p2', quantity: 15, unitPrice: 20 },
+          ],
+        },
+      ];
+      const result = processWarehouseEvents(inventory, events);
 
-      const result = processDailyEvents(patrons, loans, events, currentDate);
-
-      const loan = result.finalState.activeLoans.get("b1");
-      expect(loan?.renewalCount).toBe(0);
-      expect(result.finalState.eventLog).toContain("Renewal denied for book b1");
-    });
-
-    it("denies renewal when already renewed twice", () => {
-      const patrons = [createPatron("p1")];
-      const loans = [createLoan("b1", "p1", new Date("2024-01-20"), 2)];
-      const events: LoanEvent[] = [{ type: "renew", bookId: "b1", patronId: "p1" }];
-      const currentDate = new Date("2024-01-15");
-
-      const result = processDailyEvents(patrons, loans, events, currentDate);
-
-      const loan = result.finalState.activeLoans.get("b1");
-      expect(loan?.renewalCount).toBe(2);
-      expect(result.finalState.eventLog).toContain("Renewal denied for book b1");
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(80);
+      expect(result.finalState.inventory.get('p2')?.quantity).toBe(35);
     });
   });
 
-  describe("processCheckout action", () => {
-    it("checks out book to highest priority patron", () => {
-      const patrons = [createPatron("p1", "basic"), createPatron("p2", "elite")];
-      const loans: Loan[] = [];
-      const holdRequests: HoldRequest[] = [
-        { patronId: "p1", requestDate: new Date("2024-01-10"), membershipTier: "basic" },
-        { patronId: "p2", requestDate: new Date("2024-01-12"), membershipTier: "elite" },
-      ];
-      const events: LoanEvent[] = [{ type: "checkout", bookId: "b1", holdRequests }];
-      const currentDate = new Date("2024-01-15");
+  describe('restock event', () => {
+    it('increases inventory quantity and logs the new stock level', () => {
+      const inventory = [makeItem('p1', 50)];
+      const events: WarehouseEvent[] = [{ type: 'restock', productId: 'p1', quantity: 100 }];
+      const result = processWarehouseEvents(inventory, events);
 
-      const result = processDailyEvents(patrons, loans, events, currentDate);
-
-      const loan = result.finalState.activeLoans.get("b1");
-      expect(loan?.patronId).toBe("p2"); // Elite patron has priority
-      expect(result.finalState.eventLog).toContain("Book b1 checked out to p2");
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(150);
+      expect(result.finalState.eventLog[0]).toContain('Restocked');
+      expect(result.finalState.eventLog[0]).toContain('150');
     });
 
-    it("rejects checkout when book is already on loan", () => {
-      const patrons = [createPatron("p1"), createPatron("p2")];
-      const loans = [createLoan("b1", "p1", new Date("2024-01-20"))];
-      const holdRequests: HoldRequest[] = [
-        { patronId: "p2", requestDate: new Date("2024-01-10"), membershipTier: "basic" },
-      ];
-      const events: LoanEvent[] = [{ type: "checkout", bookId: "b1", holdRequests }];
-      const currentDate = new Date("2024-01-15");
+    it('logs CRITICAL status when stock is still at or below threshold after restock', () => {
+      const inventory = [makeItem('p1', 0, 20)];
+      const events: WarehouseEvent[] = [{ type: 'restock', productId: 'p1', quantity: 5 }];
+      const result = processWarehouseEvents(inventory, events);
 
-      const result = processDailyEvents(patrons, loans, events, currentDate);
-
-      expect(result.finalState.eventLog).toContain(
-        "Checkout failed: Book b1 already on loan",
-      );
+      expect(result.finalState.eventLog[0]).toContain('CRITICAL');
     });
 
-    it("rejects checkout when no hold requests exist", () => {
-      const patrons = [createPatron("p1")];
-      const loans: Loan[] = [];
-      const events: LoanEvent[] = [{ type: "checkout", bookId: "b1", holdRequests: [] }];
-      const currentDate = new Date("2024-01-15");
+    it('logs HEALTHY status when stock rises above 2× threshold', () => {
+      const inventory = [makeItem('p1', 0, 10)];
+      const events: WarehouseEvent[] = [{ type: 'restock', productId: 'p1', quantity: 25 }];
+      const result = processWarehouseEvents(inventory, events);
 
-      const result = processDailyEvents(patrons, loans, events, currentDate);
+      expect(result.finalState.eventLog[0]).toContain('HEALTHY');
+    });
 
-      expect(result.finalState.eventLog).toContain(
-        "Checkout failed: No hold requests for book b1",
-      );
+    it('fails gracefully for unknown product', () => {
+      const inventory = [makeItem('p1', 50)];
+      const events: WarehouseEvent[] = [{ type: 'restock', productId: 'unknown', quantity: 100 }];
+      const result = processWarehouseEvents(inventory, events);
+
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(50); // unchanged
+      expect(result.finalState.eventLog[0]).toContain('failed');
     });
   });
 
-  describe("processAddHold action", () => {
-    it("adds hold request to queue", () => {
-      const patrons = [createPatron("p1")];
-      const loans: Loan[] = [];
-      const holdRequest: HoldRequest = {
-        patronId: "p1",
-        requestDate: new Date("2024-01-15"),
-        membershipTier: "basic",
-      };
-      const events: LoanEvent[] = [{ type: "addHold", bookId: "b1", holdRequest }];
-      const currentDate = new Date("2024-01-15");
+  describe('cancelOrder event', () => {
+    it('cancels a fulfilled order and restores inventory', () => {
+      const inventory = [makeItem('p1', 100)];
+      const events: WarehouseEvent[] = [
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          lines: [{ productId: 'p1', quantity: 30, unitPrice: 10 }],
+        },
+        { type: 'cancelOrder', orderId: 'o1' },
+      ];
+      const result = processWarehouseEvents(inventory, events);
 
-      const result = processDailyEvents(patrons, loans, events, currentDate);
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(100); // restored
+      expect(result.finalState.orders.get('o1')?.status).toBe('cancelled');
+      expect(result.finalState.totalRevenue).toBe(0); // revenue reversed
+      expect(result.finalState.eventLog[1]).toContain('cancelled');
+    });
 
-      const queue = result.finalState.holdQueues.get("b1");
-      expect(queue?.length).toBe(1);
-      expect(queue?.[0].patronId).toBe("p1");
-      expect(result.finalState.eventLog).toContain("Hold added for book b1 by patron p1");
+    it('fails gracefully for non-existent order', () => {
+      const inventory = [makeItem('p1', 100)];
+      const events: WarehouseEvent[] = [{ type: 'cancelOrder', orderId: 'ghost' }];
+      const result = processWarehouseEvents(inventory, events);
+
+      expect(result.finalState.eventLog[0]).toContain('not found');
+    });
+
+    it('fails gracefully when cancelling an already-cancelled order', () => {
+      const inventory = [makeItem('p1', 100)];
+      const events: WarehouseEvent[] = [
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          lines: [{ productId: 'p1', quantity: 10, unitPrice: 10 }],
+        },
+        { type: 'cancelOrder', orderId: 'o1' },
+        { type: 'cancelOrder', orderId: 'o1' }, // duplicate cancel
+      ];
+      const result = processWarehouseEvents(inventory, events);
+
+      // inventory should only be restored once
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(100);
+      expect(result.finalState.eventLog[2]).toContain('not fulfilled');
     });
   });
 
-  describe("Integration: Calculations driving Actions", () => {
-    it("processes complete book lifecycle with calculations", () => {
-      const patrons = [createPatron("p1", "basic", 0), createPatron("p2", "elite", 0)];
-      const loans = [createLoan("b1", "p1", new Date("2024-01-10"), 0)];
-      const holdRequests: HoldRequest[] = [
-        { patronId: "p2", requestDate: new Date("2024-01-12"), membershipTier: "elite" },
+  describe('Integration: Calculations driving Actions', () => {
+    it('processes a full order lifecycle: place → restock → place again → cancel first', () => {
+      const inventory = [makeItem('p1', 200, 20), makeItem('p2', 10, 15)];
+      const events: WarehouseEvent[] = [
+        // Large order: p1 gets 15% discount, p2 has no discount
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          lines: [
+            { productId: 'p1', quantity: 100, unitPrice: 20 }, // 100 * $20 * 0.85 = $1700
+            { productId: 'p2', quantity: 5, unitPrice: 50 }, // 5  * $50 * 1.00 = $250
+          ],
+        },
+        // Restock p2 after low stock
+        { type: 'restock', productId: 'p2', quantity: 50 },
+        // Second order: p2 gets 5% discount (10 units)
+        {
+          type: 'placeOrder',
+          orderId: 'o2',
+          lines: [{ productId: 'p2', quantity: 10, unitPrice: 50 }], // 10 * $50 * 0.95 = $475
+        },
+        // Cancel first order
+        { type: 'cancelOrder', orderId: 'o1' },
       ];
 
-      // Sequence: return (with late fee), checkout to next patron, renew
-      const events: LoanEvent[] = [
-        { type: "return", bookId: "b1", patronId: "p1" },
-        { type: "checkout", bookId: "b1", holdRequests },
-        { type: "renew", bookId: "b1", patronId: "p2" },
-      ];
-      const currentDate = new Date("2024-01-20");
+      const result = processWarehouseEvents(inventory, events);
 
-      const result = processDailyEvents(patrons, loans, events, currentDate);
+      // o1 cancelled → p1 fully restored, p2 restored by 5 units
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(200);
+      // p2: 10 - 5 (o1) + 50 (restock) - 10 (o2) + 5 (cancel o1) = 50
+      expect(result.finalState.inventory.get('p2')?.quantity).toBe(50);
 
-      // Verify late fee was charged (10 days * $0.50)
-      expect(result.finalState.patrons.get("p1")?.accountBalance).toBe(-5);
+      expect(result.finalState.orders.get('o1')?.status).toBe('cancelled');
+      expect(result.finalState.orders.get('o2')?.status).toBe('fulfilled');
 
-      // Verify book was checked out to elite patron
-      const loan = result.finalState.activeLoans.get("b1");
-      expect(loan?.patronId).toBe("p2");
-
-      // Verify renewal was approved
-      expect(loan?.renewalCount).toBe(1);
-
-      // Verify all events were logged
-      expect(result.eventsProcessed).toBe(3);
-      expect(result.finalState.eventLog.length).toBe(3);
+      // Only o2's $475 remains after o1 is cancelled
+      expect(result.finalState.totalRevenue).toBe(475);
+      expect(result.eventsProcessed).toBe(4);
     });
 
-    it("processes multiple returns with varying late fees", () => {
-      const patrons = [
-        createPatron("p1", "basic", 0),
-        createPatron("p2", "basic", 0),
-        createPatron("p3", "basic", 0),
+    it('handles sequential stock depletion, restock, and retry', () => {
+      const inventory = [makeItem('p1', 20, 10)];
+      const events: WarehouseEvent[] = [
+        // o1 takes 15 units, leaving 5
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          lines: [{ productId: 'p1', quantity: 15, unitPrice: 10 }],
+        },
+        // o2 fails: only 5 in stock, needs 10
+        {
+          type: 'placeOrder',
+          orderId: 'o2',
+          lines: [{ productId: 'p1', quantity: 10, unitPrice: 10 }],
+        },
+        // restock brings p1 to 35
+        { type: 'restock', productId: 'p1', quantity: 30 },
+        // o3 now succeeds
+        {
+          type: 'placeOrder',
+          orderId: 'o3',
+          lines: [{ productId: 'p1', quantity: 10, unitPrice: 10 }],
+        },
       ];
-      const loans = [
-        createLoan("b1", "p1", new Date("2024-01-15"), 0), // 0 days overdue
-        createLoan("b2", "p2", new Date("2024-01-10"), 0), // 5 days overdue
-        createLoan("b3", "p3", new Date("2024-01-05"), 0), // 10 days overdue
-      ];
-      const events: LoanEvent[] = [
-        { type: "return", bookId: "b1", patronId: "p1" },
-        { type: "return", bookId: "b2", patronId: "p2" },
-        { type: "return", bookId: "b3", patronId: "p3" },
-      ];
-      const currentDate = new Date("2024-01-15");
 
-      const result = processDailyEvents(patrons, loans, events, currentDate);
+      const result = processWarehouseEvents(inventory, events);
 
-      expect(result.finalState.patrons.get("p1")?.accountBalance).toBe(0);
-      expect(result.finalState.patrons.get("p2")?.accountBalance).toBe(-2.5);
-      expect(result.finalState.patrons.get("p3")?.accountBalance).toBe(-5);
+      expect(result.finalState.orders.get('o1')?.status).toBe('fulfilled');
+      expect(result.finalState.orders.has('o2')).toBe(false); // rejected
+      expect(result.finalState.orders.get('o3')?.status).toBe('fulfilled');
+
+      // 20 - 15 (o1) + 30 (restock) - 10 (o3) = 25
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(25);
+      expect(result.eventsProcessed).toBe(4);
     });
   });
 });

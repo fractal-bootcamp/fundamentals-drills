@@ -1,211 +1,188 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from 'vitest';
 import {
-  calculateDaysOverdue,
-  calculateLateFee,
-  isBookEligibleForRenewal,
-  prioritizeHoldQueue,
-  type Loan,
-  type HoldRequest,
-} from "../problems/assignment1";
+  validateOrderItems,
+  isOrderFulfillable,
+  applyBulkDiscount,
+  calculateOrderTotal,
+  calculateRestockPriority,
+  type InventoryItem,
+  type OrderedItem,
+} from '../problems/assignment1';
 
-describe("Assignment 1: Data & Calculations", () => {
-  describe("calculateDaysOverdue", () => {
-    it("returns 0 when book is not overdue", () => {
-      const dueDate = new Date("2024-01-15");
-      const currentDate = new Date("2024-01-10");
-      expect(calculateDaysOverdue(dueDate, currentDate)).toBe(0);
+describe('Assignment 1: Data & Calculations', () => {
+  const makeInventory = (items: InventoryItem[]) => new Map(items.map((i) => [i.productId, i]));
+
+  describe('validateOrderItems', () => {
+    const knownIds = new Set(['p1', 'p2']);
+
+    it('returns no errors for valid lines', () => {
+      const lines: OrderedItem[] = [{ productId: 'p1', quantity: 5, unitPrice: 10 }];
+      expect(validateOrderItems(lines, knownIds)).toEqual([]);
     });
 
-    it("returns 0 when book is due today", () => {
-      const dueDate = new Date("2024-01-15");
-      const currentDate = new Date("2024-01-15");
-      expect(calculateDaysOverdue(dueDate, currentDate)).toBe(0);
+    it('reports unknown product ID', () => {
+      const lines: OrderedItem[] = [{ productId: 'p99', quantity: 5, unitPrice: 10 }];
+      const errors = validateOrderItems(lines, knownIds);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain('p99');
     });
 
-    it("calculates correct days overdue", () => {
-      const dueDate = new Date("2024-01-15");
-      const currentDate = new Date("2024-01-20");
-      expect(calculateDaysOverdue(dueDate, currentDate)).toBe(5);
+    it('reports non-positive quantity', () => {
+      const lines: OrderedItem[] = [{ productId: 'p1', quantity: 0, unitPrice: 10 }];
+      const errors = validateOrderItems(lines, knownIds);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain('quantity');
     });
 
-    it("handles large overdue periods", () => {
-      const dueDate = new Date("2024-01-01");
-      const currentDate = new Date("2024-12-31");
-      expect(calculateDaysOverdue(dueDate, currentDate)).toBe(365);
+    it('reports negative unit price', () => {
+      const lines: OrderedItem[] = [{ productId: 'p1', quantity: 5, unitPrice: -1 }];
+      const errors = validateOrderItems(lines, knownIds);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain('price');
+    });
+
+    it('returns multiple errors for multiple violations on one line', () => {
+      const lines: OrderedItem[] = [{ productId: 'p99', quantity: -1, unitPrice: -5 }];
+      const errors = validateOrderItems(lines, knownIds);
+      expect(errors.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('reports errors across multiple invalid lines', () => {
+      const lines: OrderedItem[] = [
+        { productId: 'p1', quantity: 0, unitPrice: 10 },
+        { productId: 'unknown', quantity: 5, unitPrice: 10 },
+      ];
+      const errors = validateOrderItems(lines, knownIds);
+      expect(errors.length).toBe(2);
     });
   });
 
-  describe("calculateLateFee", () => {
-    it("returns 0 when no days overdue", () => {
-      expect(calculateLateFee(0, "standard")).toBe(0);
-      expect(calculateLateFee(0, "reference")).toBe(0);
-      expect(calculateLateFee(0, "rare")).toBe(0);
+  describe('isOrderFulfillable', () => {
+    it('returns false for empty lines', () => {
+      const inv = makeInventory([{ productId: 'p1', quantity: 10, reorderThreshold: 5 }]);
+      expect(isOrderFulfillable([], inv)).toBe(false);
     });
 
-    it("calculates standard book fee correctly", () => {
-      expect(calculateLateFee(10, "standard")).toBe(5); // 10 * 0.50
+    it('returns true when all items have sufficient stock', () => {
+      const inv = makeInventory([{ productId: 'p1', quantity: 50, reorderThreshold: 5 }]);
+      const lines: OrderedItem[] = [{ productId: 'p1', quantity: 50, unitPrice: 10 }];
+      expect(isOrderFulfillable(lines, inv)).toBe(true);
     });
 
-    it("calculates reference book fee correctly", () => {
-      expect(calculateLateFee(10, "reference")).toBe(10); // 10 * 1.00
+    it('returns false when one item has insufficient stock', () => {
+      const inv = makeInventory([
+        { productId: 'p1', quantity: 50, reorderThreshold: 5 },
+        { productId: 'p2', quantity: 3, reorderThreshold: 5 },
+      ]);
+      const lines: OrderedItem[] = [
+        { productId: 'p1', quantity: 10, unitPrice: 10 },
+        { productId: 'p2', quantity: 5, unitPrice: 10 },
+      ];
+      expect(isOrderFulfillable(lines, inv)).toBe(false);
     });
 
-    it("calculates rare book fee correctly", () => {
-      expect(calculateLateFee(10, "rare")).toBe(25); // 10 * 2.50
+    it('returns false for unknown product IDs', () => {
+      const inv = makeInventory([{ productId: 'p1', quantity: 50, reorderThreshold: 5 }]);
+      const lines: OrderedItem[] = [{ productId: 'unknown', quantity: 1, unitPrice: 10 }];
+      expect(isOrderFulfillable(lines, inv)).toBe(false);
     });
 
-    it("caps standard book fee at $25", () => {
-      expect(calculateLateFee(100, "standard")).toBe(25);
-    });
-
-    it("caps reference book fee at $50", () => {
-      expect(calculateLateFee(100, "reference")).toBe(50);
-    });
-
-    it("caps rare book fee at $100", () => {
-      expect(calculateLateFee(100, "rare")).toBe(100);
-    });
-
-    it("handles fees exactly at cap", () => {
-      expect(calculateLateFee(50, "standard")).toBe(25); // would be 25, capped at 25
-      expect(calculateLateFee(50, "reference")).toBe(50); // would be 50, capped at 50
-      expect(calculateLateFee(40, "rare")).toBe(100); // would be 100, capped at 100
+    it('returns true when order quantity exactly matches stock', () => {
+      const inv = makeInventory([{ productId: 'p1', quantity: 10, reorderThreshold: 5 }]);
+      const lines: OrderedItem[] = [{ productId: 'p1', quantity: 10, unitPrice: 10 }];
+      expect(isOrderFulfillable(lines, inv)).toBe(true);
     });
   });
 
-  describe("isBookEligibleForRenewal", () => {
-    it("allows renewal for standard book with no renewals and not overdue", () => {
-      const loan: Loan = {
-        bookId: "1",
-        patronId: "p1",
-        dueDate: new Date("2024-01-20"),
-        renewalCount: 0,
-        type: "standard",
-      };
-      const currentDate = new Date("2024-01-15");
-      expect(isBookEligibleForRenewal(loan, currentDate)).toBe(true);
+  describe('applyBulkDiscount', () => {
+    it('applies no discount for fewer than 10 units', () => {
+      expect(applyBulkDiscount(9, 10)).toBe(90);
+      expect(applyBulkDiscount(1, 10)).toBe(10);
     });
 
-    it("disallows renewal for reference books", () => {
-      const loan: Loan = {
-        bookId: "1",
-        patronId: "p1",
-        dueDate: new Date("2024-01-20"),
-        renewalCount: 0,
-        type: "reference",
-      };
-      const currentDate = new Date("2024-01-15");
-      expect(isBookEligibleForRenewal(loan, currentDate)).toBe(false);
+    it('applies 5% discount for 10–24 units', () => {
+      expect(applyBulkDiscount(10, 10)).toBe(95); // 100 * 0.95
+      expect(applyBulkDiscount(24, 10)).toBe(228); // 240 * 0.95
     });
 
-    it("disallows renewal when renewal count is 2", () => {
-      const loan: Loan = {
-        bookId: "1",
-        patronId: "p1",
-        dueDate: new Date("2024-01-20"),
-        renewalCount: 2,
-        type: "standard",
-      };
-      const currentDate = new Date("2024-01-15");
-      expect(isBookEligibleForRenewal(loan, currentDate)).toBe(false);
+    it('applies 10% discount for 25–99 units', () => {
+      expect(applyBulkDiscount(25, 10)).toBe(225); // 250 * 0.90
+      expect(applyBulkDiscount(50, 20)).toBe(900); // 1000 * 0.90
     });
 
-    it("disallows renewal when renewal count exceeds 2", () => {
-      const loan: Loan = {
-        bookId: "1",
-        patronId: "p1",
-        dueDate: new Date("2024-01-20"),
-        renewalCount: 3,
-        type: "rare",
-      };
-      const currentDate = new Date("2024-01-15");
-      expect(isBookEligibleForRenewal(loan, currentDate)).toBe(false);
+    it('applies 15% discount for 100+ units', () => {
+      expect(applyBulkDiscount(100, 10)).toBe(850); // 1000 * 0.85
     });
 
-    it("disallows renewal when book is overdue", () => {
-      const loan: Loan = {
-        bookId: "1",
-        patronId: "p1",
-        dueDate: new Date("2024-01-10"),
-        renewalCount: 0,
-        type: "standard",
-      };
-      const currentDate = new Date("2024-01-15");
-      expect(isBookEligibleForRenewal(loan, currentDate)).toBe(false);
-    });
-
-    it("allows renewal for rare book with 1 renewal and not overdue", () => {
-      const loan: Loan = {
-        bookId: "1",
-        patronId: "p1",
-        dueDate: new Date("2024-01-20"),
-        renewalCount: 1,
-        type: "rare",
-      };
-      const currentDate = new Date("2024-01-15");
-      expect(isBookEligibleForRenewal(loan, currentDate)).toBe(true);
+    it('handles tier boundaries correctly (24 vs 25 units)', () => {
+      const below = applyBulkDiscount(24, 10); // 5% tier
+      const above = applyBulkDiscount(25, 10); // 10% tier
+      expect(below).toBeGreaterThan(above); // higher discount = lower total
     });
   });
 
-  describe("prioritizeHoldQueue", () => {
-    it("returns empty array for empty input", () => {
-      expect(prioritizeHoldQueue([])).toEqual([]);
+  describe('calculateOrderTotal', () => {
+    it('returns 0 for empty lines', () => {
+      expect(calculateOrderTotal([])).toBe(0);
     });
 
-    it("prioritizes elite over premium over basic", () => {
-      const holds: HoldRequest[] = [
-        { patronId: "p1", requestDate: new Date("2024-01-10"), membershipTier: "basic" },
-        { patronId: "p2", requestDate: new Date("2024-01-10"), membershipTier: "elite" },
-        {
-          patronId: "p3",
-          requestDate: new Date("2024-01-10"),
-          membershipTier: "premium",
-        },
-      ];
-      const result = prioritizeHoldQueue(holds);
-      expect(result[0].patronId).toBe("p2");
-      expect(result[1].patronId).toBe("p3");
-      expect(result[2].patronId).toBe("p1");
+    it('sums a single line with no discount', () => {
+      const lines: OrderedItem[] = [{ productId: 'p1', quantity: 5, unitPrice: 10 }];
+      expect(calculateOrderTotal(lines)).toBe(50);
     });
 
-    it("sorts by request date within same tier", () => {
-      const holds: HoldRequest[] = [
-        { patronId: "p1", requestDate: new Date("2024-01-15"), membershipTier: "basic" },
-        { patronId: "p2", requestDate: new Date("2024-01-10"), membershipTier: "basic" },
-        { patronId: "p3", requestDate: new Date("2024-01-12"), membershipTier: "basic" },
+    it('sums discounted totals across multiple lines', () => {
+      const lines: OrderedItem[] = [
+        { productId: 'p1', quantity: 5, unitPrice: 10 }, // no discount: $50
+        { productId: 'p2', quantity: 10, unitPrice: 20 }, // 5% discount: $190
       ];
-      const result = prioritizeHoldQueue(holds);
-      expect(result[0].patronId).toBe("p2");
-      expect(result[1].patronId).toBe("p3");
-      expect(result[2].patronId).toBe("p1");
+      expect(calculateOrderTotal(lines)).toBe(240);
     });
 
-    it("applies both tier and date sorting", () => {
-      const holds: HoldRequest[] = [
-        { patronId: "p1", requestDate: new Date("2024-01-10"), membershipTier: "basic" },
-        { patronId: "p2", requestDate: new Date("2024-01-15"), membershipTier: "elite" },
-        { patronId: "p3", requestDate: new Date("2024-01-08"), membershipTier: "elite" },
-        {
-          patronId: "p4",
-          requestDate: new Date("2024-01-12"),
-          membershipTier: "premium",
-        },
+    it('applies the correct discount tier per line independently', () => {
+      const lines: OrderedItem[] = [
+        { productId: 'p1', quantity: 100, unitPrice: 10 }, // 15% → $850
+        { productId: 'p2', quantity: 5, unitPrice: 10 }, // 0%  → $50
       ];
-      const result = prioritizeHoldQueue(holds);
-      expect(result[0].patronId).toBe("p3"); // elite, earliest
-      expect(result[1].patronId).toBe("p2"); // elite, later
-      expect(result[2].patronId).toBe("p4"); // premium
-      expect(result[3].patronId).toBe("p1"); // basic
+      expect(calculateOrderTotal(lines)).toBe(900);
+    });
+  });
+
+  describe('calculateRestockPriority', () => {
+    it('returns 100 when quantity is 0 (out of stock)', () => {
+      expect(calculateRestockPriority({ productId: 'p1', quantity: 0, reorderThreshold: 10 })).toBe(
+        100,
+      );
     });
 
-    it("does not mutate the original array", () => {
-      const holds: HoldRequest[] = [
-        { patronId: "p1", requestDate: new Date("2024-01-15"), membershipTier: "basic" },
-        { patronId: "p2", requestDate: new Date("2024-01-10"), membershipTier: "elite" },
-      ];
-      const original = [...holds];
-      prioritizeHoldQueue(holds);
-      expect(holds).toEqual(original);
+    it('returns 100 when quantity equals threshold', () => {
+      expect(
+        calculateRestockPriority({ productId: 'p1', quantity: 10, reorderThreshold: 10 }),
+      ).toBe(100);
+    });
+
+    it('returns 100 when quantity is below threshold', () => {
+      expect(calculateRestockPriority({ productId: 'p1', quantity: 5, reorderThreshold: 10 })).toBe(
+        100,
+      );
+    });
+
+    it('returns 50 when quantity is between threshold and 2× threshold', () => {
+      expect(
+        calculateRestockPriority({ productId: 'p1', quantity: 15, reorderThreshold: 10 }),
+      ).toBe(50);
+    });
+
+    it('returns 0 when stock is healthy (above 2× threshold)', () => {
+      expect(
+        calculateRestockPriority({ productId: 'p1', quantity: 21, reorderThreshold: 10 }),
+      ).toBe(0);
+    });
+
+    it('returns 50 at exactly 2× threshold', () => {
+      expect(
+        calculateRestockPriority({ productId: 'p1', quantity: 20, reorderThreshold: 10 }),
+      ).toBe(50);
     });
   });
 });
