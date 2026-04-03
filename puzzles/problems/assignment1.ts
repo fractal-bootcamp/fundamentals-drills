@@ -54,13 +54,22 @@ export function validateOrderItems(
   items: Array<OrderedItem>,
   knownProductIds: Set<string>,
 ): Array<string> {
-  // validate items & knownProductIds are truthy
   // knownId = for id in knownProductIds.productId
+  const resultObject: Array<string> = [];
 
-  // for item in items, does item.productId === knownId
+  for (const item of items) {
+    if (!knownProductIds.has(item.productId)) {
+      resultObject.push(`Unknown product: ${item.productId}`);
+    }
+    if (item.quantity <= 0) {
+      resultObject.push(`Invalid quantity for ${item.productId}: ${item.quantity}`);
+    }
+    if (item.unitPrice < 0) {
+      resultObject.push(`Invalid price for ${item.productId}: ${item.unitPrice}`);
+    }
+  }
 
-  // resultObject = []
-  return [];
+  return resultObject;
 }
 
 // Calculation: returns true only if every line item has a matching product in
@@ -73,8 +82,13 @@ export function isOrderFulfillable(
   items: Array<OrderedItem>,
   inventory: Map<string, InventoryItem>,
 ): boolean {
-  // TODO
-  return false;
+  for (const item of items) {
+    const inventoryItem = inventory.get(item.productId);
+    if (!inventoryItem || inventoryItem.quantity < item.quantity) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // Calculation: applies a tiered bulk discount to a single line's subtotal.
@@ -83,8 +97,19 @@ export function isOrderFulfillable(
 // Example: applyBulkDiscount(25, 10)  → 225.00  (250 * 0.90)
 // Example: applyBulkDiscount(9, 10)   → 90.00   (no discount)
 export function applyBulkDiscount(quantity: number, unitPrice: number): number {
-  // TODO
-  return 0;
+  let discount = 0;
+
+  if (quantity >= 1 && quantity <= 9) {
+    discount = 0;
+  } else if (quantity >= 10 && quantity <= 24) {
+    discount = 5 / 100;
+  } else if (quantity >= 25 && quantity <= 99) {
+    discount = 10 / 100;
+  } else discount = 15 / 100;
+
+  const subtotal = quantity * unitPrice;
+
+  return subtotal * (1 - discount);
 }
 
 // Calculation: sums the discounted totals of all order items.
@@ -93,8 +118,19 @@ export function applyBulkDiscount(quantity: number, unitPrice: number): number {
 // Example: calculateOrderTotal([{ productId: "p1", quantity: 10, unitPrice: 20 }])
 // → 190.00  (200 * 0.95, 5% discount for 10–24 units)
 export function calculateOrderTotal(items: Array<OrderedItem>): number {
-  // TODO
-  return 0;
+  let total = 0;
+
+  for (const item of items) {
+    if (item.quantity >= 10) {
+      const discount = applyBulkDiscount(item.quantity, item.unitPrice);
+      total += discount; // add to running total
+    } else {
+      // no discount
+      total += item.quantity * item.unitPrice;
+    }
+  }
+
+  return total;
 }
 
 // Calculation: produces an urgency score for restocking decisions.
