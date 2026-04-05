@@ -58,12 +58,15 @@ export function validateOrderItems(
   const resultObject: Array<string> = [];
 
   for (const item of items) {
+    // unknown productId
     if (!knownProductIds.has(item.productId)) {
       resultObject.push(`Unknown product: ${item.productId}`);
     }
+    // invalid quantity
     if (item.quantity <= 0) {
       resultObject.push(`Invalid quantity for ${item.productId}: ${item.quantity}`);
     }
+    // invalid price
     if (item.unitPrice < 0) {
       resultObject.push(`Invalid price for ${item.productId}: ${item.unitPrice}`);
     }
@@ -83,7 +86,10 @@ export function isOrderFulfillable(
   inventory: Map<string, InventoryItem>,
 ): boolean {
   for (const item of items) {
+    // does producut exist in inventory?
     const inventoryItem = inventory.get(item.productId);
+
+    // is there enough stock to support the order?
     if (!inventoryItem || inventoryItem.quantity < item.quantity) {
       return false;
     }
@@ -121,13 +127,8 @@ export function calculateOrderTotal(items: Array<OrderedItem>): number {
   let total = 0;
 
   for (const item of items) {
-    if (item.quantity >= 10) {
-      const discount = applyBulkDiscount(item.quantity, item.unitPrice);
-      total += discount; // add to running total
-    } else {
-      // no discount
-      total += item.quantity * item.unitPrice;
-    }
+    const discount = applyBulkDiscount(item.quantity, item.unitPrice);
+    total += discount; // add to running total
   }
 
   return total;
@@ -141,6 +142,16 @@ export function calculateOrderTotal(items: Array<OrderedItem>): number {
 // Example: calculateRestockPriority({ productId: "p1", quantity: 15, reorderThreshold: 10 })
 // → 50   (15 is between 10 and 20)
 export function calculateRestockPriority(item: InventoryItem): number {
-  // TODO
+  if (item.quantity <= item.reorderThreshold) {
+    // set inventory warning to 100 - critical
+    return 100;
+  }
+
+  const twiceThreshold = item.reorderThreshold * 2;
+  if (item.quantity <= twiceThreshold) {
+    // set inventory warning to 50 - low
+    return 50;
+  }
+  // anythying else, set inventory warning to 0 - healthy
   return 0;
 }

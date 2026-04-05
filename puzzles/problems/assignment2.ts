@@ -10,7 +10,7 @@ Main Action:
 - Use Assignment 1 to validate, check fulfillability, compute totals, and assess restock urgency
 
 Rules:
-1. placeOrder: validate lines → check fulfillable → deduct inventory → record fulfilled order + revenue
+1. placeOrder: validate items → check fulfillable → deduct inventory → record fulfilled order + revenue
 2. restock: add units to inventory; log new stock urgency level (CRITICAL / LOW / HEALTHY)
 3. cancelOrder: if order was fulfilled, restore inventory and deduct revenue; mark order cancelled
 
@@ -20,7 +20,7 @@ Example Input:
     { productId: "p1", quantity: 100, reorderThreshold: 20 }
   ],
   events: [
-    { type: "placeOrder", orderId: "o1", lines: [{ productId: "p1", quantity: 30, unitPrice: 10 }] },
+    { type: "placeOrder", orderId: "o1", items: [{ productId: "p1", quantity: 30, unitPrice: 10 }] },
     { type: "cancelOrder", orderId: "o1" },
     { type: "restock", productId: "p1", quantity: 50 }
   ]
@@ -29,7 +29,7 @@ Example Input:
 Example Output:
 {
   inventory: Map { "p1" => { productId: "p1", quantity: 120, reorderThreshold: 20 } },
-  orders: Map { "o1" => { orderId: "o1", lines: [...], status: "cancelled", total: 285 } },
+  orders: Map { "o1" => { orderId: "o1", items: [...], status: "cancelled", total: 285 } },
   totalRevenue: 0,
   eventLog: [
     "Order o1 fulfilled. Total: $285.00",
@@ -47,21 +47,27 @@ import {
   type InventoryItem,
   type OrderedItem,
   type Order,
-} from "./assignment1";
+} from './assignment1';
 
 // --- Event Types ---
 
 export type WarehouseEvent =
-
+  | { type: 'placeOrder'; orderId: string; items: Array<OrderedItem> }
+  | { type: 'restock'; productId: string; quantity: number }
+  | { type: 'cancelOrder'; orderId: string };
 
 // --- State ---
 
 export interface WarehouseState {
-
+  inventory: Map<string, InventoryItem>;
+  orders: Map<string, Order>;
+  totalRevenue: number;
+  eventLog: Array<string>;
 }
 
 export interface WarehouseResult {
-
+  finalState: WarehouseState;
+  eventsProcessed: number;
 }
 
 // --- Main Action ---
@@ -78,11 +84,11 @@ export function processWarehouseEvents(
   };
 
   for (const event of events) {
-    if (event.type === "placeOrder") {
-      state = handlePlaceOrder(state, event.orderId, event.lines);
-    } else if (event.type === "restock") {
+    if (event.type === 'placeOrder') {
+      state = handlePlaceOrder(state, event.orderId, event.items);
+    } else if (event.type === 'restock') {
       state = handleRestock(state, event.productId, event.quantity);
-    } else if (event.type === "cancelOrder") {
+    } else if (event.type === 'cancelOrder') {
       state = handleCancelOrder(state, event.orderId);
     }
   }
@@ -99,21 +105,68 @@ export function processWarehouseEvents(
 function handlePlaceOrder(
   state: WarehouseState,
   orderId: string,
-  lines: OrderedItem[],
+  items: OrderedItem[],
 ): WarehouseState {
-  // TODO
-  return state;
+  // get all known productIds from current inventory
+  const knownProductIds = new Set(state.inventory.keys());
+
+  const errors = validateOrderItems(items, knownProductIds);
+
+  if (errors.length > 0) {
+    return {
+      ...state,
+      eventLog: [...state.eventLog, `Order ${orderId} rejected: ${errors.join('; ')}`],
+    };
+  }
+
+  if (!isOrderFulfillable(items, state.inventory)) {
+    return {
+      ...state,
+      eventLog: [...state.eventLog, `Order ${orderId} rejected: insufficient stock`],
+    };
+  }
+
+  // deduct inventory
+  const updatedInventory = items.reduce((inventory, item) => {
+    const newInventory = new Map(inventory);
+    const currentItem = newInventory.get(item.productId)!;
+
+    newInventory.set(item.productId, {
+      ...currentItem,
+      quantity: currentItem.quantity - item.quantity,
+    });
+
+    return newInventory;
+  }, state.inventory);
+
+  // derive updatedTotal
+  const updatedTotal = calculateOrderTotal(items);
+
+  // create order
+  const order: Order = {
+    orderId,
+    items,
+    status: 'fulfilled',
+    total: updatedTotal,
+  };
+
+  const updatedOrders = new Map(state.orders);
+  updatedOrders.set(orderId, order);
+
+  return {
+    ...state,
+    inventory: updatedInventory,
+    orders: updatedOrders,
+    totalRevenue: state.totalRevenue + updatedTotal,
+    eventLog: [...state.eventLog, `Order ${orderId} fulfilled for $${updatedTotal}`],
+  };
 }
 
 // Action: adds units to a product's inventory.
 // - On unknown productId → log failure
 // - On success → update quantity, log new quantity and stock status (CRITICAL/LOW/HEALTHY)
 //   Use calculateRestockPriority to determine the status label.
-function handleRestock(
-  state: WarehouseState,
-  productId: string,
-  quantity: number,
-): WarehouseState {
+function handleRestock(state: WarehouseState, productId: string, quantity: number): WarehouseState {
   // TODO
   return state;
 }
