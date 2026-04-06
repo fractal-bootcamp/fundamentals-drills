@@ -1,431 +1,256 @@
-import { describe, it, expect } from "vitest";
-import { processVendingSessions } from "../problems/assignment2";
+import { describe, it, expect } from 'vitest';
+import { processWarehouseEvents, type WarehouseEvent } from '../problems/assignment2';
+import type { InventoryItem, OrderedItem } from '../problems/assignment1';
 
-describe("processVendingSessions", () => {
-  // Basic functionality tests
-  it("should handle successful purchase from example A", () => {
-    const input = {
-      inventory: { A: { price: 125, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["insert", 25], ["select", "A"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ A: { price: 125, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "A",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 125,
-      errors: []
-    }]);
+describe('Assignment 2: Actions & Orchestration', () => {
+  const makeItem = (productId: string, quantity: number, reorderThreshold = 10): InventoryItem => ({
+    productId,
+    quantity,
+    reorderThreshold,
   });
 
-  it("should handle insufficient credit from example B", () => {
-    const input = {
-      inventory: { B: { price: 130, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["insert", 25], ["select", "B"]],
-        [["insert", 100], ["select", "B"]]
-      ]
-    };
+  describe('placeOrder event', () => {
+    it('fulfills a valid order and deducts inventory', () => {
+      const inventory = [makeItem('p1', 100)];
+      const events: WarehouseEvent[] = [
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          items: [{ productId: 'p1', quantity: 30, unitPrice: 10 }],
+        },
+      ];
+      const result = processWarehouseEvents(inventory, events);
 
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ B: { price: 130, stock: 1 } });
-    expect(result.receipts[0]).toEqual({
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["insufficient credit: have 125, need 130"]
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(70);
+      expect(result.finalState.orders.get('o1')?.status).toBe('fulfilled');
+      expect(result.finalState.totalRevenue).toBeGreaterThan(0);
+      expect(result.finalState.eventLog[0]).toContain('fulfilled');
     });
-    expect(result.receipts[1]).toEqual({
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["insufficient credit: have 100, need 130"]
+
+    it('rejects order when stock is insufficient', () => {
+      const inventory = [makeItem('p1', 5)];
+      const events: WarehouseEvent[] = [
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          items: [{ productId: 'p1', quantity: 10, unitPrice: 10 }],
+        },
+      ];
+      const result = processWarehouseEvents(inventory, events);
+
+      expect(result.finalState.orders.has('o1')).toBe(false);
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(5); // unchanged
+      expect(result.finalState.totalRevenue).toBe(0);
+      expect(result.finalState.eventLog[0]).toContain('rejected');
+    });
+
+    it('rejects order with unknown product ID', () => {
+      const inventory = [makeItem('p1', 100)];
+      const events: WarehouseEvent[] = [
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          items: [{ productId: 'ghost', quantity: 1, unitPrice: 10 }],
+        },
+      ];
+      const result = processWarehouseEvents(inventory, events);
+
+      expect(result.finalState.orders.has('o1')).toBe(false);
+      expect(result.finalState.eventLog[0]).toContain('rejected');
+    });
+
+    it('applies bulk discount for large orders (100+ units = 15% off)', () => {
+      const inventory = [makeItem('p1', 200)];
+      const events: WarehouseEvent[] = [
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          items: [{ productId: 'p1', quantity: 100, unitPrice: 10 }],
+        },
+      ];
+      const result = processWarehouseEvents(inventory, events);
+
+      // 100 * $10 * 0.85 = $850
+      expect(result.finalState.orders.get('o1')?.total).toBe(850);
+      expect(result.finalState.totalRevenue).toBe(850);
+    });
+
+    it('deducts inventory across multiple items in one order', () => {
+      const inventory = [makeItem('p1', 100), makeItem('p2', 50)];
+      const events: WarehouseEvent[] = [
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          items: [
+            { productId: 'p1', quantity: 20, unitPrice: 10 },
+            { productId: 'p2', quantity: 15, unitPrice: 20 },
+          ],
+        },
+      ];
+      const result = processWarehouseEvents(inventory, events);
+
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(80);
+      expect(result.finalState.inventory.get('p2')?.quantity).toBe(35);
     });
   });
 
-  it("should handle purchase with change", () => {
-    const input = {
-      inventory: { C: { price: 75, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "C"]]
-      ]
-    };
+  describe('restock event', () => {
+    it('increases inventory quantity and logs the new stock level', () => {
+      const inventory = [makeItem('p1', 50)];
+      const events: WarehouseEvent[] = [{ type: 'restock', productId: 'p1', quantity: 100 }];
+      const result = processWarehouseEvents(inventory, events);
 
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ C: { price: 75, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "C",
-      changeCoins: { 25: 1 },
-      changeTotal: 25,
-      spent: 75,
-      errors: []
-    }]);
-  });
-
-  it("should handle complex change breakdown", () => {
-    const input = {
-      inventory: { D: { price: 35, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "D"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ D: { price: 35, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "D",
-      changeCoins: { 50: 1, 10: 1, 5: 1 },
-      changeTotal: 65,
-      spent: 35,
-      errors: []
-    }]);
-  });
-
-  it("should handle cancel operation", () => {
-    const input = {
-      inventory: { E: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 25], ["insert", 25], ["cancel"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ E: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: { 25: 2 },
-      changeTotal: 50,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle invalid coin denominations", () => {
-    const input = {
-      inventory: { F: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 75], ["insert", 50], ["select", "F"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ F: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "F",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: ["unsupported coin: 75"]
-    }]);
-  });
-
-  it("should handle invalid SKU", () => {
-    const input = {
-      inventory: { G: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "INVALID"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ G: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["invalid sku: INVALID"]
-    }]);
-  });
-
-  it("should handle out of stock", () => {
-    const input = {
-      inventory: { H: { price: 50, stock: 0 } },
-      sessions: [
-        [["insert", 50], ["select", "H"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ H: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["out of stock: H"]
-    }]);
-  });
-
-  it("should handle multiple sessions with inventory depletion", () => {
-    const input = {
-      inventory: { I: { price: 25, stock: 2 } },
-      sessions: [
-        [["insert", 25], ["select", "I"]],
-        [["insert", 25], ["select", "I"]],
-        [["insert", 25], ["select", "I"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ I: { price: 25, stock: 0 } });
-    expect(result.receipts).toHaveLength(3);
-    expect(result.receipts[0].dispensed).toBe("I");
-    expect(result.receipts[1].dispensed).toBe("I");
-    expect(result.receipts[2].dispensed).toBeUndefined();
-    expect(result.receipts[2].errors).toEqual(["out of stock: I"]);
-  });
-
-  it("should handle noop operations", () => {
-    const input = {
-      inventory: { J: { price: 50, stock: 1 } },
-      sessions: [
-        [["noop"], ["insert", 50], ["noop"], ["select", "J"], ["noop"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ J: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "J",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: []
-    }]);
-  });
-
-  it("should handle unknown actions", () => {
-    const input = {
-      inventory: { K: { price: 50, stock: 1 } },
-      sessions: [
-        [["unknown"], ["insert", 50], ["select", "K"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ K: { price: 50, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "K",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: ["unknown action: unknown"]
-    }]);
-  });
-
-  it("should ignore actions after session ends", () => {
-    const input = {
-      inventory: { L: { price: 50, stock: 2 } },
-      sessions: [
-        [["insert", 50], ["select", "L"], ["insert", 100], ["select", "L"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ L: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "L",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 50,
-      errors: []
-    }]);
-  });
-
-  it("should handle cancel after session ends", () => {
-    const input = {
-      inventory: { M: { price: 25, stock: 1 } },
-      sessions: [
-        [["insert", 25], ["cancel"], ["insert", 50]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ M: { price: 25, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: { 25: 1 },
-      changeTotal: 25,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle empty sessions", () => {
-    const input = {
-      inventory: { N: { price: 50, stock: 1 } },
-      sessions: [
-        []
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ N: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle session that just inserts coins", () => {
-    const input = {
-      inventory: { O: { price: 50, stock: 1 } },
-      sessions: [
-        [["insert", 25], ["insert", 10]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ O: { price: 50, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle multiple errors in single session", () => {
-    const input = {
-      inventory: { P: { price: 100, stock: 1 } },
-      sessions: [
-        [["insert", 75], ["select", "INVALID"], ["insert", 50], ["select", "P"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ P: { price: 100, stock: 1 } });
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["unsupported coin: 75", "invalid sku: INVALID", "insufficient credit: have 50, need 100"]
-    }]);
-  });
-
-  it("should handle zero price items", () => {
-    const input = {
-      inventory: { FREE: { price: 0, stock: 1 } },
-      sessions: [
-        [["select", "FREE"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ FREE: { price: 0, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "FREE",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: []
-    }]);
-  });
-
-  it("should handle large denomination breakdown", () => {
-    const input = {
-      inventory: { Q: { price: 1, stock: 1 } },
-      sessions: [
-        [["insert", 100], ["select", "Q"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({ Q: { price: 1, stock: 0 } });
-    expect(result.receipts).toEqual([{
-      dispensed: "Q",
-      changeCoins: { 50: 1, 25: 1, 10: 2, 1: 4 },
-      changeTotal: 99,
-      spent: 1,
-      errors: []
-    }]);
-  });
-
-  it("should handle empty inventory", () => {
-    const input = {
-      inventory: {},
-      sessions: [
-        [["insert", 50], ["select", "ANYTHING"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({});
-    expect(result.receipts).toEqual([{
-      dispensed: undefined,
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 0,
-      errors: ["invalid sku: ANYTHING"]
-    }]);
-  });
-
-  it("should handle malformed input gracefully", () => {
-    const input = {
-      inventory: null,
-      sessions: null
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({});
-    expect(result.receipts).toEqual([]);
-  });
-
-  it("should normalize inventory with negative values", () => {
-    const input = {
-      inventory: {
-        R: { price: -50, stock: -1 },
-        S: { price: 100.5, stock: 2.7 }
-      },
-      sessions: [
-        [["insert", 100], ["select", "S"]]
-      ]
-    };
-
-    const result = processVendingSessions(input);
-
-    expect(result.inventory).toEqual({
-      R: { price: 0, stock: 0 },
-      S: { price: 100, stock: 1 }
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(150);
+      expect(result.finalState.eventLog[0]).toContain('Restocked');
+      expect(result.finalState.eventLog[0]).toContain('150');
     });
-    expect(result.receipts).toEqual([{
-      dispensed: "S",
-      changeCoins: {},
-      changeTotal: 0,
-      spent: 100,
-      errors: []
-    }]);
+
+    it('logs CRITICAL status when stock is still at or below threshold after restock', () => {
+      const inventory = [makeItem('p1', 0, 20)];
+      const events: WarehouseEvent[] = [{ type: 'restock', productId: 'p1', quantity: 5 }];
+      const result = processWarehouseEvents(inventory, events);
+
+      expect(result.finalState.eventLog[0]).toContain('CRITICAL');
+    });
+
+    it('logs HEALTHY status when stock rises above 2× threshold', () => {
+      const inventory = [makeItem('p1', 0, 10)];
+      const events: WarehouseEvent[] = [{ type: 'restock', productId: 'p1', quantity: 25 }];
+      const result = processWarehouseEvents(inventory, events);
+
+      expect(result.finalState.eventLog[0]).toContain('HEALTHY');
+    });
+
+    it('fails gracefully for unknown product', () => {
+      const inventory = [makeItem('p1', 50)];
+      const events: WarehouseEvent[] = [{ type: 'restock', productId: 'unknown', quantity: 100 }];
+      const result = processWarehouseEvents(inventory, events);
+
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(50); // unchanged
+      expect(result.finalState.eventLog[0]).toContain('failed');
+    });
+  });
+
+  describe('cancelOrder event', () => {
+    it('cancels a fulfilled order and restores inventory', () => {
+      const inventory = [makeItem('p1', 100)];
+      const events: WarehouseEvent[] = [
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          items: [{ productId: 'p1', quantity: 30, unitPrice: 10 }],
+        },
+        { type: 'cancelOrder', orderId: 'o1' },
+      ];
+      const result = processWarehouseEvents(inventory, events);
+
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(100); // restored
+      expect(result.finalState.orders.get('o1')?.status).toBe('cancelled');
+      expect(result.finalState.totalRevenue).toBe(0); // revenue reversed
+      expect(result.finalState.eventLog[1]).toContain('cancelled');
+    });
+
+    it('fails gracefully for non-existent order', () => {
+      const inventory = [makeItem('p1', 100)];
+      const events: WarehouseEvent[] = [{ type: 'cancelOrder', orderId: 'ghost' }];
+      const result = processWarehouseEvents(inventory, events);
+
+      expect(result.finalState.eventLog[0]).toContain('not found');
+    });
+
+    it('fails gracefully when cancelling an already-cancelled order', () => {
+      const inventory = [makeItem('p1', 100)];
+      const events: WarehouseEvent[] = [
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          items: [{ productId: 'p1', quantity: 10, unitPrice: 10 }],
+        },
+        { type: 'cancelOrder', orderId: 'o1' },
+        { type: 'cancelOrder', orderId: 'o1' }, // duplicate cancel
+      ];
+      const result = processWarehouseEvents(inventory, events);
+
+      // inventory should only be restored once
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(100);
+      expect(result.finalState.eventLog[2]).toContain('not fulfilled');
+    });
+  });
+
+  describe('Integration: Calculations driving Actions', () => {
+    it('processes a full order lifecycle: place → restock → place again → cancel first', () => {
+      const inventory = [makeItem('p1', 200, 20), makeItem('p2', 10, 15)];
+      const events: WarehouseEvent[] = [
+        // Large order: p1 gets 15% discount, p2 has no discount
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          items: [
+            { productId: 'p1', quantity: 100, unitPrice: 20 }, // 100 * $20 * 0.85 = $1700
+            { productId: 'p2', quantity: 5, unitPrice: 50 }, // 5  * $50 * 1.00 = $250
+          ],
+        },
+        // Restock p2 after low stock
+        { type: 'restock', productId: 'p2', quantity: 50 },
+        // Second order: p2 gets 5% discount (10 units)
+        {
+          type: 'placeOrder',
+          orderId: 'o2',
+          items: [{ productId: 'p2', quantity: 10, unitPrice: 50 }], // 10 * $50 * 0.95 = $475
+        },
+        // Cancel first order
+        { type: 'cancelOrder', orderId: 'o1' },
+      ];
+
+      const result = processWarehouseEvents(inventory, events);
+
+      // o1 cancelled → p1 fully restored, p2 restored by 5 units
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(200);
+      // p2: 10 - 5 (o1) + 50 (restock) - 10 (o2) + 5 (cancel o1) = 50
+      expect(result.finalState.inventory.get('p2')?.quantity).toBe(50);
+
+      expect(result.finalState.orders.get('o1')?.status).toBe('cancelled');
+      expect(result.finalState.orders.get('o2')?.status).toBe('fulfilled');
+
+      // Only o2's $475 remains after o1 is cancelled
+      expect(result.finalState.totalRevenue).toBe(475);
+      expect(result.eventsProcessed).toBe(4);
+    });
+
+    it('handles sequential stock depletion, restock, and retry', () => {
+      const inventory = [makeItem('p1', 20, 10)];
+      const events: WarehouseEvent[] = [
+        // o1 takes 15 units, leaving 5
+        {
+          type: 'placeOrder',
+          orderId: 'o1',
+          items: [{ productId: 'p1', quantity: 15, unitPrice: 10 }],
+        },
+        // o2 fails: only 5 in stock, needs 10
+        {
+          type: 'placeOrder',
+          orderId: 'o2',
+          items: [{ productId: 'p1', quantity: 10, unitPrice: 10 }],
+        },
+        // restock brings p1 to 35
+        { type: 'restock', productId: 'p1', quantity: 30 },
+        // o3 now succeeds
+        {
+          type: 'placeOrder',
+          orderId: 'o3',
+          items: [{ productId: 'p1', quantity: 10, unitPrice: 10 }],
+        },
+      ];
+
+      const result = processWarehouseEvents(inventory, events);
+
+      expect(result.finalState.orders.get('o1')?.status).toBe('fulfilled');
+      expect(result.finalState.orders.has('o2')).toBe(false); // rejected
+      expect(result.finalState.orders.get('o3')?.status).toBe('fulfilled');
+
+      // 20 - 15 (o1) + 30 (restock) - 10 (o3) = 25
+      expect(result.finalState.inventory.get('p1')?.quantity).toBe(25);
+      expect(result.eventsProcessed).toBe(4);
+    });
   });
 });

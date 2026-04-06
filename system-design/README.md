@@ -3,6 +3,7 @@
 Produce a short design document and a simple diagram. Use plain web architecture: client, API server, database. Keep it small and concrete.
 
 **Deliverables**
+
 - `design.md` completed (see template)
 - One diagram (Excalidraw image in the doc)
 

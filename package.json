@@ -12,11 +12,13 @@
     "test-bugfix": "bun test ./bugfix/tests/bugfix.test.ts",
     "test-assignment1": "bun test ./puzzles/tests/assignment1.test.ts",
     "test-assignment2": "bun test ./puzzles/tests/assignment2.test.ts",
-    "test-refactor": "vitest ./refactor/tests/RefactorMe.test.tsx"
+    "test-refactor": "vitest ./refactor/tests/RefactorMe.test.tsx",
+    "test:debug": "node --inspect-brk ./node_modules/.bin/vitest"
   },
   "dependencies": {
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "rumdl": "^0.1.62"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
@@ -29,6 +31,7 @@
     "eslint": "^9.36.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.22",
+    "prettier": "^3.8.1",
     "globals": "^16.4.0",
     "jsdom": "^27.0.0",
     "typescript": "~5.9.3",
