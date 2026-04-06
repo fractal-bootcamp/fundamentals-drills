@@ -16,7 +16,7 @@ describe('Assignment 2: Actions & Orchestration', () => {
         {
           type: 'placeOrder',
           orderId: 'o1',
-          lines: [{ productId: 'p1', quantity: 30, unitPrice: 10 }],
+          items: [{ productId: 'p1', quantity: 30, unitPrice: 10 }],
         },
       ];
       const result = processWarehouseEvents(inventory, events);
@@ -33,7 +33,7 @@ describe('Assignment 2: Actions & Orchestration', () => {
         {
           type: 'placeOrder',
           orderId: 'o1',
-          lines: [{ productId: 'p1', quantity: 10, unitPrice: 10 }],
+          items: [{ productId: 'p1', quantity: 10, unitPrice: 10 }],
         },
       ];
       const result = processWarehouseEvents(inventory, events);
@@ -50,7 +50,7 @@ describe('Assignment 2: Actions & Orchestration', () => {
         {
           type: 'placeOrder',
           orderId: 'o1',
-          lines: [{ productId: 'ghost', quantity: 1, unitPrice: 10 }],
+          items: [{ productId: 'ghost', quantity: 1, unitPrice: 10 }],
         },
       ];
       const result = processWarehouseEvents(inventory, events);
@@ -65,7 +65,7 @@ describe('Assignment 2: Actions & Orchestration', () => {
         {
           type: 'placeOrder',
           orderId: 'o1',
-          lines: [{ productId: 'p1', quantity: 100, unitPrice: 10 }],
+          items: [{ productId: 'p1', quantity: 100, unitPrice: 10 }],
         },
       ];
       const result = processWarehouseEvents(inventory, events);
@@ -75,13 +75,13 @@ describe('Assignment 2: Actions & Orchestration', () => {
       expect(result.finalState.totalRevenue).toBe(850);
     });
 
-    it('deducts inventory across multiple lines in one order', () => {
+    it('deducts inventory across multiple items in one order', () => {
       const inventory = [makeItem('p1', 100), makeItem('p2', 50)];
       const events: WarehouseEvent[] = [
         {
           type: 'placeOrder',
           orderId: 'o1',
-          lines: [
+          items: [
             { productId: 'p1', quantity: 20, unitPrice: 10 },
             { productId: 'p2', quantity: 15, unitPrice: 20 },
           ],
@@ -138,7 +138,7 @@ describe('Assignment 2: Actions & Orchestration', () => {
         {
           type: 'placeOrder',
           orderId: 'o1',
-          lines: [{ productId: 'p1', quantity: 30, unitPrice: 10 }],
+          items: [{ productId: 'p1', quantity: 30, unitPrice: 10 }],
         },
         { type: 'cancelOrder', orderId: 'o1' },
       ];
@@ -164,7 +164,7 @@ describe('Assignment 2: Actions & Orchestration', () => {
         {
           type: 'placeOrder',
           orderId: 'o1',
-          lines: [{ productId: 'p1', quantity: 10, unitPrice: 10 }],
+          items: [{ productId: 'p1', quantity: 10, unitPrice: 10 }],
         },
         { type: 'cancelOrder', orderId: 'o1' },
         { type: 'cancelOrder', orderId: 'o1' }, // duplicate cancel
@@ -185,7 +185,7 @@ describe('Assignment 2: Actions & Orchestration', () => {
         {
           type: 'placeOrder',
           orderId: 'o1',
-          lines: [
+          items: [
             { productId: 'p1', quantity: 100, unitPrice: 20 }, // 100 * $20 * 0.85 = $1700
             { productId: 'p2', quantity: 5, unitPrice: 50 }, // 5  * $50 * 1.00 = $250
           ],
@@ -196,7 +196,7 @@ describe('Assignment 2: Actions & Orchestration', () => {
         {
           type: 'placeOrder',
           orderId: 'o2',
-          lines: [{ productId: 'p2', quantity: 10, unitPrice: 50 }], // 10 * $50 * 0.95 = $475
+          items: [{ productId: 'p2', quantity: 10, unitPrice: 50 }], // 10 * $50 * 0.95 = $475
         },
         // Cancel first order
         { type: 'cancelOrder', orderId: 'o1' },
@@ -224,13 +224,13 @@ describe('Assignment 2: Actions & Orchestration', () => {
         {
           type: 'placeOrder',
           orderId: 'o1',
-          lines: [{ productId: 'p1', quantity: 15, unitPrice: 10 }],
+          items: [{ productId: 'p1', quantity: 15, unitPrice: 10 }],
         },
         // o2 fails: only 5 in stock, needs 10
         {
           type: 'placeOrder',
           orderId: 'o2',
-          lines: [{ productId: 'p1', quantity: 10, unitPrice: 10 }],
+          items: [{ productId: 'p1', quantity: 10, unitPrice: 10 }],
         },
         // restock brings p1 to 35
         { type: 'restock', productId: 'p1', quantity: 30 },
@@ -238,7 +238,7 @@ describe('Assignment 2: Actions & Orchestration', () => {
         {
           type: 'placeOrder',
           orderId: 'o3',
-          lines: [{ productId: 'p1', quantity: 10, unitPrice: 10 }],
+          items: [{ productId: 'p1', quantity: 10, unitPrice: 10 }],
         },
       ];
 

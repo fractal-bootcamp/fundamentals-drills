@@ -181,6 +181,73 @@ const updatedInventory = items.reduce((inventory, item) => {
 
 Both work for updating a Map. For loops are more readable here (shorter, clearer intent). Reduce is more "functional" but can confuse beginners.
 
+### How Reduce Threads State Through Iterations
+
+**The Confusion:**
+"The initial value `state.inventory` is passed as the second argument to `.reduce()`. Does it get used every iteration?"
+
+No. The initial value is used **only once**, on the first iteration.
+
+**How it flows:**
+
+```typescript
+const updatedInventory = items.reduce((inventory, item) => {
+  const newInventory = new Map(inventory);
+  // ... update newInventory ...
+  return newInventory;
+}, state.inventory);  // ← Used ONLY on iteration 1
+```
+
+**Iteration 1:**
+- `inventory` = `state.inventory` (the initial value)
+- Callback receives the original Map
+- Creates a new Map, updates it
+- Returns the new Map
+
+**Iteration 2:**
+- `inventory` = the Map returned from iteration 1 (NOT `state.inventory` again!)
+- Callback receives the *result* from the previous iteration
+- Creates a new Map from that result
+- Returns it
+
+**Iteration 3:**
+- `inventory` = the Map from iteration 2
+- And so on...
+
+**Concrete example with 3 items:**
+
+```typescript
+// Starting state
+state.inventory = Map { "p1" => { quantity: 100 } }
+items = [
+  { productId: "p1", quantity: 10 },  // item[0]
+  { productId: "p1", quantity: 20 },  // item[1]
+  { productId: "p1", quantity: 30 }   // item[2]
+]
+
+// ITERATION 1
+inventory (accumulator) = state.inventory  // { p1: 100 }
+item = items[0]
+// After: { p1: 90 }
+// Returns this Map for next iteration
+
+// ITERATION 2
+inventory (accumulator) = { p1: 90 }  // ← From iteration 1, NOT state.inventory!
+item = items[1]
+// After: { p1: 70 }
+// Returns this Map for next iteration
+
+// ITERATION 3
+inventory (accumulator) = { p1: 70 }  // ← From iteration 2
+item = items[2]
+// After: { p1: 40 }
+// Final result: { p1: 40 }
+```
+
+**Why this matters:** Each iteration **starts with the result from the previous iteration**, not the original value. This is how reduce "threads" state through operations without mutations. The original `state.inventory` stays untouched; each step builds on the previous result.
+
+**Mental Model:** Think of reduce like a relay race. The baton (accumulator) starts with `state.inventory`, gets passed to iteration 1, which passes it to iteration 2, which passes it to iteration 3. Each runner adds their changes before passing it on. The original starting line (state.inventory) is never touched again.
+
 ### Data Structure Type Assumptions
 
 **The Bug:**
@@ -333,4 +400,4 @@ Since `validateOrderItems` is called only from within `assignment2.ts`, you don'
 
 ---
 
-*Last updated: 2026-04-05 (Assignment 2 — reduce vs. for loop, typeof operator, logic inversion, state accumulation, eventLog patterns)*
+*Last updated: 2026-04-05 (Assignment 2 — reduce vs. for loop, reduce accumulator threading, typeof operator, logic inversion, state accumulation, eventLog patterns)*

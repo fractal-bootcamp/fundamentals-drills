@@ -107,11 +107,14 @@ function handlePlaceOrder(
   orderId: string,
   items: OrderedItem[],
 ): WarehouseState {
+  // validation layer
   // get all known productIds from current inventory
-  const knownProductIds = new Set(state.inventory.keys());
+  const knownProductIds = new Set(state.inventory.keys()); // Set keys b/c the inventory's a Map
 
+  // capture any errors from helper fn testing if our item's productId exist in our inventory of knownProductIds
   const errors = validateOrderItems(items, knownProductIds);
 
+  // helper fn returns an array, if our array has any entries, log errors to state.eventLog
   if (errors.length > 0) {
     return {
       ...state,
@@ -119,6 +122,7 @@ function handlePlaceOrder(
     };
   }
 
+  // if isOrderFulfillable helper fn returns a falsey value, log errors to state.eventLog
   if (!isOrderFulfillable(items, state.inventory)) {
     return {
       ...state,
@@ -127,10 +131,14 @@ function handlePlaceOrder(
   }
 
   // deduct inventory
+  // use reduce to iterate over each item in items array
   const updatedInventory = items.reduce((inventory, item) => {
+    // save a new Map using state.inventory as accumulator
     const newInventory = new Map(inventory);
+    // get InventoryItem at key of item.productId, save to currentItem
     const currentItem = newInventory.get(item.productId)!;
 
+    // save new quantity to newInventory and spread currentItem's other props
     newInventory.set(item.productId, {
       ...currentItem,
       quantity: currentItem.quantity - item.quantity,
@@ -150,8 +158,9 @@ function handlePlaceOrder(
     total: updatedTotal,
   };
 
+  // create a new Map from state.orders
   const updatedOrders = new Map(state.orders);
-  updatedOrders.set(orderId, order);
+  updatedOrders.set(orderId, order); // save newly created order as value for key of orderId
 
   return {
     ...state,
@@ -167,8 +176,51 @@ function handlePlaceOrder(
 // - On success → update quantity, log new quantity and stock status (CRITICAL/LOW/HEALTHY)
 //   Use calculateRestockPriority to determine the status label.
 function handleRestock(state: WarehouseState, productId: string, quantity: number): WarehouseState {
-  // TODO
-  return state;
+  // validate if productId is in state
+  const isProductInInventory = state.inventory.has(productId);
+
+  // early return for false
+  if (!isProductInInventory) {
+    return {
+      ...state,
+      eventLog: [...state.eventLog, `Restock failed, Product ${productId} not in inventory`],
+    };
+  }
+
+  // get productId from inventory & type narrow
+  const updatedItem = state.inventory.get(productId)!;
+  // create new Map to store updatedInventory state
+  const updatedInventory = new Map(state.inventory);
+  // store new quantity
+  const newQuantity = updatedItem.quantity + quantity;
+
+  const newItem = {
+    ...updatedItem,
+    quantity: newQuantity,
+  };
+
+  // save updated item quantity to new state.inventory
+  updatedInventory.set(productId, newItem);
+
+  let urgencyLevel = '';
+  const restockPriorityRating = calculateRestockPriority(newItem);
+
+  if (restockPriorityRating === 100) {
+    urgencyLevel = 'CRITICAL';
+  } else if (restockPriorityRating === 50) {
+    urgencyLevel = 'LOW';
+  } else {
+    urgencyLevel = 'HEALTHY';
+  }
+
+  return {
+    ...state,
+    inventory: updatedInventory,
+    eventLog: [
+      ...state.eventLog,
+      `Restocked ${productId} by ${quantity} units. New quantity: ${newQuantity} Stock: ${urgencyLevel}`,
+    ],
+  };
 }
 
 // Action: cancels a previously fulfilled order.
@@ -176,6 +228,48 @@ function handleRestock(state: WarehouseState, productId: string, quantity: numbe
 // - On order not fulfilled → log failure
 // - On success → restore inventory per line, deduct revenue, mark order cancelled
 function handleCancelOrder(state: WarehouseState, orderId: string): WarehouseState {
-  // TODO
-  return state;
+  const order = state.orders.get(orderId);
+
+  if (!order) {
+    return {
+      ...state,
+      eventLog: [...state.eventLog, `Order: ${orderId} not found`],
+    };
+  }
+
+  if (order.status !== 'fulfilled') {
+    return {
+      ...state,
+      eventLog: [...state.eventLog, `Order: ${orderId} not fulfilled - cannot cancel`],
+    };
+  }
+
+  // add inventory back to available stock
+  const updatedInventory = order.items.reduce((inventory, item) => {
+    // create new Map
+    const newInventory = new Map(inventory);
+    // get current item
+    const currentItem = newInventory.get(item.productId)!;
+    // save new quantity to newInventory
+    newInventory.set(item.productId, {
+      ...currentItem,
+      quantity: currentItem.quantity + item.quantity,
+    });
+
+    return newInventory;
+  }, state.inventory);
+
+  const updatedOrders = new Map(state.orders);
+  updatedOrders.set(orderId, {
+    ...order,
+    status: 'cancelled',
+  });
+
+  return {
+    ...state,
+    inventory: updatedInventory,
+    orders: updatedOrders,
+    totalRevenue: state.totalRevenue - order.total,
+    eventLog: [...state.eventLog, `Order: ${orderId} cancelled`],
+  };
 }

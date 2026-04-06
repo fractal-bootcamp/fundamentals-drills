@@ -85,6 +85,8 @@ export function isOrderFulfillable(
   items: Array<OrderedItem>,
   inventory: Map<string, InventoryItem>,
 ): boolean {
+  if (items.length === 0) return false;
+
   for (const item of items) {
     // does producut exist in inventory?
     const inventoryItem = inventory.get(item.productId);
